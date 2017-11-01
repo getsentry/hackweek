@@ -6,7 +6,11 @@
     "firebase": "^4.6.0",
     "react": "^16.0.0",
     "react-dom": "^16.0.0",
-    "react-scripts": "1.0.16"
+    "react-google-button": "^0.4.0",
+    "react-redux": "^5.0.6",
+    "react-redux-firebase": "^1.5.1",
+    "react-scripts": "1.0.16",
+    "redux": "^3.7.2"
   },
   "scripts": {
     "start": "react-scripts start",

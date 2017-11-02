@@ -1,27 +1,3 @@
-.Project {
-  text-align: left;
-}
-
-.Project-creator {
-  font-size: 0.8em;
-}
-
-.Project-creator-avatar {
-  float: left;
-  margin-right: 5px;
-  width: 16px;
-  height: 16px;
-}
-
-.Project-creator-avatar img {
-  width: 100%;
-  height: 100%;
-  border-radius: 4px;
-}
-
-.Project-creator-name {
-}
-
 .Project-List {
   margin-bottom: 20px;
 }
@@ -30,4 +6,54 @@
   border: 3px solid #000;
   border-radius: 4px;
   padding: 20px 20px 20px;
+}
+
+.Project {
+  text-align: left;
+}
+
+.Project-summary {
+  border: 0;
+  background: none;
+  padding: 0;
+  margin-bottom: 20px;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+.Project-member-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+.Project-member-avatar {
+  float: left;
+  margin-right: 10px;
+  width: 18px;
+  height: 18px;
+  border-radius: 2px;
+}
+
+.Project-member-avatar img {
+  width: 100%;
+  height: 100%;
+}
+
+.Project-member-list-condensed {
+  font-size: 0.8em;
+}
+
+.Project-member-list-condensed .Project-member {
+  display: inline-block;
+  margin-right: 10px;
+}
+.Project-member-list-condensed .Project-member-avatar {
+  margin-right: 5px;
+  width: 16px;
+  height: 16px;
+}
+
+.Project-meta {
+  font-size: 0.8em;
 }

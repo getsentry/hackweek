@@ -17,29 +17,45 @@ class ProjectListItem extends Component {
     auth: PropTypes.object,
     firebase: PropTypes.object,
     project: PropTypes.object,
+    userList: PropTypes.object,
   };
 
   render() {
-    let {project} = this.props;
+    let {project, userList} = this.props;
     let link =
       currentYear === project.year
         ? `/projects/${project.key}`
         : `/archive/${project.year}/projects/${project.key}`;
+
+    let projectMembers = Object.keys(project.members || {})
+      .map(memberKey => {
+        return userList[memberKey];
+      })
+      .filter(member => member !== null);
+
     return (
       <li className="list-group-item Project clearfix">
         <Link to={link}>
           <strong>{project.name}</strong>
         </Link>
-        {project.creator && (
-          <div className="Project-creator">
-            <img
-              src={project.creator.avatarUrl}
-              className="Project-creator-avatar"
-              alt="avatar"
-            />
-            <span className="Project-creator-name">{project.creator.displayName}</span>
-          </div>
-        )}
+        <div className="Project-member-list-condensed">
+          {projectMembers.length ? (
+            projectMembers.map(member => {
+              return (
+                <div className="Project-member" key={member.email}>
+                  <img
+                    src={member.avatarUrl}
+                    className="Project-member-avatar"
+                    alt="avatar"
+                  />
+                  <span className="Project-member-name">{member.displayName}</span>
+                </div>
+              );
+            })
+          ) : (
+            <em>up for grabs</em>
+          )}
+        </div>
       </li>
     );
   }
@@ -50,6 +66,7 @@ class ProjectList extends Component {
     auth: PropTypes.object,
     firebase: PropTypes.object,
     projectList: PropTypes.object,
+    userList: PropTypes.object,
   };
 
   onAddProject = data => {
@@ -69,7 +86,7 @@ class ProjectList extends Component {
   };
 
   renderBody() {
-    let {auth, firebase, projectList} = this.props;
+    let {auth, firebase, projectList, userList} = this.props;
     if (!isLoaded(projectList)) return <div className="loading-indicator">Loading..</div>;
 
     return (
@@ -82,6 +99,7 @@ class ProjectList extends Component {
                 auth={auth}
                 firebase={firebase}
                 project={project}
+                userList={userList}
               />
             );
           })}
@@ -114,6 +132,12 @@ const projectPopulates = [{child: 'creator', root: 'users', keyProp: 'key'}];
 export default compose(
   firebaseConnect(props => [
     {
+      path: `/users`,
+      queryParams: ['orderByValue=displayName'],
+      populates: [],
+      storeAs: 'userList',
+    },
+    {
       path: `/years/${props.params.year || currentYear}/projects`,
       queryParams: ['orderByKey'],
       populates: projectPopulates,
@@ -122,6 +146,7 @@ export default compose(
   ]),
   connect(({firebase}) => ({
     auth: pathToJS(firebase, 'auth'),
+    userList: orderedPopulatedDataToJS(firebase, 'userList'),
     projectList: orderedPopulatedDataToJS(firebase, 'activeProjects', projectPopulates),
   }))
 )(ProjectList);

@@ -24,6 +24,7 @@ h6 {
   font-weight: 500;
 }
 
+dl,
 ul,
 ol,
 h1,
@@ -52,6 +53,13 @@ pre {
   white-space: pre-wrap;
   overflow-wrap: break-word;
   word-wrap: break-word;
+}
+
+dl dt {
+  font-weight: 500;
+}
+dl dd {
+  margin-bottom: 10px;
 }
 
 .btn {

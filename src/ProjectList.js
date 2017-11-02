@@ -4,17 +4,32 @@ import './App.css';
 
 import {connect} from 'react-redux';
 import {compose} from 'redux';
-import {firebaseConnect, isLoaded, isEmpty, dataToJS} from 'react-redux-firebase';
+import {
+  firebaseConnect,
+  isLoaded,
+  isEmpty,
+  dataToJS,
+  pathToJS,
+} from 'react-redux-firebase';
 
 class ProjectList extends Component {
   static propTypes = {
+    auth: PropTypes.object,
     projectList: PropTypes.object,
   };
 
-  addProject = () => {
-    const {newProject} = this.refs;
+  addProject = e => {
+    e.preventDefault();
+
+    let {newProject} = this.refs;
+    let {auth} = this.props;
+
     return this.props.firebase
-      .push('/projects', {name: newProject.value, done: false})
+      .push('/projects', {
+        name: newProject.value,
+        creator: auth.uid,
+        done: false,
+      })
       .then(() => {
         newProject.name = 'untitled';
       });
@@ -52,6 +67,7 @@ class ProjectList extends Component {
 export default compose(
   firebaseConnect(['projects']),
   connect(({firebase}) => ({
+    auth: pathToJS(firebase, 'auth'),
     projectList: dataToJS(firebase, 'projects'),
   }))
 )(ProjectList);

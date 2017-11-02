@@ -11,7 +11,6 @@ import ProjectList from './ProjectList';
 class App extends Component {
   render() {
     let {auth, profile} = this.props;
-    console.log(profile);
     return (
       <div className="App">
         <LoginRequired>

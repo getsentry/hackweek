@@ -4,15 +4,10 @@ import './ProjectList.css';
 
 import {connect} from 'react-redux';
 import {compose} from 'redux';
-import {
-  firebaseConnect,
-  isLoaded,
-  isEmpty,
-  populatedDataToJS,
-  pathToJS,
-} from 'react-redux-firebase';
+import {firebaseConnect, isLoaded, isEmpty, pathToJS} from 'react-redux-firebase';
 
 import {currentYear} from '../config';
+import {orderedPopulatedDataToJS} from '../helpers';
 import Layout from '../components/Layout';
 
 class NewProjectForm extends Component {
@@ -86,6 +81,7 @@ class ProjectList extends Component {
       return this.props.firebase
         .push('/projects', {
           ...params,
+          ts: new Date().getTime(),
           year: currentYear,
           creator: auth.uid,
         })
@@ -94,7 +90,17 @@ class ProjectList extends Component {
     });
   };
 
+  mapObject(obj, callback) {
+    let results = [];
+    let key;
+    for (key in obj) {
+      results.push(callback(key, obj));
+    }
+    return results;
+  }
+
   render() {
+    // Object.keys does not retain order
     let {projectList} = this.props;
     return (
       <Layout>
@@ -105,7 +111,7 @@ class ProjectList extends Component {
           'No projects'
         ) : (
           <ul className="list-group Project-List">
-            {Object.keys(projectList).map(projectKey => {
+            {this.mapObject(projectList, (projectKey, project) => {
               return (
                 <ProjectListItem key={projectKey} project={projectList[projectKey]} />
               );
@@ -121,9 +127,15 @@ class ProjectList extends Component {
 const projectPopulates = [{child: 'creator', root: 'users', keyProp: 'key'}];
 
 export default compose(
-  firebaseConnect([{path: 'projects', populates: projectPopulates}]),
+  firebaseConnect([
+    {
+      path: 'projects',
+      queryParams: ['orderByKey'],
+      populates: projectPopulates,
+    },
+  ]),
   connect(({firebase}) => ({
     auth: pathToJS(firebase, 'auth'),
-    projectList: populatedDataToJS(firebase, 'projects', projectPopulates),
+    projectList: orderedPopulatedDataToJS(firebase, 'projects', projectPopulates),
   }))
 )(ProjectList);

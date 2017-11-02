@@ -137,3 +137,12 @@ export const orderedPopulatedDataToJS = (data, path, populates, notSetValue) => 
     });
   }
 };
+
+export const mapObject = (obj, callback) => {
+  let results = [];
+  let key;
+  for (key in obj) {
+    results.push(callback(obj[key], key));
+  }
+  return results;
+};

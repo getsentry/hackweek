@@ -4,9 +4,8 @@ import {connect} from 'react-redux';
 import {compose} from 'redux';
 import {firebaseConnect, pathToJS} from 'react-redux-firebase';
 
-import LoginRequired from '../LoginRequired';
-
 import {currentYear} from '../config';
+import LoginRequired from '../LoginRequired';
 
 class Layout extends Component {
   static propTypes = {
@@ -19,6 +18,7 @@ class Layout extends Component {
 
   render() {
     let {auth, profile} = this.props;
+
     return (
       <LoginRequired>
         <header className="App-header">
@@ -41,7 +41,7 @@ class Layout extends Component {
 export default compose(
   firebaseConnect(),
   connect(({firebase}) => ({
-    profile: pathToJS(firebase, 'profile'),
     auth: pathToJS(firebase, 'auth'),
+    profile: pathToJS(firebase, 'profile'),
   }))
 )(Layout);

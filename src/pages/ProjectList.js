@@ -10,7 +10,7 @@ import {firebaseConnect, isLoaded, pathToJS} from 'react-redux-firebase';
 import './ProjectList.css';
 
 import {currentYear} from '../config';
-import {orderedPopulatedDataToJS} from '../helpers';
+import {mapObject, orderedPopulatedDataToJS} from '../helpers';
 import Layout from '../components/Layout';
 
 class ProjectListItem extends Component {
@@ -23,7 +23,7 @@ class ProjectListItem extends Component {
   onDelete = () => {
     let {firebase, project} = this.props;
 
-    firebase.remove(`/projects/${project.key}`);
+    firebase.remove(`/years/${currentYear}/projects/${project.key}`);
   };
 
   render() {
@@ -74,15 +74,6 @@ class ProjectList extends Component {
     });
   };
 
-  mapObject(obj, callback) {
-    let results = [];
-    let key;
-    for (key in obj) {
-      results.push(callback(obj[key]));
-    }
-    return results;
-  }
-
   renderBody() {
     let {auth, firebase, projectList} = this.props;
     if (!isLoaded(projectList)) return <div className="loading-indicator">Loading..</div>;
@@ -90,7 +81,7 @@ class ProjectList extends Component {
     return (
       <div>
         <ul className="list-group Project-List">
-          {this.mapObject(projectList, project => {
+          {mapObject(projectList, project => {
             return (
               <ProjectListItem
                 key={project.key}
@@ -127,15 +118,16 @@ class ProjectList extends Component {
 const projectPopulates = [{child: 'creator', root: 'users', keyProp: 'key'}];
 
 export default compose(
-  firebaseConnect([
+  firebaseConnect(props => [
     {
-      path: '/projects',
+      path: `/years/${currentYear}/projects`,
       queryParams: ['orderByKey'],
       populates: projectPopulates,
+      storeAs: 'activeProjects',
     },
   ]),
   connect(({firebase}) => ({
     auth: pathToJS(firebase, 'auth'),
-    projectList: orderedPopulatedDataToJS(firebase, 'projects', projectPopulates),
+    projectList: orderedPopulatedDataToJS(firebase, 'activeProjects', projectPopulates),
   }))
 )(ProjectList);

@@ -3,17 +3,19 @@ import PropTypes from 'prop-types';
 
 import {connect} from 'react-redux';
 import {compose} from 'redux';
-import {firebaseConnect, pathToJS} from 'react-redux-firebase';
+import {firebaseConnect, isLoaded, pathToJS} from 'react-redux-firebase';
 import Select from 'react-select';
 
 import './ProjectList.css';
 
 import {currentYear} from '../config';
 import Layout from '../components/Layout';
+import {mapObject, orderedPopulatedDataToJS} from '../helpers';
 
 class NewProject extends Component {
   static propTypes = {
     auth: PropTypes.object,
+    userList: PropTypes.object,
   };
 
   static contextTypes = {
@@ -33,12 +35,11 @@ class NewProject extends Component {
     let {auth} = this.props;
 
     this.props.firebase
-      .push('/projects', {
+      .push(`/years/${currentYear}/projects`, {
         name: this.state.name,
         summary: this.state.summary,
-        team: this.state.team,
+        // team: this.state.team,
         ts: new Date().getTime(),
-        year: currentYear,
         creator: auth.uid,
       })
       .then(() => {
@@ -57,10 +58,14 @@ class NewProject extends Component {
   };
 
   render() {
-    let options = [
-      {value: 'david@sentry.io', label: 'David Cramer'},
-      {value: 'chris@sentry.io', label: 'Chris Jennings'},
-    ];
+    let {auth, userList} = this.props;
+    if (!isLoaded(auth) || !isLoaded(userList))
+      return <div className="loading-indocator">Loading...</div>;
+
+    let options = mapObject(userList, (user, userKey) => ({
+      value: userKey,
+      label: user.displayName,
+    }));
 
     return (
       <Layout>
@@ -94,6 +99,7 @@ class NewProject extends Component {
               value={this.state.team}
               multi={true}
               options={options}
+              value={[auth.uid]}
               onChange={this.onChangeTeam}
             />
           </div>
@@ -105,8 +111,16 @@ class NewProject extends Component {
 }
 
 export default compose(
-  firebaseConnect(),
+  firebaseConnect([
+    {
+      path: `/users`,
+      queryParams: ['orderByValue=displayName'],
+      populates: [],
+      storeAs: 'userList',
+    },
+  ]),
   connect(({firebase}) => ({
     auth: pathToJS(firebase, 'auth'),
+    userList: orderedPopulatedDataToJS(firebase, 'userList'),
   }))
 )(NewProject);

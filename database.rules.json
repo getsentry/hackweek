@@ -1,6 +1,37 @@
 {
   "rules": {
-    ".read": "auth.token.email_verified == true && auth.token.email.endsWith('sentry.io')",
-    ".write": "auth.token.email_verified == true && auth.token.email.endsWith('sentry.io')"
+    "years": {
+      ".read": "auth != null",
+      "$year": {
+        ".write": "auth != null",
+        "projects": {
+          ".indexOn": ["creator"],
+          "$project": {
+            ".validate": "newData.hasChildren(['name', 'creator', 'ts'])",
+            "creator": {
+              ".validate": "newData.val() == auth.uid"
+            },
+            "name": {
+              ".validate": "newData.isString()"
+            },
+            "summary": {
+              ".validate": "!newData.exists() || newData.isString()"
+            },
+            "ts": {
+              ".validate": "newData.isNumber()"
+            },
+            "$other": {
+              ".validate": false
+            }
+          }
+        }
+      }
+    },
+    "users": {
+      ".read": "auth != null",
+      "$user": {
+        ".write": "auth.uid === $user && auth.token.email_verified == true && auth.token.email.endsWith('sentry.io')"
+      }
+    }
   }
 }

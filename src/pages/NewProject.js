@@ -25,8 +25,14 @@ class NewProject extends Component {
   constructor(...args) {
     super(...args);
     this.state = {
-      team: [],
+      team: null,
     };
+  }
+
+  componentWillReceiveProps(nextProps) {
+    if (this.state.team === null && isLoaded(nextProps.auth)) {
+      this.setState({team: [nextProps.auth.uid]});
+    }
   }
 
   onSubmit = e => {
@@ -99,7 +105,6 @@ class NewProject extends Component {
               value={this.state.team}
               multi={true}
               options={options}
-              value={[auth.uid]}
               onChange={this.onChangeTeam}
             />
           </div>

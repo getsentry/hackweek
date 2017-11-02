@@ -31,7 +31,14 @@ class NewProject extends Component {
 
   componentWillReceiveProps(nextProps) {
     if (this.state.team === null && isLoaded(nextProps.auth)) {
-      this.setState({team: [nextProps.auth.uid]});
+      this.setState({
+        team: [
+          {
+            value: nextProps.auth.uid,
+            label: nextProps.auth.displayName,
+          },
+        ],
+      });
     }
   }
 
@@ -112,6 +119,7 @@ class NewProject extends Component {
               name="summary"
               value={this.state.summary}
               onChange={this.onChangeField}
+              rows={6}
               required
             />
           </div>

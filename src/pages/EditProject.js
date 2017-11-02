@@ -35,7 +35,10 @@ class EditProject extends Component {
       this.setState({
         name: project.name,
         summary: project.summary,
-        team: Object.keys(project.members || {}),
+        team: Object.keys(project.members || {}).map(memberKey => ({
+          value: memberKey,
+          label: userList[memberKey].displayName,
+        })),
       });
     }
   }
@@ -123,6 +126,7 @@ class EditProject extends Component {
               name="summary"
               value={this.state.summary}
               onChange={this.onChangeField}
+              rows={6}
               required
             />
           </div>

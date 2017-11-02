@@ -2,13 +2,7 @@ import React, {Component} from 'react';
 import PropTypes from 'prop-types';
 import {connect} from 'react-redux';
 import {compose} from 'redux';
-import {
-  firebaseConnect,
-  helpers,
-  pathToJS,
-  isLoaded,
-  isEmpty,
-} from 'react-redux-firebase';
+import {firebaseConnect, pathToJS} from 'react-redux-firebase';
 
 class LoginRequired extends Component {
   static propTypes = {

@@ -60,7 +60,11 @@ class ProjectListItem extends Component {
         <strong>{project.name}</strong>
         {project.creator && (
           <div className="Project-creator">
-            <img src={project.creator.avatarUrl} className="Project-creator-avatar" />
+            <img
+              src={project.creator.avatarUrl}
+              className="Project-creator-avatar"
+              alt="avatar"
+            />
             <span className="Project-creator-name">{project.creator.displayName}</span>
           </div>
         )}

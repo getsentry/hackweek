@@ -139,7 +139,7 @@ export default compose(
     },
     {
       path: `/years/${props.params.year || currentYear}/projects`,
-      queryParams: ['orderByKey'],
+      queryParams: ['orderByChild=name'],
       populates: projectPopulates,
       storeAs: 'activeProjects',
     },

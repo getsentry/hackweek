@@ -1,6 +1,5 @@
 import React, {Component} from 'react';
 import {Link} from 'react-router';
-import idx from 'idx';
 import PropTypes from 'prop-types';
 
 import {connect} from 'react-redux';
@@ -20,7 +19,7 @@ class ProjectListItem extends Component {
   };
 
   render() {
-    let {auth, project} = this.props;
+    let {project} = this.props;
     return (
       <li className="list-group-item Project clearfix">
         <Link to={`/${project.year}/projects/${project.key}`}>

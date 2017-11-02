@@ -19,7 +19,7 @@ class App extends Component {
             <h1 className="App-title">#HACKWEEK</h1>
             <div className="App-auth">
               <div className="App-avatar">
-                {profile && <img src={profile.avatarUrl} width={32} />}
+                {profile && <img src={profile.avatarUrl} alt="avatar" />}
               </div>
               <div className="App-email">{auth && <p>Logged in as {auth.email}</p>}</div>
             </div>

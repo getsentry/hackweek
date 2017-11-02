@@ -30,14 +30,20 @@ class ProjectList extends Component {
         ) : isEmpty(projectList) ? (
           'No projects'
         ) : (
-          <ul>
+          <ul className="list-group">
             {Object.keys(projectList).map(projectKey => {
-              return <li key={projectKey}>{projectList[projectKey].name}</li>;
+              return (
+                <li className="list-group-item" key={projectKey}>
+                  {projectList[projectKey].name}
+                </li>
+              );
             })}
           </ul>
         )}
-        <input type="text" ref="newProject" />
-        <button onClick={this.addProject}>Add</button>
+        <form onSubmit={this.addProject}>
+          <input type="text" ref="newProject" />
+          <button>Add</button>
+        </form>
       </div>
     );
   }

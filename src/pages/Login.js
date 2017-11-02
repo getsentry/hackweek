@@ -3,7 +3,7 @@ import PropTypes from 'prop-types';
 import GoogleButton from 'react-google-button';
 import {connect} from 'react-redux';
 import {compose} from 'redux';
-import {firebaseConnect, isLoaded, pathToJS} from 'react-redux-firebase';
+import {firebaseConnect, isEmpty, isLoaded, pathToJS} from 'react-redux-firebase';
 
 class Login extends Component {
   static propTypes = {
@@ -26,7 +26,7 @@ class Login extends Component {
   };
 
   componentWillReceiveProps({auth}) {
-    if (auth && auth.uid) {
+    if (isLoaded(auth) && !isEmpty(auth)) {
       this.context.router.push('/');
     }
   }

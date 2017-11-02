@@ -1,4 +1,5 @@
 import React, {Component} from 'react';
+import PropTypes from 'prop-types';
 import {connect} from 'react-redux';
 import {compose} from 'redux';
 import {firebaseConnect, pathToJS} from 'react-redux-firebase';
@@ -8,6 +9,14 @@ import LoginRequired from '../LoginRequired';
 import {currentYear} from '../config';
 
 class Layout extends Component {
+  static propTypes = {
+    auth: PropTypes.object,
+    profile: PropTypes.object,
+    firebase: PropTypes.shape({
+      logout: PropTypes.func.isRequired,
+    }),
+  };
+
   render() {
     let {auth, profile} = this.props;
     return (

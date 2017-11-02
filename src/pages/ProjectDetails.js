@@ -17,6 +17,7 @@ class ProjectDetails extends Component {
     auth: PropTypes.object,
     firebase: PropTypes.object,
     project: PropTypes.object,
+    userList: PropTypes.object,
   };
 
   static contextTypes = {
@@ -36,8 +37,9 @@ class ProjectDetails extends Component {
   };
 
   render() {
-    let {auth, params, project} = this.props;
-    if (!isLoaded(project)) return <div className="loading-indicator">Loading..</div>;
+    let {auth, params, project, userList} = this.props;
+    if (!isLoaded(project) || !isLoaded(userList))
+      return <div className="loading-indicator">Loading..</div>;
     if (project === null) return null;
 
     let projectMembers = project.members || {};
@@ -46,7 +48,7 @@ class ProjectDetails extends Component {
       <Layout>
         <div>
           {projectMembers.hasOwnProperty(auth.uid) && (
-            <div className="btn-group" style={{float: 'right'}}>
+            <div className="btn-set" style={{float: 'right'}}>
               <Link
                 to={`/years/${params.year ||
                   currentYear}/projects/${params.projectKey}/edit`}
@@ -66,8 +68,10 @@ class ProjectDetails extends Component {
           <pre>{project.summary}</pre>
           <h3>Team</h3>
           <ul>
-            {mapObject(projectMembers, (member, memberKey) => {
-              return <li key={memberKey}>{memberKey}</li>;
+            {mapObject(projectMembers, (_, memberKey) => {
+              let member = userList[memberKey] || null;
+              if (!member) return null;
+              return <li key={memberKey}>{member.displayName}</li>;
             })}
           </ul>
         </div>
@@ -84,6 +88,11 @@ const projectPopulates = [
 export default compose(
   firebaseConnect(props => [
     {
+      path: `/users`,
+      queryParams: ['orderByValue=displayName'],
+      storeAs: 'userList',
+    },
+    {
       path: `/years/${props.params.year || currentYear}/projects/${props.params
         .projectKey}`,
       populates: projectPopulates,
@@ -93,5 +102,6 @@ export default compose(
   connect(({firebase}) => ({
     auth: pathToJS(firebase, 'auth'),
     project: orderedPopulatedDataToJS(firebase, 'project', projectPopulates),
+    userList: orderedPopulatedDataToJS(firebase, 'userList'),
   }))
 )(ProjectDetails);

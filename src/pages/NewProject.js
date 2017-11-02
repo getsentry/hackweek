@@ -125,7 +125,9 @@ class NewProject extends Component {
               onChange={this.onChangeTeam}
             />
           </div>
-          <button className="btn btn-primary">Add</button>
+          <div class="btn-set" style={{textAlign: 'right'}}>
+            <button className="btn btn-primary">Save Changes</button>
+          </div>
         </form>
       </Layout>
     );

@@ -1,4 +1,5 @@
 import React, {Component} from 'react';
+import {Link} from 'react-router';
 import PropTypes from 'prop-types';
 
 import {connect} from 'react-redux';
@@ -39,6 +40,11 @@ class EditProject extends Component {
     }
   }
 
+  getProjectUrl() {
+    let {params} = this.props;
+    return `/years/${params.year || currentYear}/projects/${params.projectKey}`;
+  }
+
   onSubmit = e => {
     e.preventDefault();
 
@@ -71,9 +77,7 @@ class EditProject extends Component {
           .ref()
           .update(updates)
           .then(() => {
-            this.context.router.push(
-              `/years/${params.year || currentYear}/projects/${params.projectKey}`
-            );
+            this.context.router.push(this.getProjectUrl());
           });
       });
   };
@@ -132,7 +136,12 @@ class EditProject extends Component {
               onChange={this.onChangeTeam}
             />
           </div>
-          <button className="btn btn-primary">Save Changes</button>
+          <div class="btn-set" style={{textAlign: 'right'}}>
+            <Link to={this.getProjectUrl()} className="btn btn-default">
+              Cancel
+            </Link>
+            <button className="btn btn-primary">Save Changes</button>
+          </div>
         </form>
       </Layout>
     );

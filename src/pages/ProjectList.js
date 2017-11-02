@@ -96,7 +96,7 @@ class ProjectList extends Component {
         <div>
           <Link
             to="/new-project"
-            className="btn btn-sm btn-default"
+            className="btn btn-sm btn-primary"
             style={{float: 'right'}}
           >
             Add Project

@@ -53,3 +53,47 @@ pre {
   overflow-wrap: break-word;
   word-wrap: break-word;
 }
+
+.btn {
+  border-width: 2px;
+}
+
+.btn-default {
+  background: #fff;
+  color: #666;
+  border-color: #999;
+}
+.btn-default:hover {
+  border-color: #999;
+  background-color: #999;
+  color: #fff;
+}
+
+.btn-primary {
+  background: #fff;
+  color: #7b6be6;
+  border-color: #7b6be6;
+}
+.btn-primary:hover {
+  border-color: #7b6be6;
+  background-color: #7b6be6;
+  color: #fff;
+}
+
+.btn-danger {
+  background: #fff;
+  color: #e03e2f;
+  border-color: #e03e2f;
+}
+.btn-danger:hover {
+  border-color: #e03e2f;
+  background-color: #e03e2f;
+  color: #fff;
+}
+
+.btn-set .btn {
+  margin-left: 5px;
+}
+.btn-set .btn:first-child {
+  margin-left: 0;
+}

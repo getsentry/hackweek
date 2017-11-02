@@ -1,0 +1,23 @@
+.Project {
+  text-align: left;
+}
+
+.Project-creator {
+  font-size: 0.8em;
+}
+
+.Project-creator-avatar {
+  float: left;
+  margin-right: 5px;
+  width: 16px;
+  height: 16px;
+}
+
+.Project-creator-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 4px;
+}
+
+.Project-creator-name {
+}

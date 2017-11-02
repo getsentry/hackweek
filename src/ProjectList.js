@@ -1,6 +1,6 @@
 import React, {Component} from 'react';
 import PropTypes from 'prop-types';
-import './App.css';
+import './ProjectList.css';
 
 import {connect} from 'react-redux';
 import {compose} from 'redux';
@@ -8,9 +8,30 @@ import {
   firebaseConnect,
   isLoaded,
   isEmpty,
-  dataToJS,
+  populatedDataToJS,
   pathToJS,
 } from 'react-redux-firebase';
+
+class ProjectListItem extends Component {
+  static propTypes = {
+    project: PropTypes.object,
+  };
+
+  render() {
+    let {project} = this.props;
+    return (
+      <li className="list-group-item Project clearfix">
+        <strong>{project.name}</strong>
+        {project.creator && (
+          <div className="Project-creator">
+            <img src={project.creator.avatarUrl} className="Project-creator-avatar" />
+            <span className="Project-creator-name">{project.creator.displayName}</span>
+          </div>
+        )}
+      </li>
+    );
+  }
+}
 
 class ProjectList extends Component {
   static propTypes = {
@@ -48,9 +69,7 @@ class ProjectList extends Component {
           <ul className="list-group">
             {Object.keys(projectList).map(projectKey => {
               return (
-                <li className="list-group-item" key={projectKey}>
-                  {projectList[projectKey].name}
-                </li>
+                <ProjectListItem key={projectKey} project={projectList[projectKey]} />
               );
             })}
           </ul>
@@ -64,10 +83,12 @@ class ProjectList extends Component {
   }
 }
 
+const projectPopulates = [{child: 'creator', root: 'users', keyProp: 'key'}];
+
 export default compose(
-  firebaseConnect(['projects']),
+  firebaseConnect([{path: 'projects', populates: projectPopulates}]),
   connect(({firebase}) => ({
     auth: pathToJS(firebase, 'auth'),
-    projectList: dataToJS(firebase, 'projects'),
+    projectList: populatedDataToJS(firebase, 'projects', projectPopulates),
   }))
 )(ProjectList);

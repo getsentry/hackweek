@@ -12,7 +12,8 @@ import {
   pathToJS,
 } from 'react-redux-firebase';
 
-import {currentYear} from './config';
+import {currentYear} from '../config';
+import Layout from '../components/Layout';
 
 class NewProjectForm extends Component {
   onSubmit = e => {
@@ -35,11 +36,11 @@ class NewProjectForm extends Component {
         <h3>Add a New Project</h3>
         <div className="form-group">
           <label>Project Name</label>
-          <input class="form-control" type="text" ref="name" required />
+          <input className="form-control" type="text" ref="name" required />
         </div>
         <div className="form-group">
           <label>Summary</label>
-          <textarea class="form-control" ref="summary" required />
+          <textarea className="form-control" ref="summary" required />
         </div>
         <button className="btn btn-primary">Add</button>
       </form>
@@ -92,7 +93,7 @@ class ProjectList extends Component {
   render() {
     let {projectList} = this.props;
     return (
-      <div>
+      <Layout>
         <h1 style={{textAlign: 'center'}}>Projects</h1>
         {!isLoaded(projectList) ? (
           'Loading'
@@ -108,7 +109,7 @@ class ProjectList extends Component {
           </ul>
         )}
         <NewProjectForm onSubmit={this.onAddProject} />
-      </div>
+      </Layout>
     );
   }
 }

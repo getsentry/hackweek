@@ -1,23 +1,26 @@
 import React from 'react';
-import ReactDOM from 'react-dom';
+import {Router, browserHistory} from 'react-router';
+import {render} from 'react-dom';
 import {Provider} from 'react-redux';
 
 import registerServiceWorker from './registerServiceWorker';
 import configureStore from './store';
 
+import routes from './routes';
+
 import 'bootstrap/dist/css/bootstrap.css';
 // import 'bootstrap/dist/css/bootstrap-theme.css';
 
 import './index.css';
-import App from './App';
 
 const initialState = window.__INITIAL_STATE__ || {firebase: {authError: null}};
 const store = configureStore(initialState);
 
-ReactDOM.render(
+render(
   <Provider store={store}>
-    <App />
+    <Router history={browserHistory} routes={routes} />
   </Provider>,
   document.getElementById('root')
 );
+
 registerServiceWorker();

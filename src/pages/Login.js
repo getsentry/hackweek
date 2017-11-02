@@ -3,31 +3,33 @@ import PropTypes from 'prop-types';
 import GoogleButton from 'react-google-button';
 import {connect} from 'react-redux';
 import {compose} from 'redux';
-import {firebaseConnect, isLoaded, isEmpty, pathToJS} from 'react-redux-firebase';
+import {firebaseConnect, isLoaded, pathToJS} from 'react-redux-firebase';
 
-class LoginRequired extends Component {
+class Login extends Component {
   static propTypes = {
     firebase: PropTypes.shape({
       login: PropTypes.func.isRequired,
     }),
   };
 
-  state = {
-    isLoading: false,
+  static contextTypes = {
+    router: PropTypes.object.isRequired,
   };
 
   googleLogin = loginData => {
-    this.setState({isLoading: true});
     return this.props.firebase
-      .login({provider: 'google'})
+      .login({provider: 'google', type: 'popup'})
       .then(() => {
-        this.setState({isLoading: false});
+        this.context.router.push('/');
       })
-      .catch(error => {
-        this.setState({isLoading: false});
-      });
+      .catch(error => {});
   };
 
+  componentWillReceiveProps({auth}) {
+    if (auth && auth.uid) {
+      this.context.router.push('/');
+    }
+  }
   render() {
     const {auth} = this.props;
 
@@ -39,20 +41,16 @@ class LoginRequired extends Component {
       );
     }
 
-    if (isEmpty(auth)) {
-      return (
-        <div className="Modal" style={{width: 400}}>
-          <div style={{textAlign: 'center'}}>
-            <p>You'll need to login to continue.</p>
-            <div style={{display: 'inline-block'}}>
-              <GoogleButton onClick={this.googleLogin} />
-            </div>
+    return (
+      <div className="Modal" style={{width: 400}}>
+        <div style={{textAlign: 'center'}}>
+          <p>You'll need to login to continue.</p>
+          <div style={{display: 'inline-block'}}>
+            <GoogleButton onClick={this.googleLogin} />
           </div>
         </div>
-      );
-    }
-
-    return this.props.children;
+      </div>
+    );
   }
 }
 
@@ -61,4 +59,4 @@ export default compose(
   connect(({firebase}) => ({
     auth: pathToJS(firebase, 'auth'),
   }))
-)(LoginRequired);
+)(Login);

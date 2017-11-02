@@ -41,7 +41,7 @@ class ProjectDetails extends Component {
     let {auth, params, project, userList} = this.props;
     if (!isLoaded(project) || !isLoaded(userList))
       return <div className="loading-indicator">Loading..</div>;
-    if (project === null) return null;
+    if (project === null) return <Layout />;
 
     let projectMembers = Object.keys(project.members || {})
       .map(memberKey => {
@@ -105,8 +105,8 @@ class ProjectDetails extends Component {
                 <h3>Meta</h3>
                 <dl>
                   {creator && [
-                    <dt>Created By</dt>,
-                    <dd>
+                    <dt key="dt-creator">Created By</dt>,
+                    <dd key="dd-creator">
                       <img
                         src={creator.avatarUrl}
                         className="Project-member-avatar"

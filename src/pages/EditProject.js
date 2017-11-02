@@ -31,6 +31,9 @@ class EditProject extends Component {
 
   componentWillReceiveProps({project, userList}) {
     let props = this.props;
+    if (project === null) {
+      this.context.router.push('/');
+    }
     if (isLoaded(project) && isLoaded(userList) && Object.keys(this.state).length === 0) {
       this.setState({
         name: project.name,
@@ -84,6 +87,7 @@ class EditProject extends Component {
           });
       });
   };
+
   onChangeField = e => {
     this.setState({
       [e.target.name]: e.target.value,
@@ -95,9 +99,10 @@ class EditProject extends Component {
   };
 
   render() {
-    let {auth, userList} = this.props;
+    let {auth, project, userList} = this.props;
     if (!isLoaded(auth) || !isLoaded(userList))
       return <div className="loading-indocator">Loading...</div>;
+    if (project === null) return <Layout />;
 
     let options = mapObject(userList, (user, userKey) => ({
       value: userKey,

@@ -6,7 +6,6 @@ import {compose} from 'redux';
 import {firebaseConnect, pathToJS} from 'react-redux-firebase';
 
 import {currentYear} from '../config';
-import LoginRequired from '../LoginRequired';
 
 class Layout extends Component {
   static propTypes = {
@@ -21,7 +20,7 @@ class Layout extends Component {
     let {auth, profile} = this.props;
 
     return (
-      <LoginRequired>
+      <div>
         <header className="App-header">
           <h1 className="App-title">
             <Link to="/">#HACKWEEK</Link> <small>{currentYear}</small>
@@ -34,7 +33,7 @@ class Layout extends Component {
           </div>
         </header>
         <div className="App-main">{this.props.children}</div>
-      </LoginRequired>
+      </div>
     );
   }
 }

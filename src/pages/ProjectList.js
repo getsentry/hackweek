@@ -1,55 +1,33 @@
 import React, {Component} from 'react';
+import {Link} from 'react-router';
+import idx from 'idx';
 import PropTypes from 'prop-types';
-import './ProjectList.css';
 
 import {connect} from 'react-redux';
 import {compose} from 'redux';
-import {firebaseConnect, isLoaded, isEmpty, pathToJS} from 'react-redux-firebase';
+import {firebaseConnect, isLoaded, pathToJS} from 'react-redux-firebase';
+
+import './ProjectList.css';
 
 import {currentYear} from '../config';
 import {orderedPopulatedDataToJS} from '../helpers';
 import Layout from '../components/Layout';
 
-class NewProjectForm extends Component {
-  onSubmit = e => {
-    e.preventDefault();
-
-    this.props
-      .onSubmit({
-        name: this.refs.name.value,
-        summary: this.refs.summary.value,
-      })
-      .then(() => {
-        this.refs.name.value = '';
-        this.refs.summary.value = '';
-      });
-  };
-
-  render() {
-    return (
-      <form onSubmit={this.onSubmit} className="form New-Project-Form">
-        <h3>Add a New Project</h3>
-        <div className="form-group">
-          <label>Project Name</label>
-          <input className="form-control" type="text" ref="name" required />
-        </div>
-        <div className="form-group">
-          <label>Summary</label>
-          <textarea className="form-control" ref="summary" required />
-        </div>
-        <button className="btn btn-primary">Add</button>
-      </form>
-    );
-  }
-}
-
 class ProjectListItem extends Component {
   static propTypes = {
+    auth: PropTypes.object,
+    firebase: PropTypes.object,
     project: PropTypes.object,
   };
 
+  onDelete = () => {
+    let {firebase, project} = this.props;
+
+    firebase.remove(`/projects/${project.key}`);
+  };
+
   render() {
-    let {project} = this.props;
+    let {auth, project} = this.props;
     return (
       <li className="list-group-item Project clearfix">
         <strong>{project.name}</strong>
@@ -63,6 +41,11 @@ class ProjectListItem extends Component {
             <span className="Project-creator-name">{project.creator.displayName}</span>
           </div>
         )}
+        {idx(project.creator, _ => _.key) === auth.uid && (
+          <a className="btn btn-xs btn-danger" onClick={this.onDelete}>
+            Delete
+          </a>
+        )}
       </li>
     );
   }
@@ -71,6 +54,7 @@ class ProjectListItem extends Component {
 class ProjectList extends Component {
   static propTypes = {
     auth: PropTypes.object,
+    firebase: PropTypes.object,
     projectList: PropTypes.object,
   };
 
@@ -94,31 +78,47 @@ class ProjectList extends Component {
     let results = [];
     let key;
     for (key in obj) {
-      results.push(callback(key, obj));
+      results.push(callback(obj[key]));
     }
     return results;
   }
 
+  renderBody() {
+    let {auth, firebase, projectList} = this.props;
+    if (!isLoaded(projectList)) return <div className="loading-indicator">Loading..</div>;
+
+    return (
+      <div>
+        <ul className="list-group Project-List">
+          {this.mapObject(projectList, project => {
+            return (
+              <ProjectListItem
+                key={project.key}
+                auth={auth}
+                firebase={firebase}
+                project={project}
+              />
+            );
+          })}
+        </ul>
+      </div>
+    );
+  }
+
   render() {
-    // Object.keys does not retain order
-    let {projectList} = this.props;
     return (
       <Layout>
-        <h1 style={{textAlign: 'center'}}>Projects</h1>
-        {!isLoaded(projectList) ? (
-          'Loading'
-        ) : isEmpty(projectList) ? (
-          'No projects'
-        ) : (
-          <ul className="list-group Project-List">
-            {this.mapObject(projectList, (projectKey, project) => {
-              return (
-                <ProjectListItem key={projectKey} project={projectList[projectKey]} />
-              );
-            })}
-          </ul>
-        )}
-        <NewProjectForm onSubmit={this.onAddProject} />
+        <div>
+          <Link
+            to="/new-project"
+            className="btn btn-sm btn-default"
+            style={{float: 'right'}}
+          >
+            Add Project
+          </Link>
+          <h1>Projects</h1>
+        </div>
+        {this.renderBody()}
       </Layout>
     );
   }
@@ -129,7 +129,7 @@ const projectPopulates = [{child: 'creator', root: 'users', keyProp: 'key'}];
 export default compose(
   firebaseConnect([
     {
-      path: 'projects',
+      path: '/projects',
       queryParams: ['orderByKey'],
       populates: projectPopulates,
     },

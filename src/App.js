@@ -11,18 +11,23 @@ import ProjectList from './ProjectList';
 class App extends Component {
   render() {
     let {auth, profile} = this.props;
+    console.log(profile);
     return (
       <div className="App">
-        <header className="App-header">
-          <h1 className="App-title">#HACKWEEK</h1>
-          {profile && <img src={profile.avatarUrl} width={32} />}
-          {auth && <p>Logged in as {auth.email}</p>}
-        </header>
-        <div className="App-intro">
-          <LoginRequired>
+        <LoginRequired>
+          <header className="App-header">
+            <h1 className="App-title">#HACKWEEK</h1>
+            <div className="App-auth">
+              <div className="App-avatar">
+                {profile && <img src={profile.avatarUrl} width={32} />}
+              </div>
+              <div className="App-email">{auth && <p>Logged in as {auth.email}</p>}</div>
+            </div>
+          </header>
+          <div className="App-intro">
             <ProjectList {...this.props} />
-          </LoginRequired>
-        </div>
+          </div>
+        </LoginRequired>
       </div>
     );
   }

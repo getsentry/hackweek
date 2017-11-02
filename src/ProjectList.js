@@ -8,12 +8,20 @@ import {firebaseConnect, isLoaded, isEmpty, dataToJS} from 'react-redux-firebase
 
 class ProjectList extends Component {
   static propTypes = {
-    projectList: PropTypes.arrayOf(PropTypes.object),
+    projectList: PropTypes.object,
+  };
+
+  addProject = () => {
+    const {newProject} = this.refs;
+    return this.props.firebase
+      .push('/projects', {name: newProject.value, done: false})
+      .then(() => {
+        newProject.name = 'untitled';
+      });
   };
 
   render() {
     let {projectList} = this.props;
-    console.log(projectList);
     return (
       <div>
         <h3>Projects</h3>
@@ -28,6 +36,8 @@ class ProjectList extends Component {
             })}
           </ul>
         )}
+        <input type="text" ref="newProject" />
+        <button onClick={this.addProject}>Add</button>
       </div>
     );
   }

@@ -33,7 +33,7 @@ class LoginRequired extends Component {
 
     if (!isLoaded(auth)) {
       return (
-        <div>
+        <div className="loading-indicator">
           <span>Loading</span>
         </div>
       );
@@ -41,8 +41,13 @@ class LoginRequired extends Component {
 
     if (isEmpty(auth)) {
       return (
-        <div>
-          <GoogleButton onClick={this.googleLogin} />
+        <div className="Modal" style={{width: 400}}>
+          <div style={{textAlign: 'center'}}>
+            <p>You'll need to login to continue.</p>
+            <div style={{display: 'inline-block'}}>
+              <GoogleButton onClick={this.googleLogin} />
+            </div>
+          </div>
         </div>
       );
     }

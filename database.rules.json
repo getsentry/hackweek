@@ -1,0 +1,6 @@
+{
+  "rules": {
+    ".read": "auth.token.email_verified == true && auth.token.email.endsWith('sentry.io')",
+    ".write": "auth.token.email_verified == true && auth.token.email.endsWith('sentry.io')"
+  }
+}

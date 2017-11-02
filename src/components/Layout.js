@@ -1,4 +1,5 @@
 import React, {Component} from 'react';
+import {Link} from 'react-router';
 import PropTypes from 'prop-types';
 import {connect} from 'react-redux';
 import {compose} from 'redux';
@@ -23,7 +24,7 @@ class Layout extends Component {
       <LoginRequired>
         <header className="App-header">
           <h1 className="App-title">
-            #HACKWEEK <small>{currentYear}</small>
+            <Link to="/">#HACKWEEK</Link> <small>{currentYear}</small>
           </h1>
           <div className="App-auth">
             <div className="App-avatar">

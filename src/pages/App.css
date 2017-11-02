@@ -15,6 +15,11 @@
   line-height: 60px;
   float: left;
 }
+.App-title a,
+.App-title a:hover {
+  text-decoration: none;
+  color: inherit;
+}
 
 .App-auth {
   float: right;

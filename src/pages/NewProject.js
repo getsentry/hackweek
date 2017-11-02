@@ -75,7 +75,7 @@ class NewProject extends Component {
 
     return (
       <Layout>
-        <h1 style={{textAlign: 'center'}}>Add a New Project</h1>
+        <h2>Add a New Project</h2>
         <form onSubmit={this.onSubmit} className="form New-Project-Form">
           <div className="form-group">
             <label>Project Name</label>

@@ -9,7 +9,6 @@ import {firebaseConnect, isLoaded, pathToJS} from 'react-redux-firebase';
 
 import './ProjectList.css';
 
-import {currentYear} from '../config';
 import {mapObject, orderedPopulatedDataToJS} from '../helpers';
 import Layout from '../components/Layout';
 
@@ -20,17 +19,13 @@ class ProjectListItem extends Component {
     project: PropTypes.object,
   };
 
-  onDelete = () => {
-    let {firebase, project} = this.props;
-
-    firebase.remove(`/years/${currentYear}/projects/${project.key}`);
-  };
-
   render() {
     let {auth, project} = this.props;
     return (
       <li className="list-group-item Project clearfix">
-        <strong>{project.name}</strong>
+        <Link to={`/${project.year}/projects/${project.key}`}>
+          <strong>{project.name}</strong>
+        </Link>
         {project.creator && (
           <div className="Project-creator">
             <img
@@ -40,11 +35,6 @@ class ProjectListItem extends Component {
             />
             <span className="Project-creator-name">{project.creator.displayName}</span>
           </div>
-        )}
-        {idx(project.creator, _ => _.key) === auth.uid && (
-          <a className="btn btn-xs btn-danger" onClick={this.onDelete}>
-            Delete
-          </a>
         )}
       </li>
     );
@@ -58,15 +48,15 @@ class ProjectList extends Component {
     projectList: PropTypes.object,
   };
 
-  onAddProject = params => {
-    let {auth} = this.props;
+  onAddProject = data => {
+    let {auth, params} = this.props;
 
     return new Promise((resolve, reject) => {
       return this.props.firebase
         .push('/projects', {
-          ...params,
+          ...data,
           ts: new Date().getTime(),
-          year: currentYear,
+          year: params.year,
           creator: auth.uid,
         })
         .then(resolve)
@@ -107,7 +97,7 @@ class ProjectList extends Component {
           >
             Add Project
           </Link>
-          <h1>Projects</h1>
+          <h2>Projects</h2>
         </div>
         {this.renderBody()}
       </Layout>
@@ -120,7 +110,7 @@ const projectPopulates = [{child: 'creator', root: 'users', keyProp: 'key'}];
 export default compose(
   firebaseConnect(props => [
     {
-      path: `/years/${currentYear}/projects`,
+      path: `/years/${props.params.year}/projects`,
       queryParams: ['orderByKey'],
       populates: projectPopulates,
       storeAs: 'activeProjects',

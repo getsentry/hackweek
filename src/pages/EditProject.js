@@ -35,7 +35,7 @@ class EditProject extends Component {
       this.setState({
         name: project.name,
         summary: project.summary,
-        team: Object.keys(project.members),
+        team: Object.keys(project.members || {}),
       });
     }
   }

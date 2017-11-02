@@ -34,7 +34,7 @@ class ProjectList extends Component {
 }
 
 export default compose(
-  firebaseConnect(['/projects']),
+  firebaseConnect(['projects']),
   connect(({firebase}) => ({
     projectList: dataToJS(firebase, 'projects'),
   }))

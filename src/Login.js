@@ -29,7 +29,7 @@ class LoginRequired extends Component {
   };
 
   render() {
-    const {auth, authError} = this.props;
+    const {auth} = this.props;
 
     if (!isLoaded(auth)) {
       return (
@@ -42,7 +42,6 @@ class LoginRequired extends Component {
     if (isEmpty(auth)) {
       return (
         <div>
-          <span>Login page</span>
           <GoogleButton onClick={this.googleLogin} />
         </div>
       );
@@ -56,6 +55,5 @@ export default compose(
   firebaseConnect(),
   connect(({firebase}) => ({
     auth: pathToJS(firebase, 'auth'),
-    authError: pathToJS(firebase, 'authError'),
   }))
 )(LoginRequired);

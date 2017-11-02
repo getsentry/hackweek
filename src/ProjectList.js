@@ -35,11 +35,11 @@ class NewProjectForm extends Component {
         <h3>Add a New Project</h3>
         <div className="form-group">
           <label>Project Name</label>
-          <input class="form-control" type="text" ref="name" />
+          <input class="form-control" type="text" ref="name" required />
         </div>
         <div className="form-group">
           <label>Summary</label>
-          <textarea class="form-control" ref="summary" />
+          <textarea class="form-control" ref="summary" required />
         </div>
         <button className="btn btn-primary">Add</button>
       </form>

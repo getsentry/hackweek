@@ -7,9 +7,9 @@
         "projects": {
           ".indexOn": ["creator"],
           "$project": {
-            ".validate": "newData.hasChildren(['name', 'creator', 'ts'])",
+            ".validate": "newData.hasChildren(['name', 'ts', 'year']) && (!data.child('members').exists() || data.child('members/'+auth.uid).exists())",
             "creator": {
-              ".validate": "newData.val() == auth.uid"
+              ".validate": "!data.exists() || newData.val() == auth.uid || newData.val() == data.val()"
             },
             "name": {
               ".validate": "newData.isString()"
@@ -19,6 +19,14 @@
             },
             "ts": {
               ".validate": "newData.isNumber()"
+            },
+            "members": {
+              "$member": {
+                ".validate": "root.child('users/'+$member).exists()"
+              }
+            },
+            "year": {
+              ".validate": "newData.exists()"
             },
             "$other": {
               ".validate": false
@@ -30,7 +38,7 @@
     "users": {
       ".read": "auth != null",
       "$user": {
-        ".write": "auth.uid === $user && auth.token.email_verified == true && auth.token.email.endsWith('sentry.io')"
+        ".write": "auth.uid === $user && auth.token.email_verified == true && auth.token.email.endsWith('sentry.io')",
       }
     }
   }

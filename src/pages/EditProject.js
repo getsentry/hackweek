@@ -12,10 +12,11 @@ import {currentYear} from '../config';
 import Layout from '../components/Layout';
 import {mapObject, orderedPopulatedDataToJS} from '../helpers';
 
-class NewProject extends Component {
+class EditProject extends Component {
   static propTypes = {
     auth: PropTypes.object,
     userList: PropTypes.object,
+    project: PropTypes.object,
   };
 
   static contextTypes = {
@@ -24,52 +25,58 @@ class NewProject extends Component {
 
   constructor(...args) {
     super(...args);
-    this.state = {
-      team: null,
-    };
+    this.state = {};
   }
 
-  componentWillReceiveProps(nextProps) {
-    if (this.state.team === null && isLoaded(nextProps.auth)) {
-      this.setState({team: [nextProps.auth.uid]});
+  componentWillReceiveProps({project, userList}) {
+    let props = this.props;
+    if (isLoaded(project) && isLoaded(userList) && Object.keys(this.state).length === 0) {
+      this.setState({
+        name: project.name,
+        summary: project.summary,
+        team: Object.keys(project.members),
+      });
     }
   }
 
   onSubmit = e => {
     e.preventDefault();
 
-    let {auth, firebase} = this.props;
+    let {auth, firebase, params, project} = this.props;
 
     firebase
-      .push(`/years/${currentYear}/projects`, {
+      .update(`/years/${params.year || currentYear}/projects/${params.projectKey}`, {
         name: this.state.name,
         summary: this.state.summary,
-        year: currentYear,
-        ts: new Date().getTime(),
-        creator: auth.uid,
       })
       .then(snapshot => {
-        let projectKey = snapshot.key;
         let updates = {};
         this.state.team.forEach(({value}) => {
-          updates[`/years/${currentYear}/projects/${projectKey}/members/${value}`] = {
+          updates[
+            `/years/${params.year ||
+              currentYear}/projects/${params.projectKey}/members/${value}`
+          ] = {
             ts: new Date().getTime(),
           };
-          // updates[`/users/${uid}/projects/${projectKey}`] = {
-          //   year: currentYear,
-          //   name: this.state.name,
-          // };
+        });
+        Object.keys(project.members || {}).forEach(memberKey => {
+          let path = `/years/${params.year ||
+            currentYear}/projects/${params.projectKey}/members/${memberKey}`;
+          if (!updates.hasOwnProperty(path)) {
+            updates[path] = null;
+          }
         });
         firebase
           .database()
           .ref()
           .update(updates)
           .then(() => {
-            this.context.router.push(`/projects/${projectKey}`);
+            this.context.router.push(
+              `/years/${params.year || currentYear}/projects/${params.projectKey}`
+            );
           });
       });
   };
-
   onChangeField = e => {
     this.setState({
       [e.target.name]: e.target.value,
@@ -92,7 +99,7 @@ class NewProject extends Component {
 
     return (
       <Layout>
-        <h2>Add a New Project</h2>
+        <h2>Edit Project</h2>
         <form onSubmit={this.onSubmit} className="form New-Project-Form">
           <div className="form-group">
             <label>Project Name</label>
@@ -125,7 +132,7 @@ class NewProject extends Component {
               onChange={this.onChangeTeam}
             />
           </div>
-          <button className="btn btn-primary">Add</button>
+          <button className="btn btn-primary">Save Changes</button>
         </form>
       </Layout>
     );
@@ -133,16 +140,23 @@ class NewProject extends Component {
 }
 
 export default compose(
-  firebaseConnect([
+  firebaseConnect(props => [
     {
       path: `/users`,
       queryParams: ['orderByValue=displayName'],
       populates: [],
       storeAs: 'userList',
     },
+    {
+      path: `/years/${props.params.year || currentYear}/projects/${props.params
+        .projectKey}`,
+      populates: [],
+      storeAs: 'project',
+    },
   ]),
   connect(({firebase}) => ({
     auth: pathToJS(firebase, 'auth'),
+    project: orderedPopulatedDataToJS(firebase, 'project'),
     userList: orderedPopulatedDataToJS(firebase, 'userList'),
   }))
-)(NewProject);
+)(EditProject);

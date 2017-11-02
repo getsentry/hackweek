@@ -8,6 +8,7 @@ import {firebaseConnect, isLoaded, pathToJS} from 'react-redux-firebase';
 
 import './ProjectList.css';
 
+import {currentYear} from '../config';
 import {mapObject, orderedPopulatedDataToJS} from '../helpers';
 import Layout from '../components/Layout';
 
@@ -20,9 +21,13 @@ class ProjectListItem extends Component {
 
   render() {
     let {project} = this.props;
+    let link =
+      currentYear === project.year
+        ? `/projects/${project.key}`
+        : `/archive/${project.year}/projects/${project.key}`;
     return (
       <li className="list-group-item Project clearfix">
-        <Link to={`/${project.year}/projects/${project.key}`}>
+        <Link to={link}>
           <strong>{project.name}</strong>
         </Link>
         {project.creator && (
@@ -55,7 +60,7 @@ class ProjectList extends Component {
         .push('/projects', {
           ...data,
           ts: new Date().getTime(),
-          year: params.year,
+          year: params.year || currentYear,
           creator: auth.uid,
         })
         .then(resolve)
@@ -109,7 +114,7 @@ const projectPopulates = [{child: 'creator', root: 'users', keyProp: 'key'}];
 export default compose(
   firebaseConnect(props => [
     {
-      path: `/years/${props.params.year}/projects`,
+      path: `/years/${props.params.year || currentYear}/projects`,
       queryParams: ['orderByKey'],
       populates: projectPopulates,
       storeAs: 'activeProjects',

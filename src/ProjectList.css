@@ -21,3 +21,13 @@
 
 .Project-creator-name {
 }
+
+.Project-List {
+  margin-bottom: 20px;
+}
+
+.New-Project-Form {
+  border: 3px solid #000;
+  border-radius: 4px;
+  padding: 20px 20px 20px;
+}

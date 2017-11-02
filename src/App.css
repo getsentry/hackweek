@@ -10,7 +10,7 @@ body {
 
 a {
   text-decoration: none;
-  transition: .1s linear color;
+  transition: 0.1s linear color;
   color: #7b6be6;
 }
 
@@ -54,9 +54,7 @@ pre {
   word-wrap: break-word;
 }
 
-
 .App {
-  text-align: center;
   width: 800px;
   margin: 0 auto;
 }

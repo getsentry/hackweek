@@ -5,6 +5,7 @@ import {firebaseConnect, pathToJS} from 'react-redux-firebase';
 
 import './App.css';
 
+import {currentYear} from './config';
 import LoginRequired from './Login';
 import ProjectList from './ProjectList';
 
@@ -15,7 +16,9 @@ class App extends Component {
       <div className="App">
         <LoginRequired>
           <header className="App-header">
-            <h1 className="App-title">#HACKWEEK</h1>
+            <h1 className="App-title">
+              #HACKWEEK <small>{currentYear}</small>
+            </h1>
             <div className="App-auth">
               <div className="App-avatar">
                 {profile && <img src={profile.avatarUrl} alt="avatar" />}

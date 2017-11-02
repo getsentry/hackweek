@@ -13,6 +13,9 @@ a {
   transition: 0.1s linear color;
   color: #7b6be6;
 }
+a:hover {
+  color: #7b6be6;
+}
 
 strong,
 h1,

@@ -17,9 +17,6 @@
   background: none;
   padding: 0;
   margin-bottom: 20px;
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
-  word-wrap: break-word;
 }
 
 .Project-member-list {

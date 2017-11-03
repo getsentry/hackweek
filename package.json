@@ -6,6 +6,7 @@
     "bootstrap": "3",
     "firebase": "^4.6.0",
     "idx": "^2.2.0",
+    "marked": "^0.3.6",
     "moment": "^2.19.1",
     "react": "^16.0.0",
     "react-bootstrap": "^0.31.5",

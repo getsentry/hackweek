@@ -2,7 +2,7 @@ import React, {Component} from 'react';
 import moment from 'moment';
 import {Link} from 'react-router';
 import PropTypes from 'prop-types';
-
+import marked from 'marked';
 import {connect} from 'react-redux';
 import {compose} from 'redux';
 import {firebaseConnect, isLoaded, pathToJS} from 'react-redux-firebase';
@@ -77,7 +77,12 @@ class ProjectDetails extends Component {
           <div className="row">
             <div className="col-md-8">
               <h3>Summary</h3>
-              <div className="Project-summary">{project.summary}</div>
+              <div
+                className="Project-summary"
+                dangerouslySetInnerHTML={{
+                  __html: marked(project.summary),
+                }}
+              />
               <h3>Team</h3>
               {projectMembers.length ? (
                 <ul className="Project-member-list">

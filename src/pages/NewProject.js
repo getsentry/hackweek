@@ -72,7 +72,7 @@ class NewProject extends Component {
           .ref()
           .update(updates)
           .then(() => {
-            this.context.router.push(`/projects/${projectKey}`);
+            this.context.router.push(`/years/${currentYear}/projects/${projectKey}`);
           });
       });
   };

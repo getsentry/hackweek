@@ -38,6 +38,7 @@ class EditProject extends Component {
       this.setState({
         name: project.name,
         summary: project.summary,
+        needHelp: project.needHelp || false,
         team: Object.keys(project.members || {}).map(memberKey => ({
           value: memberKey,
           label: userList[memberKey].displayName,
@@ -60,6 +61,7 @@ class EditProject extends Component {
       .update(`/years/${params.year || currentYear}/projects/${params.projectKey}`, {
         name: this.state.name,
         summary: this.state.summary,
+        needHelp: this.state.needHelp,
       })
       .then(snapshot => {
         let updates = {};
@@ -134,6 +136,19 @@ class EditProject extends Component {
               rows={6}
               required
             />
+          </div>
+          <div className="checkbox">
+            <label>
+              <input
+                type="checkbox"
+                name="needHelp"
+                checked={this.state.needHelp}
+                onChange={e => {
+                  this.setState({needHelp: e.target.checked});
+                }}
+              />{' '}
+              I'm looking for help on this project!
+            </label>
           </div>
           <div className="form-group">
             <label>Team</label>

@@ -84,6 +84,12 @@ class ProjectDetails extends Component {
                 }}
               />
               <h3>Team</h3>
+              {project.needHelp && (
+                <div className="alert alert-block alert-info">
+                  This project is looking for help! Reach out someone on the team for more
+                  details.
+                </div>
+              )}
               {projectMembers.length ? (
                 <ul className="Project-member-list">
                   {projectMembers.map(member => {

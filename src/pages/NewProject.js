@@ -51,6 +51,7 @@ class NewProject extends Component {
       .push(`/years/${currentYear}/projects`, {
         name: this.state.name,
         summary: this.state.summary,
+        needHelp: this.state.needHelp,
         year: currentYear,
         ts: new Date().getTime(),
         creator: auth.uid,
@@ -122,6 +123,19 @@ class NewProject extends Component {
               rows={6}
               required
             />
+          </div>
+          <div className="checkbox">
+            <label>
+              <input
+                type="checkbox"
+                name="needHelp"
+                checked={this.state.needHelp}
+                onChange={e => {
+                  this.setState({needHelp: e.target.checked});
+                }}
+              />{' '}
+              I'm looking for help on this project!
+            </label>
           </div>
           <div className="form-group">
             <label>Team</label>

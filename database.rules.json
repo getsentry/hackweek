@@ -25,6 +25,9 @@
                 ".validate": "root.child('users/'+$member).exists()"
               }
             },
+            "needHelp": {
+              ".validate": "newData.isBoolean()"
+            },
             "year": {
               ".validate": "newData.exists()"
             },

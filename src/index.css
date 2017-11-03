@@ -11,10 +11,11 @@ body {
 a {
   text-decoration: none;
   transition: 0.1s linear color;
-  color: #7b6be6;
+  color: #111;
+  font-weight: bold;
 }
 a:hover {
-  color: #7b6be6;
+  color: #000;
 }
 
 strong,

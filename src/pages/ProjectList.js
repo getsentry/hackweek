@@ -35,6 +35,7 @@ class ProjectListItem extends Component {
         <Link to={link}>
           <strong>{project.name}</strong>
         </Link>
+        {project.needHelp && <div className="badge">looking for help</div>}
         <div className="Project-member-list-condensed">
           {projectMembers.length ? (
             projectMembers.map(member => {

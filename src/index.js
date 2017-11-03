@@ -3,7 +3,6 @@ import {Router, browserHistory} from 'react-router';
 import {render} from 'react-dom';
 import {Provider} from 'react-redux';
 
-// import registerServiceWorker from './registerServiceWorker';
 import configureStore from './store';
 
 import routes from './routes';
@@ -23,5 +22,3 @@ render(
   </Provider>,
   document.getElementById('root')
 );
-
-// registerServiceWorker();

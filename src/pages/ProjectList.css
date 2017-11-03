@@ -54,3 +54,17 @@
 .Project-meta {
   font-size: 0.8em;
 }
+
+.Project-media {
+  margin-bottom: 20px;
+}
+
+.Project-media .Project-media-item {
+  max-width: 150px;
+  max-height: 150px;
+  margin-bottom: 10px;
+}
+.Project-media .Project-media-item img {
+  max-width: 100%;
+  max-height: 100%;
+}

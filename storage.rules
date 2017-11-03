@@ -1,0 +1,7 @@
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /projects/{project}/media/{allPaths=**} {
+      allow read, write: if request.auth.token.email_verified == true && request.auth.token.email.matches(".*@sentry.io")
+    }
+  }
+}

@@ -25,6 +25,23 @@
                 ".validate": "root.child('users/'+$member).exists()"
               }
             },
+            "media": {
+              "$media": {
+                ".validate": "newData.hasChildren(['name', 'path', 'ts'])",
+                "name": {
+                  ".validate": "newData.isString()"
+                },
+                "path": {
+                  ".validate": "newData.isString()"
+                },
+                "ts": {
+                  ".validate": "newData.isNumber()"
+                },
+                "$other": {
+                  ".validate": false
+                }
+              }
+            },
             "needHelp": {
               ".validate": "newData.isBoolean()"
             },

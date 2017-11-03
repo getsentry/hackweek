@@ -75,7 +75,7 @@ dl dd {
   color: #666;
   border-color: #999;
 }
-.btn-default:hover {
+.btn-default:hover .btn-default:active {
   border-color: #999;
   background-color: #999;
   color: #fff;
@@ -86,7 +86,8 @@ dl dd {
   color: #7b6be6;
   border-color: #7b6be6;
 }
-.btn-primary:hover {
+.btn-primary:hover,
+.btn-primary:active {
   border-color: #7b6be6;
   background-color: #7b6be6;
   color: #fff;
@@ -97,7 +98,7 @@ dl dd {
   color: #e03e2f;
   border-color: #e03e2f;
 }
-.btn-danger:hover {
+.btn-danger:hover .btn-danger:active {
   border-color: #e03e2f;
   background-color: #e03e2f;
   color: #fff;
@@ -108,4 +109,10 @@ dl dd {
 }
 .btn-set .btn:first-child {
   margin-left: 0;
+}
+
+.media-loading {
+  width: 50x;
+  height: 50px;
+  display: inline-block;
 }

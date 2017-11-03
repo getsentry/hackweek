@@ -26,6 +26,7 @@ class NewProject extends Component {
     super(...args);
     this.state = {
       team: null,
+      needHelp: false,
     };
   }
 

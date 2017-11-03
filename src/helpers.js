@@ -78,7 +78,7 @@ export const orderedPopulatedDataToJS = (data, path, populates, notSetValue) => 
             : `${p.root}/${key}`;
           if (dataToJS(data, pathString)) {
             return set(
-              {},
+              {key},
               p.child,
               p.keyProp
                 ? {[p.keyProp]: key, ...dataToJS(data, pathString)}

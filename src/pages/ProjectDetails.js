@@ -10,8 +10,9 @@ import {firebaseConnect, isLoaded, pathToJS} from 'react-redux-firebase';
 import './ProjectList.css';
 
 import {currentYear} from '../config';
-import {mapObject, orderedPopulatedDataToJS} from '../helpers';
+import {orderedPopulatedDataToJS} from '../helpers';
 import Layout from '../components/Layout';
+import MediaObject from '../components/MediaObject';
 
 class ProjectDetails extends Component {
   static propTypes = {
@@ -38,7 +39,7 @@ class ProjectDetails extends Component {
   };
 
   render() {
-    let {auth, params, project, userList} = this.props;
+    let {auth, firebase, params, project, userList} = this.props;
     if (!isLoaded(project) || !isLoaded(userList))
       return <div className="loading-indicator">Loading..</div>;
     if (project === null) return <Layout />;
@@ -48,6 +49,11 @@ class ProjectDetails extends Component {
         return userList[memberKey];
       })
       .filter(member => member !== null);
+
+    let media = Object.keys(project.media || {}).map(mediaKey => ({
+      ...project.media[mediaKey],
+      key: mediaKey,
+    }));
 
     let canEdit =
       (project.members || {}).hasOwnProperty(auth.uid) || !projectMembers.length;
@@ -110,6 +116,22 @@ class ProjectDetails extends Component {
                   <em>up for grabs</em>
                 </p>
               )}
+              {!!media.length && (
+                <div>
+                  <h3>Media</h3>
+                  <div className="Project-media">
+                    {media.map(media => (
+                      <MediaObject
+                        key={media.key}
+                        firebase={firebase}
+                        media={media}
+                        project={project}
+                        projectKey={params.projectKey}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
             <div className="col-md-3 col-md-offset-1">
               <div className="Project-meta">
@@ -149,11 +171,14 @@ export default compose(
       path: `/years/${props.params.year || currentYear}/projects/${props.params
         .projectKey}`,
       storeAs: 'project',
+      keyProp: 'key',
     },
   ]),
-  connect(({firebase}) => ({
-    auth: pathToJS(firebase, 'auth'),
-    project: orderedPopulatedDataToJS(firebase, 'project'),
-    userList: orderedPopulatedDataToJS(firebase, 'userList'),
-  }))
+  connect(({firebase}) => {
+    return {
+      auth: pathToJS(firebase, 'auth'),
+      project: orderedPopulatedDataToJS(firebase, 'project'),
+      userList: orderedPopulatedDataToJS(firebase, 'userList'),
+    };
+  })
 )(ProjectDetails);

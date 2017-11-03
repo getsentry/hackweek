@@ -6,13 +6,17 @@
       "**/.*",
       "**/node_modules/**"
     ],
-    "headers": [{
-      "source": "build.js",
-      "headers": [{
-        "key": "Cache-Control",
-        "value": "max-age=0"
-      }]
-  }],
+    "headers": [
+      {
+        "source": "build.js",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "max-age=0"
+          }
+        ]
+      }
+    ],
     "rewrites": [
       {
         "source": "**",
@@ -22,5 +26,8 @@
   },
   "database": {
     "rules": "database.rules.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
   }
 }

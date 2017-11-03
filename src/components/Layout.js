@@ -33,7 +33,14 @@ class Layout extends Component {
                 </a>
               )}
             </div>
-            <div className="App-email">{auth && <p>Logged in as {auth.email}</p>}</div>
+            <div className="App-email">
+              {auth && (
+                <p>
+                  Logged in as<br />
+                  {auth.email}
+                </p>
+              )}
+            </div>
           </div>
         </header>
         <div className="App-main">{this.props.children}</div>

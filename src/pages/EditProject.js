@@ -150,7 +150,6 @@ class EditProject extends Component {
   };
 
   onRemoveMedia = media => {
-    console.log(this.state.media.filter(m => m.key !== media.key));
     this.setState(state => ({
       media: state.media.filter(m => m.key !== media.key),
     }));
@@ -255,6 +254,7 @@ class EditProject extends Component {
                   );
                 })}
               </ul>
+              <p>Once you hit save, give it a minute as uploads are slow!</p>
             </div>
           )}
 

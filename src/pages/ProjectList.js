@@ -87,21 +87,48 @@ class ProjectList extends Component {
     let {auth, firebase, projectList, userList} = this.props;
     if (!isLoaded(projectList)) return <div className="loading-indicator">Loading..</div>;
 
+    let projects = mapObject(projectList);
+    let projectsLFH = projects.filter(p => p.needHelp);
+    let otherProjects = projects.filter(p => !p.needHelp);
+
     return (
       <div>
-        <ul className="list-group Project-List">
-          {mapObject(projectList, project => {
-            return (
-              <ProjectListItem
-                key={project.key}
-                auth={auth}
-                firebase={firebase}
-                project={project}
-                userList={userList}
-              />
-            );
-          })}
-        </ul>
+        {projectsLFH.length && (
+          <div>
+            <h3>Looking for Help</h3>
+            <ul className="list-group Project-List">
+              {projectsLFH.map(project => {
+                return (
+                  <ProjectListItem
+                    key={project.key}
+                    auth={auth}
+                    firebase={firebase}
+                    project={project}
+                    userList={userList}
+                  />
+                );
+              })}
+            </ul>
+          </div>
+        )}
+        {otherProjects.length && (
+          <div>
+            {projectsLFH.length && <h3>Other Projects</h3>}
+            <ul className="list-group Project-List">
+              {otherProjects.map(project => {
+                return (
+                  <ProjectListItem
+                    key={project.key}
+                    auth={auth}
+                    firebase={firebase}
+                    project={project}
+                    userList={userList}
+                  />
+                );
+              })}
+            </ul>
+          </div>
+        )}
       </div>
     );
   }

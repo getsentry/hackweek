@@ -142,7 +142,7 @@ export const mapObject = (obj, callback) => {
   let results = [];
   let key;
   for (key in obj) {
-    results.push(callback(obj[key], key));
+    results.push(callback ? callback(obj[key], key) : obj[key]);
   }
   return results;
 };

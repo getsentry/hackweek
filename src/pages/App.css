@@ -22,6 +22,12 @@
   color: inherit;
 }
 
+.App-title small {
+  font-size: inherit;
+  color: #ccc;
+  font-weight: bold;
+}
+
 .App-auth {
   float: right;
   height: 60px;
@@ -50,9 +56,6 @@
   margin: 20px auto;
   border-radius: 4px;
   padding: 20px 40px 20px;
-}
-
-.App-main {
 }
 
 .App-main h3 {

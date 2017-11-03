@@ -48,12 +48,33 @@
   margin-left: 5px;
   width: 36px;
   height: 36px;
+  position: relative;
 }
 
 .App-avatar img {
   width: 100%;
   height: 100%;
   border-radius: 2px;
+}
+
+.App-avatar a {
+  cursor: pointer;
+}
+
+.App-avatar a:hover:before {
+  font-family: 'Glyphicons Halflings';
+  content: '\e017';
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 36px;
+  width: 36px;
+  font-size: 24px;
+  text-align: center;
+  line-height: 36px;
+}
+.App-avatar a:hover > img {
+  opacity: 0.2;
 }
 
 .Modal {

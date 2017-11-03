@@ -22,10 +22,7 @@ class ProjectListItem extends Component {
 
   render() {
     let {project, userList} = this.props;
-    let link =
-      currentYear === project.year
-        ? `/projects/${project.key}`
-        : `/archive/${project.year}/projects/${project.key}`;
+    let link = `/years/${project.year}/projects/${project.key}`;
 
     let projectMembers = Object.keys(project.members || {})
       .map(memberKey => {

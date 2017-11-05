@@ -9,7 +9,7 @@
         "*.log": true
     },
     "files.trimTrailingWhitespace": true,
-    "files.ensureSingleFinalNewline": true,
+    "files.trimFinalNewlines": true,
 
     "files.associations": {
         "*.jsx": "javascriptreact"

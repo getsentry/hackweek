@@ -20,6 +20,12 @@
             "ts": {
               ".validate": "newData.isNumber()"
             },
+            "needHelp": {
+              ".validate": "newData.isBoolean()"
+            },
+            "year": {
+              ".validate": "newData.exists()"
+            },
             "members": {
               "$member": {
                 ".validate": "root.child('users/'+$member).exists()"
@@ -42,12 +48,6 @@
                 }
               }
             },
-            "needHelp": {
-              ".validate": "newData.isBoolean()"
-            },
-            "year": {
-              ".validate": "newData.exists()"
-            },
             "$other": {
               ".validate": false
             }
@@ -58,7 +58,7 @@
     "users": {
       ".read": "auth != null",
       "$user": {
-        ".write": "auth.uid === $user && auth.token.email_verified == true && auth.token.email.endsWith('sentry.io')",
+        ".write": "auth.uid === $user && auth.token.email_verified == true && auth.token.email.endsWith('sentry.io')"
       }
     }
   }

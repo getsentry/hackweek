@@ -7,6 +7,6 @@ export const firebase = {
   messagingSenderId: '694837489680',
 };
 
-export const currentYear = 2017;
+export const currentYear = '2017';
 
 export default {firebase};

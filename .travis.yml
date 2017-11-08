@@ -9,3 +9,13 @@ install:
   - yarn install
 script:
   - yarn test -- --testResultsProcessor="jest-junit" --coverage
+notifications:
+  webhooks:
+    urls:
+      - https://zeus.ci/hooks/bf250b1c-c4dc-11e7-a828-0a580a280722/public/provider/travis/webhook
+    on_success: always
+    on_failure: always
+    on_start: always
+    on_cancel: always
+    on_error: always
+  email: false

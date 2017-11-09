@@ -260,7 +260,7 @@ class EditProject extends Component {
 
           <div className="dropzone">
             <h3>Add Media</h3>
-            <Dropzone onDrop={this.onAddMedia} accept="image/png, image/jpeg, image/gif">
+            <Dropzone onDrop={this.onAddMedia}>
               <p style={{padding: 10}}>
                 Drop your media here, or click to select files to upload.
               </p>

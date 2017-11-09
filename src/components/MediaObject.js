@@ -47,13 +47,27 @@ export default class MediaObject extends Component {
       });
   }
 
+  getEmbed() {
+    let extension = this.props.media.name.split(/\./).reverse()[0];
+    switch (extension) {
+      case 'jpg':
+      case 'jpeg':
+      case 'gif':
+      case 'png':
+        return <img src={this.state.url} alt={this.props.media.name} />;
+      default:
+        return <em>{this.props.media.name}</em>;
+    }
+  }
+
   render() {
     if (!this.state.loaded) return <div className="Project-media-item loading" />;
     return (
       <div className="Project-media-item">
         <a href={this.state.url} target="hackweekMedia">
-          <img src={this.state.url} alt={this.props.media.name} />
+          {this.getEmbed()}
         </a>
+
         {this.props.canDelete && (
           <div className="btn-set" style={{textAlign: 'center', marginTop: 5}}>
             <a

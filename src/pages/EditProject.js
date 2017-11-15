@@ -157,7 +157,7 @@ class EditProject extends Component {
 
   onChangeField = e => {
     this.setState({
-      [e.target.name]: e.target.value,
+      [e.target.name]: e.target.value.trim(),
     });
   };
 

@@ -1,9 +1,9 @@
 {
   "rules": {
     "years": {
-      ".read": "auth != null",
+      ".read": "auth.uid != null && auth.token.email_verified == true && auth.token.email.endsWith('sentry.io')",
       "$year": {
-        ".write": "auth != null",
+        ".write": "auth.uid != null && auth.token.email_verified == true && auth.token.email.endsWith('sentry.io')",
         "projects": {
           ".indexOn": ["creator"],
           "$project": {

@@ -23,7 +23,7 @@ class Layout extends Component {
       <div>
         <header className="App-header">
           <h1 className="App-title">
-            <Link to="/">#HACKWEEK</Link> <small>{currentYear}</small>
+            <Link to="/">#HACKWEEK</Link>
           </h1>
           <div className="App-auth">
             <div className="App-avatar">

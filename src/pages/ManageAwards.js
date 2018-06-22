@@ -6,7 +6,6 @@ import {compose} from 'redux';
 import {firebaseConnect, isLoaded, pathToJS} from 'react-redux-firebase';
 import Select from 'react-select';
 
-import Layout from '../components/Layout';
 import {mapObject, orderedPopulatedDataToJS} from '../helpers';
 
 class AwardRow extends Component {
@@ -166,8 +165,7 @@ class ManageAwards extends Component {
     let {year} = this.props.params;
 
     return (
-      <Layout>
-        <h2>Manage Awards for {year}</h2>
+      <div>
         {mapObject(awardList)
           .sort((a, b) => ('' + a.name).localeCompare(b.name))
           .map(award => (
@@ -186,7 +184,7 @@ class ManageAwards extends Component {
           projectList={projectList}
           year={year}
         />
-      </Layout>
+      </div>
     );
   }
 }

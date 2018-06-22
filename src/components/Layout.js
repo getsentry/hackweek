@@ -47,6 +47,7 @@ class Layout extends Component {
         <div className="App-footer">
           <Link to="/projects">This Year ({currentYear})</Link>
           <Link to="/years">The Archives</Link>
+          {profile && profile.admin && <Link to="/admin">Admin</Link>}
         </div>
       </div>
     );

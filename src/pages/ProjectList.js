@@ -137,13 +137,15 @@ class ProjectList extends Component {
     return (
       <Layout>
         <div>
-          <Link
-            to="/new-project"
-            className="btn btn-sm btn-primary"
-            style={{float: 'right'}}
-          >
-            Add Project
-          </Link>
+          {currentYear === (this.props.params.year || currentYear) && (
+            <Link
+              to="/new-project"
+              className="btn btn-sm btn-primary"
+              style={{float: 'right'}}
+            >
+              Add Project
+            </Link>
+          )}
           <h2>Projects</h2>
         </div>
         {this.renderBody()}

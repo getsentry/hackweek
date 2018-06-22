@@ -91,7 +91,7 @@ class ProjectList extends Component {
     let projectsLFH = [];
     let otherProjects = [];
     projects.forEach(p => {
-      if (p.needHelp && currentYear ==== p.year) projectsLFH.push(p);
+      if (p.needHelp && currentYear === p.year) projectsLFH.push(p);
       else otherProjects.push(p);
     });
 
@@ -150,7 +150,7 @@ class ProjectList extends Component {
               Add Project
             </Link>
           )}
-          <h2>Projects</h2>
+          <h2>Projects for {this.props.params.year || currentYear}</h2>
         </div>
         {currentYear !== (this.props.params.year || currentYear) && (
           <div className="alert alert-block alert-info">

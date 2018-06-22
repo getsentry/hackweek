@@ -29,7 +29,7 @@ class ProjectList extends Component {
             let projects = yearList[year].projects;
             let allMembers = new Set();
             Object.values(projects).forEach(project => {
-              Object.keys(project.members || {}).map(memberKey => {
+              Object.keys(project.members || {}).forEach(memberKey => {
                 allMembers.add(memberKey);
               });
             });

@@ -95,6 +95,13 @@ class ProjectList extends Component {
       else otherProjects.push(p);
     });
 
+    if (!projects.length)
+      return (
+        <div className="alert alert-block alert-info">
+          Oops! No projects have been created yet for this year!
+        </div>
+      );
+
     return (
       <div>
         {!!projectsLFH.length && (

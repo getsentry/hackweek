@@ -93,3 +93,17 @@
   padding: 0 0 5px 0;
   font-size: 16px;
 }
+
+.App-footer {
+  margin: 20px 0;
+  border-top: 1px solid #eee;
+  padding-top: 20px;
+  text-align: center;
+  font-size: 0.8em;
+}
+
+.App-footer a {
+  text-decoration: underline;
+  font-weight: normal;
+  margin: 0 10px;
+}

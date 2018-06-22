@@ -44,6 +44,10 @@ class Layout extends Component {
           </div>
         </header>
         <div className="App-main">{this.props.children}</div>
+        <div className="App-footer">
+          <Link to="/projects">This Year ({currentYear})</Link>
+          <Link to="/years">The Archives</Link>
+        </div>
       </div>
     );
   }

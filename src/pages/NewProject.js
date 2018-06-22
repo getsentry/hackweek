@@ -148,7 +148,7 @@ class NewProject extends Component {
               onChange={this.onChangeTeam}
             />
           </div>
-          <div class="btn-set" style={{textAlign: 'right'}}>
+          <div className="btn-set" style={{textAlign: 'right'}}>
             <button className="btn btn-primary">Save Changes</button>
           </div>
         </form>

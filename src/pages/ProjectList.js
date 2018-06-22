@@ -88,8 +88,12 @@ class ProjectList extends Component {
     if (!isLoaded(projectList)) return <div className="loading-indicator">Loading..</div>;
 
     let projects = mapObject(projectList);
-    let projectsLFH = projects.filter(p => p.needHelp);
-    let otherProjects = projects.filter(p => !p.needHelp);
+    let projectsLFH = [];
+    let otherProjects = [];
+    projects.forEach(p => {
+      if (p.needHelp && currentYear ==== p.year) projectsLFH.push(p);
+      else otherProjects.push(p);
+    });
 
     return (
       <div>
@@ -113,7 +117,7 @@ class ProjectList extends Component {
         )}
         {!!otherProjects.length && (
           <div>
-            {projectsLFH.length && <h3>Other Projects</h3>}
+            {!!projectsLFH.length && <h3>Other Projects</h3>}
             <ul className="list-group Project-List">
               {otherProjects.map(project => {
                 return (
@@ -148,6 +152,13 @@ class ProjectList extends Component {
           )}
           <h2>Projects</h2>
         </div>
+        {currentYear !== (this.props.params.year || currentYear) && (
+          <div className="alert alert-block alert-info">
+            <strong>
+              You're viewing an archive of Hackweek projects for {this.props.params.year}
+            </strong>
+          </div>
+        )}
         {this.renderBody()}
       </Layout>
     );

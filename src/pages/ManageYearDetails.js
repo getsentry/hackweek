@@ -5,8 +5,6 @@ import {connect} from 'react-redux';
 import {compose} from 'redux';
 import {firebaseConnect, isLoaded, pathToJS} from 'react-redux-firebase';
 
-import Layout from '../components/Layout';
-import ListLink from '../components/ListLink';
 import {orderedPopulatedDataToJS} from '../helpers';
 
 class ManageYearDetails extends Component {

@@ -154,9 +154,8 @@ class ProjectList extends Component {
         </div>
         {currentYear !== (this.props.params.year || currentYear) && (
           <div className="alert alert-block alert-info">
-            <strong>
-              You're viewing an archive of Hackweek projects for {this.props.params.year}
-            </strong>
+            You're viewing an archive of Hackweek projects for {this.props.params.year}{' '}
+            &mdash; <Link to="/projects">Fast forward to {currentYear}</Link>
           </div>
         )}
         {this.renderBody()}

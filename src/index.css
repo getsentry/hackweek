@@ -12,7 +12,6 @@ a {
   text-decoration: none;
   transition: 0.1s linear color;
   color: #111;
-  font-weight: bold;
 }
 a:hover {
   color: #000;

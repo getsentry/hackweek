@@ -8,7 +8,7 @@ import {firebaseConnect, isLoaded} from 'react-redux-firebase';
 
 import './YearList.css';
 
-import {orderedPopulatedDataToJS} from '../helpers';
+import {mapObject, orderedPopulatedDataToJS} from '../helpers';
 import Layout from '../components/Layout';
 
 class ProjectList extends Component {
@@ -24,39 +24,69 @@ class ProjectList extends Component {
 
     return (
       <div>
-        <ul className="list-group Year-List">
+        <ul className="list-group Year-list">
           {Object.keys(yearList)
             .sort((a, b) => b - a)
             .map(year => {
               let projects = yearList[year].projects || {};
+              let awardList = mapObject(yearList[year].awards || {});
               let allMembers = new Set();
               Object.values(projects).forEach(project => {
                 Object.keys(project.members || {}).forEach(memberKey => {
                   allMembers.add(memberKey);
                 });
               });
+              allMembers = Array.from(allMembers);
               return (
                 <li key={year} className="Year">
-                  <div className="Year-Name">
-                    <Link to={`/years/${year}/projects`}>{year}</Link>
+                  <div className="Year-name">
+                    <Link to={`/years/${year}/projects`}>
+                      {year} <span className="glyphicon glyphicon-circle-arrow-right" />
+                    </Link>
                   </div>
-                  <ul className="Year-member-list">
-                    {Array.from(allMembers)
-                      .sort()
-                      .map(k => userList[k])
-                      .filter(m => m !== null)
-                      .map(member => {
-                        return (
-                          <li key={member.email} title={member.displayName}>
-                            <img
-                              src={member.avatarUrl}
-                              className="Year-member-avatar"
-                              alt="avatar"
-                            />
-                          </li>
-                        );
-                      })}
-                  </ul>
+                  {!!allMembers.length && (
+                    <div className="Year-section">
+                      <ul className="Year-member-list">
+                        {allMembers
+                          .map(k => userList[k])
+                          .filter(m => m !== null)
+                          .sort((a, b) =>
+                            ('' + a.displayName).localeCompare(b.displayName)
+                          )
+                          .map(member => {
+                            return (
+                              <li key={member.email} title={member.displayName}>
+                                <img
+                                  src={member.avatarUrl}
+                                  className="Year-member-avatar"
+                                  alt="avatar"
+                                />
+                              </li>
+                            );
+                          })}
+                      </ul>
+                    </div>
+                  )}
+                  {!!awardList.length && (
+                    <div className="Year-section">
+                      <ul className="Year-award-list">
+                        {awardList
+                          .sort((a, b) => ('' + a.name).localeCompare(b.name))
+                          .filter(award => award.project && projects[award.project])
+                          .map(award => {
+                            let project = projects[award.project];
+                            return (
+                              <li key={award.name}>
+                                <em>{award.name}</em> &mdash;{' '}
+                                <Link to={`/years/${year}/projects/${award.project}`}>
+                                  {project.name}
+                                </Link>
+                              </li>
+                            );
+                          })}
+                      </ul>
+                    </div>
+                  )}
                 </li>
               );
             })}

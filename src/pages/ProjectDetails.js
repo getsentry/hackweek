@@ -141,11 +141,13 @@ class ProjectDetails extends Component {
             <div className="col-md-3 col-md-offset-1">
               {!!awards.length && (
                 <div className="Project-meta" key="awards">
-                  <h3>
-                    Awards <span role="img">🏆</span>
-                  </h3>
+                  <h3>Awards</h3>
                   <ul className="Project-award-list">
-                    {awards.map(award => <li key={award.key}>{award.name}</li>)}
+                    {awards.map(award => (
+                      <li key={award.key}>
+                        <span className="glyphicon glyphicon-star" /> {award.name}
+                      </li>
+                    ))}
                   </ul>
                 </div>
               )}

@@ -5,15 +5,28 @@
 .Year {
   text-align: left;
   list-style: none;
+  margin-bottom: 20px;
+  opacity: 0.6;
 }
 
-.Year-Name {
+.Year:hover {
+  opacity: 1;
+}
+
+.Year-name {
   margin-bottom: 5px;
-  font-size: 1.1em;
+  font-size: 1.2em;
+  font-weight: bold;
 }
 
-.Year-Metadata {
-  display: block;
+.Year-name a:hover {
+  text-decoration: none;
+}
+
+.Year-name a .glyphicon {
+  font-size: 0.8em;
+  margin-left: 5px;
+  font-weight: normal;
 }
 
 .Year-member-list {
@@ -42,4 +55,17 @@
 .Year-member-avatar img {
   width: 100%;
   height: 100%;
+}
+
+.Year-award-list {
+  display: block;
+  list-style: none;
+  padding-left: 0;
+  font-size: 0.8em;
+}
+
+.Year-award-list a {
+  font-weight: normal;
+  display: inline;
+  text-decoration: underline;
 }

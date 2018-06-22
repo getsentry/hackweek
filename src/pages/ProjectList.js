@@ -37,9 +37,10 @@ class ProjectListItem extends Component {
       <li className="list-group-item Project clearfix">
         {!!awards.length && (
           <div className="Project-award">
-            <span role="img" title={awards.map(a => a.name).join(', ')}>
-              🏆
-            </span>
+            <span
+              className="glyphicon glyphicon-star"
+              title={awards.map(a => a.name).join(', ')}
+            />
           </div>
         )}
         <Link to={link}>

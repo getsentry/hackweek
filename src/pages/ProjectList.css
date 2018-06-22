@@ -32,6 +32,10 @@
   font-size: 1.2em;
 }
 
+.Project-award-list li .glyphicon {
+  font-size: 0.8em;
+}
+
 .Project-member-list {
   list-style: none;
   padding-left: 0;

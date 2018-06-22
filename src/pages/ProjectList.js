@@ -156,7 +156,7 @@ class ProjectList extends Component {
     let {auth, awardList, firebase, params, projectList, userList} = this.props;
     if (!isLoaded(projectList)) return <div className="loading-indicator">Loading..</div>;
 
-    if (!params.year || currentYear !== params.year) {
+    if (params.year && currentYear !== params.year) {
       return this.renderPreviousYearBody();
     }
 

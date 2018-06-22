@@ -14,7 +14,7 @@
             ".validate": "newData.isString()"
           },
           "project": {
-            ".validate": "!newData.exists() || root.child('years/'+$year+'/projects/'+newData.val()).exists()"
+            ".validate": "!newData.exists() || root.child('years').child($year).child('projects').child(newData.val()).exists()"
           },
           "ts": {
             ".validate": "newData.isNumber()"
@@ -23,7 +23,7 @@
         "projects": {
           ".indexOn": ["creator"],
           "$project": {
-            ".validate": "newData.hasChildren(['name', 'ts', 'year']) && (!data.child('members').exists() || data.child('members/'+auth.uid).exists())",
+            ".validate": "newData.hasChildren(['name', 'ts', 'year']) && (!data.child('members').exists() || data.child('members').child(auth.uid).exists() || root.child('users').child(auth.uid).child('admin').val() == true)",
             "creator": {
               ".validate": "!data.exists() || newData.val() == auth.uid || newData.val() == data.val()"
             },

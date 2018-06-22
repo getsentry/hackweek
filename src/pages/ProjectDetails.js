@@ -19,6 +19,7 @@ class ProjectDetails extends Component {
     auth: PropTypes.object,
     awardList: PropTypes.object,
     firebase: PropTypes.object,
+    profile: PropTypes.object,
     project: PropTypes.object,
     userList: PropTypes.object,
   };
@@ -40,8 +41,13 @@ class ProjectDetails extends Component {
   };
 
   render() {
-    let {auth, awardList, firebase, params, project, userList} = this.props;
-    if (!isLoaded(project) || !isLoaded(userList) || !isLoaded(awardList))
+    let {auth, awardList, firebase, params, profile, project, userList} = this.props;
+    if (
+      !isLoaded(project) ||
+      !isLoaded(userList) ||
+      !isLoaded(awardList) ||
+      !isLoaded(profile)
+    )
       return <div className="loading-indicator">Loading..</div>;
     if (project === null) return <Layout />;
     let projectMembers = Object.keys(project.members || {})
@@ -58,7 +64,9 @@ class ProjectDetails extends Component {
     let projectKey = this.props.params.projectKey;
 
     let canEdit =
-      (project.members || {}).hasOwnProperty(auth.uid) || !projectMembers.length;
+      profile.admin ||
+      (project.members || {}).hasOwnProperty(auth.uid) ||
+      !projectMembers.length;
 
     let creator = userList[project.creator] || null;
 
@@ -203,6 +211,7 @@ export default compose(
   connect(({firebase}) => {
     return {
       auth: pathToJS(firebase, 'auth'),
+      profile: pathToJS(firebase, 'profile'),
       awardList: orderedPopulatedDataToJS(firebase, 'awardList', keyPopulates),
       project: orderedPopulatedDataToJS(firebase, 'project'),
       userList: orderedPopulatedDataToJS(firebase, 'userList'),

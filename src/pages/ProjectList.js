@@ -14,6 +14,7 @@ import Layout from '../components/Layout';
 
 class ProjectListItem extends Component {
   static propTypes = {
+    awardList: PropTypes.project,
     auth: PropTypes.object,
     firebase: PropTypes.object,
     project: PropTypes.object,
@@ -21,7 +22,7 @@ class ProjectListItem extends Component {
   };
 
   render() {
-    let {project, userList} = this.props;
+    let {awardList, project, userList} = this.props;
     let link = `/years/${project.year}/projects/${project.key}`;
 
     let projectMembers = Object.keys(project.members || {})
@@ -30,12 +31,22 @@ class ProjectListItem extends Component {
       })
       .filter(member => member !== null);
 
+    let awards = mapObject(awardList).filter(award => award.project === project.key);
+
     return (
       <li className="list-group-item Project clearfix">
+        {!!awards.length && (
+          <div className="Project-award">
+            <span role="img" title={awards.map(a => a.name).join(', ')}>
+              🏆
+            </span>
+          </div>
+        )}
         <Link to={link}>
           <strong>{project.name}</strong>
         </Link>
-        {project.needHelp && <div className="badge">looking for help</div>}
+        {project.needHelp &&
+          currentYear === project.year && <div className="badge">looking for help</div>}
         <div className="Project-member-list-condensed">
           {projectMembers.length ? (
             projectMembers.map(member => {
@@ -62,6 +73,7 @@ class ProjectListItem extends Component {
 class ProjectList extends Component {
   static propTypes = {
     auth: PropTypes.object,
+    awardList: PropTypes.object,
     firebase: PropTypes.object,
     projectList: PropTypes.object,
     userList: PropTypes.object,
@@ -84,7 +96,7 @@ class ProjectList extends Component {
   };
 
   renderBody() {
-    let {auth, firebase, projectList, userList} = this.props;
+    let {auth, awardList, firebase, projectList, userList} = this.props;
     if (!isLoaded(projectList)) return <div className="loading-indicator">Loading..</div>;
 
     let projects = mapObject(projectList);
@@ -115,6 +127,7 @@ class ProjectList extends Component {
                     auth={auth}
                     firebase={firebase}
                     project={project}
+                    awardList={awardList}
                     userList={userList}
                   />
                 );
@@ -133,6 +146,7 @@ class ProjectList extends Component {
                     auth={auth}
                     firebase={firebase}
                     project={project}
+                    awardList={awardList}
                     userList={userList}
                   />
                 );
@@ -171,6 +185,7 @@ class ProjectList extends Component {
   }
 }
 
+const keyPopulates = [{keyProp: 'key'}];
 const projectPopulates = [{child: 'creator', root: 'users', keyProp: 'key'}];
 
 export default compose(
@@ -182,6 +197,12 @@ export default compose(
       storeAs: 'userList',
     },
     {
+      path: `/years/${props.params.year || currentYear}/awards`,
+      queryParams: ['orderByChild=name'],
+      populates: keyPopulates,
+      storeAs: 'awardList',
+    },
+    {
       path: `/years/${props.params.year || currentYear}/projects`,
       queryParams: ['orderByChild=name'],
       populates: projectPopulates,
@@ -190,7 +211,8 @@ export default compose(
   ]),
   connect(({firebase}) => ({
     auth: pathToJS(firebase, 'auth'),
-    userList: orderedPopulatedDataToJS(firebase, 'userList'),
+    awardList: orderedPopulatedDataToJS(firebase, 'awardList', keyPopulates),
     projectList: orderedPopulatedDataToJS(firebase, 'activeProjects', projectPopulates),
+    userList: orderedPopulatedDataToJS(firebase, 'userList'),
   }))
 )(ProjectList);

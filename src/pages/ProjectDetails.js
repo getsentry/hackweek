@@ -10,13 +10,14 @@ import {firebaseConnect, isLoaded, pathToJS} from 'react-redux-firebase';
 import './ProjectList.css';
 
 import {currentYear} from '../config';
-import {orderedPopulatedDataToJS} from '../helpers';
+import {mapObject, orderedPopulatedDataToJS} from '../helpers';
 import Layout from '../components/Layout';
 import MediaObject from '../components/MediaObject';
 
 class ProjectDetails extends Component {
   static propTypes = {
     auth: PropTypes.object,
+    awardList: PropTypes.object,
     firebase: PropTypes.object,
     project: PropTypes.object,
     userList: PropTypes.object,
@@ -39,11 +40,10 @@ class ProjectDetails extends Component {
   };
 
   render() {
-    let {auth, firebase, params, project, userList} = this.props;
-    if (!isLoaded(project) || !isLoaded(userList))
+    let {auth, awardList, firebase, params, project, userList} = this.props;
+    if (!isLoaded(project) || !isLoaded(userList) || !isLoaded(awardList))
       return <div className="loading-indicator">Loading..</div>;
     if (project === null) return <Layout />;
-
     let projectMembers = Object.keys(project.members || {})
       .map(memberKey => {
         return userList[memberKey];
@@ -55,10 +55,14 @@ class ProjectDetails extends Component {
       key: mediaKey,
     }));
 
+    let projectKey = this.props.params.projectKey;
+
     let canEdit =
       (project.members || {}).hasOwnProperty(auth.uid) || !projectMembers.length;
 
     let creator = userList[project.creator] || null;
+
+    let awards = mapObject(awardList).filter(award => award.project === projectKey);
 
     return (
       <Layout>
@@ -67,8 +71,9 @@ class ProjectDetails extends Component {
             {canEdit && (
               <div className="btn-set" style={{float: 'right'}}>
                 <Link
-                  to={`/years/${params.year ||
-                    currentYear}/projects/${params.projectKey}/edit`}
+                  to={`/years/${params.year || currentYear}/projects/${
+                    params.projectKey
+                  }/edit`}
                   className="btn btn-sm btn-default"
                 >
                   Edit Project
@@ -134,7 +139,17 @@ class ProjectDetails extends Component {
               )}
             </div>
             <div className="col-md-3 col-md-offset-1">
-              <div className="Project-meta">
+              {!!awards.length && (
+                <div className="Project-meta" key="awards">
+                  <h3>
+                    Awards <span role="img">🏆</span>
+                  </h3>
+                  <ul className="Project-award-list">
+                    {awards.map(award => <li key={award.key}>{award.name}</li>)}
+                  </ul>
+                </div>
+              )}
+              <div className="Project-meta" key="meta">
                 <h3>Meta</h3>
                 <dl>
                   {creator && [
@@ -160,16 +175,25 @@ class ProjectDetails extends Component {
   }
 }
 
+const keyPopulates = [{keyProp: 'key'}];
+
 export default compose(
   firebaseConnect(props => [
+    {
+      path: `/years/${props.params.year || currentYear}/awards`,
+      queryParams: ['orderByChild=name'],
+      storeAs: 'awardList',
+      populates: keyPopulates,
+    },
     {
       path: `/users`,
       queryParams: ['orderByValue=displayName'],
       storeAs: 'userList',
     },
     {
-      path: `/years/${props.params.year || currentYear}/projects/${props.params
-        .projectKey}`,
+      path: `/years/${props.params.year || currentYear}/projects/${
+        props.params.projectKey
+      }`,
       storeAs: 'project',
       keyProp: 'key',
     },
@@ -177,6 +201,7 @@ export default compose(
   connect(({firebase}) => {
     return {
       auth: pathToJS(firebase, 'auth'),
+      awardList: orderedPopulatedDataToJS(firebase, 'awardList', keyPopulates),
       project: orderedPopulatedDataToJS(firebase, 'project'),
       userList: orderedPopulatedDataToJS(firebase, 'userList'),
     };

@@ -4,6 +4,22 @@
       ".read": "auth.uid != null && auth.token.email_verified == true && auth.token.email.endsWith('sentry.io')",
       "$year": {
         ".write": "auth.uid != null && auth.token.email_verified == true && auth.token.email.endsWith('sentry.io')",
+        "awards": {
+          ".indexOn": ["creator", "project"],
+          ".write": "auth.uid != null && root.child('users').child(auth.uid).child('admin').val() == true",
+          "creator": {
+            ".validate": "!data.exists() || newData.val() == auth.uid || newData.val() == data.val()"
+          },
+          "name": {
+            ".validate": "newData.isString()"
+          },
+          "project": {
+            ".validate": "!newData.exists() || root.child('years/'+$year+'/projects/'+newData.val()).exists()"
+          },
+          "ts": {
+            ".validate": "newData.isNumber()"
+          }
+        },
         "projects": {
           ".indexOn": ["creator"],
           "$project": {
@@ -24,7 +40,7 @@
               ".validate": "newData.isBoolean()"
             },
             "year": {
-              ".validate": "newData.exists()"
+              ".validate": "!data.exists() || (newData.exists() && newData.val() == data.val())"
             },
             "members": {
               "$member": {
@@ -58,7 +74,11 @@
     "users": {
       ".read": "auth != null",
       "$user": {
-        ".write": "auth.uid === $user && auth.token.email_verified == true && auth.token.email.endsWith('sentry.io')"
+        ".write": "auth.uid === $user && auth.token.email_verified == true && auth.token.email.endsWith('sentry.io')",
+        "admin": {
+          ".write": "auth.uid != null && root.child('users').child(auth.uid).child('admin').val() == true",
+          ".validate": "newData.isBoolean()"
+        }
       }
     }
   }

@@ -9,6 +9,8 @@ import ProjectList from './pages/ProjectList';
 import ProjectDetails from './pages/ProjectDetails';
 import YearList from './pages/YearList';
 
+import ManageAwards from './pages/ManageAwards';
+
 import {loginRequired} from './auth';
 
 export default (
@@ -28,5 +30,7 @@ export default (
       path="/years/:year/projects/:projectKey/edit"
       component={loginRequired(EditProject)}
     />
+
+    <Route path="/admin/years/:year/awards" component={loginRequired(ManageAwards)} />
   </Route>
 );

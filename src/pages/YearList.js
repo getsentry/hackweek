@@ -25,38 +25,41 @@ class ProjectList extends Component {
     return (
       <div>
         <ul className="list-group Year-List">
-          {Object.keys(yearList).map(year => {
-            let projects = yearList[year].projects;
-            let allMembers = new Set();
-            Object.values(projects).forEach(project => {
-              Object.keys(project.members || {}).forEach(memberKey => {
-                allMembers.add(memberKey);
+          {Object.keys(yearList)
+            .sort((a, b) => b - a)
+            .map(year => {
+              let projects = yearList[year].projects || {};
+              let allMembers = new Set();
+              Object.values(projects).forEach(project => {
+                Object.keys(project.members || {}).forEach(memberKey => {
+                  allMembers.add(memberKey);
+                });
               });
-            });
-            return (
-              <li key={year} className="Year">
-                <div className="Year-Name">
-                  <Link to={`/years/${year}/projects`}>{year}</Link>
-                </div>
-                <ul className="Year-member-list">
-                  {Array.from(allMembers)
-                    .map(k => userList[k])
-                    .filter(m => m !== null)
-                    .map(member => {
-                      return (
-                        <li key={member.email} title={member.displayName}>
-                          <img
-                            src={member.avatarUrl}
-                            className="Year-member-avatar"
-                            alt="avatar"
-                          />
-                        </li>
-                      );
-                    })}
-                </ul>
-              </li>
-            );
-          })}
+              return (
+                <li key={year} className="Year">
+                  <div className="Year-Name">
+                    <Link to={`/years/${year}/projects`}>{year}</Link>
+                  </div>
+                  <ul className="Year-member-list">
+                    {Array.from(allMembers)
+                      .sort()
+                      .map(k => userList[k])
+                      .filter(m => m !== null)
+                      .map(member => {
+                        return (
+                          <li key={member.email} title={member.displayName}>
+                            <img
+                              src={member.avatarUrl}
+                              className="Year-member-avatar"
+                              alt="avatar"
+                            />
+                          </li>
+                        );
+                      })}
+                  </ul>
+                </li>
+              );
+            })}
         </ul>
       </div>
     );

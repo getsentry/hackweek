@@ -12,11 +12,24 @@
   text-align: left;
 }
 
+.Project-award {
+  float: right;
+}
+
 .Project-summary {
   border: 0;
   background: none;
   padding: 0;
   margin-bottom: 20px;
+}
+
+.Project-award-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+.Project-award-list li {
+  font-size: 1.2em;
 }
 
 .Project-member-list {

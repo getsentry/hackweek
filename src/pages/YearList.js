@@ -6,29 +6,54 @@ import {connect} from 'react-redux';
 import {compose} from 'redux';
 import {firebaseConnect, isLoaded} from 'react-redux-firebase';
 
-import './ProjectList.css';
+import './YearList.css';
 
 import {orderedPopulatedDataToJS} from '../helpers';
 import Layout from '../components/Layout';
 
 class ProjectList extends Component {
   static propTypes = {
+    userList: PropTypes.object,
     yearList: PropTypes.object,
   };
 
   renderBody() {
-    let {yearList} = this.props;
-    if (!isLoaded(yearList)) return <div className="loading-indicator">Loading..</div>;
+    let {userList, yearList} = this.props;
+    if (!isLoaded(yearList) || !isLoaded(userList))
+      return <div className="loading-indicator">Loading..</div>;
 
     return (
       <div>
-        <ul className="list-group Project-List">
+        <ul className="list-group Year-List">
           {Object.keys(yearList).map(year => {
-            console.log(yearList[year]);
+            let projects = yearList[year].projects;
+            let allMembers = new Set();
+            Object.values(projects).forEach(project => {
+              Object.keys(project.members || {}).map(memberKey => {
+                allMembers.add(memberKey);
+              });
+            });
             return (
-              <li key={year}>
-                <Link to={`/years/${year}/projects`}>{year}</Link> &mdash;{' '}
-                {Object.keys(yearList[year].projects).length} projects
+              <li key={year} className="Year">
+                <div className="Year-Name">
+                  <Link to={`/years/${year}/projects`}>{year}</Link>
+                </div>
+                <ul className="Year-member-list">
+                  {Array.from(allMembers)
+                    .map(k => userList[k])
+                    .filter(m => m !== null)
+                    .map(member => {
+                      return (
+                        <li key={member.email} title={member.displayName}>
+                          <img
+                            src={member.avatarUrl}
+                            className="Year-member-avatar"
+                            alt="avatar"
+                          />
+                        </li>
+                      );
+                    })}
+                </ul>
               </li>
             );
           })}
@@ -52,6 +77,11 @@ class ProjectList extends Component {
 export default compose(
   firebaseConnect(props => [
     {
+      path: `/users`,
+      queryParams: ['orderByValue=displayName'],
+      storeAs: 'userList',
+    },
+    {
       path: `/years`,
       queryParams: [],
       populates: [],
@@ -59,6 +89,7 @@ export default compose(
     },
   ]),
   connect(({firebase}) => ({
+    userList: orderedPopulatedDataToJS(firebase, 'userList'),
     yearList: orderedPopulatedDataToJS(firebase, 'yearList'),
   }))
 )(ProjectList);

@@ -93,7 +93,7 @@ class ProjectList extends Component {
 
     return (
       <div>
-        {projectsLFH.length && (
+        {!!projectsLFH.length && (
           <div>
             <h3>Looking for Help</h3>
             <ul className="list-group Project-List">
@@ -111,7 +111,7 @@ class ProjectList extends Component {
             </ul>
           </div>
         )}
-        {otherProjects.length && (
+        {!!otherProjects.length && (
           <div>
             {projectsLFH.length && <h3>Other Projects</h3>}
             <ul className="list-group Project-List">

@@ -95,15 +95,76 @@ class ProjectList extends Component {
     });
   };
 
-  renderBody() {
+  renderPreviousYearBody() {
     let {auth, awardList, firebase, projectList, userList} = this.props;
+    let projects = mapObject(projectList);
+    let winningProjects = [];
+    let otherProjects = [];
+    projects.forEach(p => {
+      if (mapObject(awardList).find(award => award.project === p.key)) {
+        winningProjects.push(p);
+      } else {
+        otherProjects.push(p);
+      }
+    });
+
+    return (
+      <div>
+        {!!winningProjects.length && (
+          <div>
+            <h3>Awards</h3>
+            <ul className="list-group Project-List">
+              {winningProjects.map(project => {
+                return (
+                  <ProjectListItem
+                    key={project.key}
+                    auth={auth}
+                    firebase={firebase}
+                    project={project}
+                    awardList={awardList}
+                    userList={userList}
+                  />
+                );
+              })}
+            </ul>
+          </div>
+        )}
+        {!!projects.length && (
+          <div>
+            {!!winningProjects.length && <h3>All Projects</h3>}
+            <ul className="list-group Project-List">
+              {projects.map(project => {
+                return (
+                  <ProjectListItem
+                    key={project.key}
+                    auth={auth}
+                    firebase={firebase}
+                    project={project}
+                    awardList={awardList}
+                    userList={userList}
+                  />
+                );
+              })}
+            </ul>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  renderBody() {
+    let {auth, awardList, firebase, params, projectList, userList} = this.props;
     if (!isLoaded(projectList)) return <div className="loading-indicator">Loading..</div>;
+
+    if (!params.year || currentYear !== params.year) {
+      return this.renderPreviousYearBody();
+    }
 
     let projects = mapObject(projectList);
     let projectsLFH = [];
     let otherProjects = [];
     projects.forEach(p => {
-      if (p.needHelp && currentYear === p.year) projectsLFH.push(p);
+      if (p.needHelp) projectsLFH.push(p);
       else otherProjects.push(p);
     });
 

@@ -23,6 +23,10 @@
   margin-bottom: 20px;
 }
 
+.Project-summary a {
+  text-decoration: underline;
+}
+
 .Project-award-list {
   list-style: none;
   padding-left: 0;

@@ -4,7 +4,7 @@
   "private": true,
   "dependencies": {
     "bootstrap": "3",
-    "firebase": "^4.6.0",
+    "firebase": "^5.2.0",
     "idx": "^2.2.0",
     "marked": "^0.3.6",
     "moment": "^2.19.1",

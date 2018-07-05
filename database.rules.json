@@ -72,7 +72,7 @@
       }
     },
     "users": {
-      ".read": "auth != null",
+      ".read": "auth != null && auth.token.email_verified == true && auth.token.email.endsWith('sentry.io')",
       "$user": {
         ".write": "auth.uid === $user && auth.token.email_verified == true && auth.token.email.endsWith('sentry.io')",
         "admin": {

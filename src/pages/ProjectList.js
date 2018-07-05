@@ -14,7 +14,7 @@ import Layout from '../components/Layout';
 
 class ProjectListItem extends Component {
   static propTypes = {
-    awardList: PropTypes.project,
+    awardList: PropTypes.object,
     auth: PropTypes.object,
     firebase: PropTypes.object,
     project: PropTypes.object,

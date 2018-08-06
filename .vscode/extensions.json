@@ -6,5 +6,7 @@
         "esbenp.prettier-vscode",
         "dbaeumer.vscode-eslint",
         "lextudio.restructuredtext",
+        "smkamranqadri.vscode-bolt-language",
+        "toba.vsfire",
     ]
 }

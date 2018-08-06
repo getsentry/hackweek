@@ -41,9 +41,9 @@ class Layout extends Component {
           </h1>
           <div className="App-auth">
             <div className="App-avatar">
-              {profile && (
+              {auth && (
                 <a onClick={this.props.firebase.logout}>
-                  <img src={profile.avatarUrl} alt="avatar" />
+                  <img src={profile ? profile.avatarUrl : null} alt="avatar" />
                 </a>
               )}
             </div>

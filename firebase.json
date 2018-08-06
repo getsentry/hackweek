@@ -25,7 +25,7 @@
     ]
   },
   "database": {
-    "rules": "database.rules.json"
+    "rules": "database.rules.bolt"
   },
   "storage": {
     "rules": "storage.rules"

@@ -73,71 +73,92 @@ class EditProject extends Component {
       .then(snapshot => {
         let updates = {};
 
+        let currentMembers = new Set(Object.keys(project.members || {}));
+        let remainingMembers = new Set(currentMembers);
         // first get the team in order
         this.state.team.forEach(({value}) => {
-          updates[
-            `/years/${params.year ||
-              currentYear}/projects/${params.projectKey}/members/${value}`
-          ] = {
-            ts: new Date().getTime(),
-          };
-        });
-        Object.keys(project.members || {}).forEach(memberKey => {
-          let path = `/years/${params.year ||
-            currentYear}/projects/${params.projectKey}/members/${memberKey}`;
-          if (!updates.hasOwnProperty(path)) {
-            updates[path] = null;
+          if (!currentMembers.has(value)) {
+            updates[
+              `/years/${params.year || currentYear}/projects/${
+                params.projectKey
+              }/members/${value}`
+            ] = {
+              ts: Date.now(),
+            };
+          } else {
+            remainingMembers.delete(value);
           }
         });
-
-        let filesReadyToUpload = [];
-        this.state.pendingUploads.forEach(upload => {
-          let fileRef = firebase
-            .database()
-            .ref()
-            .child(
-              `/years/${params.year || currentYear}/projects/${params.projectKey}/media`
-            );
-          let fileKey = fileRef.push().key;
-          updates[
-            `/years/${params.year ||
-              currentYear}/projects/${params.projectKey}/media/${fileKey}`
-          ] = {
-            path: `projects/${params.projectKey}/media/${fileKey}/${upload.name}`,
-            name: upload.name,
-            ts: new Date().getTime(),
-          };
-          filesReadyToUpload.push([upload, fileKey]);
+        remainingMembers.forEach(memberKey => {
+          let path = `/years/${params.year || currentYear}/projects/${
+            params.projectKey
+          }/members/${memberKey}`;
+          updates[path] = null;
         });
 
-        let storageRef = firebase.storage().ref();
-        Promise.all(
-          filesReadyToUpload.map(([upload, fileKey]) => {
-            let fileRef = storageRef.child(
-              `projects/${params.projectKey}/media/${fileKey}/${upload.name}`
-            );
-            return fileRef.put(upload, {
-              project: params.projectKey,
-            });
-          })
-        )
-          .then(() => {
-            firebase
+        if (this.state.pendingUploads.length !== 0) {
+          let filesReadyToUpload = [];
+          this.state.pendingUploads.forEach(upload => {
+            let fileRef = firebase
               .database()
               .ref()
-              .update(updates)
-              .then(() => {
-                this.context.router.push(this.getProjectUrl());
-              })
-              .catch(ex => {
-                console.error(ex);
-                this.setState({saving: false});
-              });
-          })
-          .catch(ex => {
-            console.error(ex);
-            this.setState({saving: false});
+              .child(
+                `/years/${params.year || currentYear}/projects/${params.projectKey}/media`
+              );
+            let fileKey = fileRef.push().key;
+            updates[
+              `/years/${params.year || currentYear}/projects/${
+                params.projectKey
+              }/media/${fileKey}`
+            ] = {
+              path: `projects/${params.projectKey}/media/${fileKey}/${upload.name}`,
+              name: upload.name,
+              ts: Date.now(),
+            };
+            filesReadyToUpload.push([upload, fileKey]);
           });
+
+          let storageRef = firebase.storage().ref();
+          Promise.all(
+            filesReadyToUpload.map(([upload, fileKey]) => {
+              let fileRef = storageRef.child(
+                `projects/${params.projectKey}/media/${fileKey}/${upload.name}`
+              );
+              return fileRef.put(upload, {
+                project: params.projectKey,
+              });
+            })
+          )
+            .then(() => {
+              firebase
+                .database()
+                .ref()
+                .update(updates)
+                .then(() => {
+                  this.context.router.push(this.getProjectUrl());
+                })
+                .catch(ex => {
+                  console.error(ex);
+                  this.setState({saving: false});
+                });
+            })
+            .catch(ex => {
+              console.error(ex);
+              this.setState({saving: false});
+            });
+        } else {
+          firebase
+            .database()
+            .ref()
+            .update(updates)
+            .then(() => {
+              this.context.router.push(this.getProjectUrl());
+            })
+            .catch(ex => {
+              console.error(ex);
+              this.setState({saving: false});
+            });
+        }
       })
       .catch(ex => {
         console.error(ex);
@@ -294,8 +315,9 @@ export default compose(
       storeAs: 'userList',
     },
     {
-      path: `/years/${props.params.year || currentYear}/projects/${props.params
-        .projectKey}`,
+      path: `/years/${props.params.year || currentYear}/projects/${
+        props.params.projectKey
+      }`,
       populates: [],
       storeAs: 'project',
     },

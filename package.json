@@ -5,6 +5,7 @@
   "dependencies": {
     "bootstrap": "3",
     "firebase": "^5.2.0",
+    "firebase-bolt": "^0.8.4",
     "idx": "^2.2.0",
     "marked": "^0.3.6",
     "moment": "^2.19.1",
@@ -23,7 +24,7 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "deploy": "firebase deploy",
+    "deploy": "firebase deploy -P default",
     "predeploy": "react-scripts build",
     "test": "react-scripts test --env=jsdom",
     "eject": "react-scripts eject"

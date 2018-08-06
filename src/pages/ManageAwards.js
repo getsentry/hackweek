@@ -150,7 +150,7 @@ class ManageAwards extends Component {
         .push(`/years/${year}/awards`, {
           name: award.name,
           project: award.project || null,
-          ts: new Date().getTime(),
+          ts: Date.now(),
           creator: auth.uid,
         })
         .then(onSuccess);

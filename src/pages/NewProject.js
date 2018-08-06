@@ -54,7 +54,7 @@ class NewProject extends Component {
         summary: this.state.summary,
         needHelp: this.state.needHelp,
         year: currentYear,
-        ts: new Date().getTime(),
+        ts: Date.now(),
         creator: auth.uid,
       })
       .then(snapshot => {
@@ -62,7 +62,7 @@ class NewProject extends Component {
         let updates = {};
         this.state.team.forEach(({value}) => {
           updates[`/years/${currentYear}/projects/${projectKey}/members/${value}`] = {
-            ts: new Date().getTime(),
+            ts: Date.now(),
           };
           // updates[`/users/${uid}/projects/${projectKey}`] = {
           //   year: currentYear,

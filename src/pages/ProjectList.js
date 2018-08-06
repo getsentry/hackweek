@@ -80,22 +80,6 @@ class ProjectList extends Component {
     userList: PropTypes.object,
   };
 
-  onAddProject = data => {
-    let {auth, params} = this.props;
-
-    return new Promise((resolve, reject) => {
-      return this.props.firebase
-        .push('/projects', {
-          ...data,
-          ts: new Date().getTime(),
-          year: params.year || currentYear,
-          creator: auth.uid,
-        })
-        .then(resolve)
-        .catch(reject);
-    });
-  };
-
   renderPreviousYearBody() {
     let {auth, awardList, firebase, projectList, userList} = this.props;
     let projects = mapObject(projectList);

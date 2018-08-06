@@ -1,0 +1,87 @@
+isAllowedUser() { auth != null && auth.token.email_verified == true && auth.token.email.endsWith('sentry.io') }
+
+isAdmin() { prior(root.users[auth.uid].admin) == true }
+
+isCurrentUser(uid) { auth != null && auth.uid == uid }
+
+isUser(uid) { prior(root.users[uid]) != null }
+
+type UserRef extends String {
+    validate() { isUser(this) }
+}
+
+type InitialTimestamp extends Number {
+    validate() { (prior(this) == null && this != null) || prior(this) == this }
+}
+
+type InitialUserRef extends String {
+    validate() { (prior(this) == null && isCurrentUser(this)) || prior(this) == this }
+}
+
+type User {
+    admin: Boolean | Null,
+    avatarUrl: String
+    displayName: String,
+    email: String,
+    providerData: Object
+
+    validate() { this.admin == prior(this.admin) || isAdmin() }
+}
+
+type ProjectMember {
+    ts: InitialTimestamp,
+
+    validate() { isUser(key()) }
+}
+
+type ProjectMedia {
+    name: String,
+    path: String,
+    ts: InitialTimestamp,
+}
+
+type Project {
+    creator: InitialUserRef,
+    name: String,
+    summary: String | Null,
+    ts: InitialTimestamp,
+    needHelp: Boolean | Null,
+    year: String,
+
+    validate() { prior(this.members) == null || prior(this.members[auth.uid]) != null || isAdmin() }
+}
+
+type ProjectRef extends String {
+  validate() { this.parent().projects[this] != null }
+}
+
+type Award {
+    creator: InitialUserRef,
+    project: ProjectRef,
+    name: String,
+    ts: InitialTimestamp,
+}
+
+path / {
+    read() { isAllowedUser() }
+}
+
+path /users/{userId} is User {
+    write() { isAllowedUser() && isCurrentUser(userId) }
+}
+
+path /years/{year} {
+    path /awards/{awardId} is Award {
+        write() { isAdmin() }
+        index() { ["creator", "project"] }
+    }
+
+    path /projects/{projectId} is Project {
+        write() { isAllowedUser() }
+        index() { ["creator"] }
+
+        path /media/{mediaId} is ProjectMedia {}
+
+        path /members/{memberId} is ProjectMember {}
+    }
+}

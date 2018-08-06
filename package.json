@@ -24,8 +24,8 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "deploy": "firebase deploy -P default",
-    "predeploy": "react-scripts build",
+    "deploy": "NODE_ENV=production && firebase deploy -P default",
+    "predeploy": "NODE_ENV=production && react-scripts build",
     "test": "react-scripts test --env=jsdom",
     "eject": "react-scripts eject"
   },

@@ -7,19 +7,20 @@
     "firebase": "^5.2.0",
     "firebase-bolt": "^0.8.4",
     "idx": "^2.2.0",
-    "marked": "^0.3.6",
-    "moment": "^2.19.1",
+    "marked": "^0.3.17",
+    "moment": "^2.19.3",
     "react": "^16.0.0",
     "react-bootstrap": "^0.31.5",
-    "react-dom": "^16.0.0",
+    "react-dom": "^16.0.1",
     "react-dropzone": "^4.2.1",
     "react-google-button": "^0.4.0",
     "react-redux": "^5.0.7",
     "react-redux-firebase": "^1.5.1",
-    "react-router": "3",
+    "react-router": "3.2.0",
     "react-scripts": "1.1.1",
-    "react-select": "^1.0.0-rc.10",
-    "redux": "^3.7.2"
+    "react-select": "^1.0.0",
+    "redux": "^3.7.2",
+    "snyk": "^1.103.4"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -27,7 +28,9 @@
     "deploy": "NODE_ENV=production && firebase deploy -P default",
     "predeploy": "NODE_ENV=production && react-scripts build",
     "test": "react-scripts test --env=jsdom",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "snyk-protect": "snyk protect",
+    "prepare": "npm run snyk-protect"
   },
   "devDependencies": {
     "jest-junit": "^3.1.0"
@@ -39,5 +42,6 @@
     "titleTemplate": "{classname}-{title}",
     "ancestorSeparator": " › ",
     "usePathForSuiteName": "true"
-  }
+  },
+  "snyk": true
 }

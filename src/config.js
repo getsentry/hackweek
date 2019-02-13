@@ -17,6 +17,6 @@ const getFirebaseConfig = () => {
 
 export const firebase = getFirebaseConfig();
 
-export const currentYear = '2018';
+export const currentYear = '2019';
 
 export default {firebase};

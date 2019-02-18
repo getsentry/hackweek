@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "bootstrap": "3",
+    "bootstrap": "3.4.1",
     "firebase": "^5.8.2",
     "firebase-bolt": "^0.8.4",
     "idx": "^2.2.0",

@@ -6,6 +6,7 @@ import {compose} from 'redux';
 import {firebaseConnect, pathToJS} from 'react-redux-firebase';
 
 import {currentYear} from '../config';
+import Avatar from './Avatar';
 
 class Layout extends Component {
   static propTypes = {
@@ -43,14 +44,15 @@ class Layout extends Component {
             <div className="App-avatar">
               {auth && (
                 <a onClick={this.props.firebase.logout}>
-                  <img src={profile ? profile.avatarUrl : null} alt="avatar" />
+                  <Avatar user={profile} />
                 </a>
               )}
             </div>
             <div className="App-email">
               {auth && (
                 <p>
-                  Logged in as<br />
+                  Logged in as
+                  <br />
                   {auth.email}
                 </p>
               )}

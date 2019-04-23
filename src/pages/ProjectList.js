@@ -10,6 +10,7 @@ import './ProjectList.css';
 
 import {currentYear} from '../config';
 import {mapObject, orderedPopulatedDataToJS} from '../helpers';
+import Avatar from '../components/Avatar';
 import Layout from '../components/Layout';
 
 class ProjectListItem extends Component {
@@ -46,18 +47,15 @@ class ProjectListItem extends Component {
         <Link to={link}>
           <strong>{project.name}</strong>
         </Link>
-        {project.needHelp &&
-          currentYear === project.year && <div className="badge">looking for help</div>}
+        {project.needHelp && currentYear === project.year && (
+          <div className="badge">looking for help</div>
+        )}
         <div className="Project-member-list-condensed">
           {projectMembers.length ? (
             projectMembers.map(member => {
               return (
                 <div className="Project-member" key={member.email}>
-                  <img
-                    src={member.avatarUrl}
-                    className="Project-member-avatar"
-                    alt="avatar"
-                  />
+                  <Avatar user={member} />
                   <span className="Project-member-name">{member.displayName}</span>
                 </div>
               );

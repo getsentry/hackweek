@@ -9,6 +9,7 @@ import {firebaseConnect, isLoaded} from 'react-redux-firebase';
 import './YearList.css';
 
 import {mapObject, orderedPopulatedDataToJS} from '../helpers';
+import Avatar from '../components/Avatar';
 import Layout from '../components/Layout';
 
 class ProjectList extends Component {
@@ -56,11 +57,7 @@ class ProjectList extends Component {
                           .map(member => {
                             return (
                               <li key={member.email} title={member.displayName}>
-                                <img
-                                  src={member.avatarUrl}
-                                  className="Year-member-avatar"
-                                  alt="avatar"
-                                />
+                                <Avatar user={member} />
                               </li>
                             );
                           })}

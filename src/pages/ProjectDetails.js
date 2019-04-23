@@ -11,6 +11,7 @@ import './ProjectList.css';
 
 import {currentYear} from '../config';
 import {mapObject, orderedPopulatedDataToJS} from '../helpers';
+import Avatar from '../components/Avatar';
 import Layout from '../components/Layout';
 import MediaObject from '../components/MediaObject';
 
@@ -114,11 +115,7 @@ class ProjectDetails extends Component {
                   {projectMembers.map(member => {
                     return (
                       <li key={member.email}>
-                        <img
-                          src={member.avatarUrl}
-                          className="Project-member-avatar"
-                          alt="avatar"
-                        />
+                        <Avatar user={member} />
                         <span className="Project-member-name">{member.displayName}</span>
                       </li>
                     );
@@ -165,11 +162,7 @@ class ProjectDetails extends Component {
                   {creator && [
                     <dt key="dt-creator">Created By</dt>,
                     <dd key="dd-creator">
-                      <img
-                        src={creator.avatarUrl}
-                        className="Project-member-avatar"
-                        alt="avatar"
-                      />
+                      <Avatar user={creator} />
                       <span className="Project-member-name">{creator.displayName}</span>
                     </dd>,
                   ]}

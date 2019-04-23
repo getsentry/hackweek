@@ -19,16 +19,18 @@ class Layout extends Component {
 
   componentDidUpdate() {
     let {auth, profile} = this.props;
-    window.Raven &&
-      window.Raven.setUserContext(
-        !!auth && !!profile
-          ? {
-              id: auth.uid,
-              email: auth.email,
-              isAdmin: profile.admin,
-            }
-          : {}
-      );
+    window.Sentry &&
+      window.Sentry.configureScope(scope => {
+        scope.setUser(
+          !!auth && !!profile
+            ? {
+                id: auth.uid,
+                email: auth.email,
+                isAdmin: profile.admin,
+              }
+            : {}
+        );
+      });
   }
 
   render() {

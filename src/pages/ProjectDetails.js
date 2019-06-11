@@ -57,6 +57,8 @@ class ProjectDetails extends Component {
       })
       .filter(member => member !== null);
 
+    // XXX(dcramer): not sure why this would happen
+    if (!profile) profile = {};
     let media = Object.keys(project.media || {}).map(mediaKey => ({
       ...project.media[mediaKey],
       key: mediaKey,

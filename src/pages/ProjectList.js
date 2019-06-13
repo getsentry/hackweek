@@ -25,7 +25,10 @@ class ProjectListItem extends Component {
 
   render() {
     let {awardList, project, userList} = this.props;
-    let link = `/years/${project.year}/projects/${project.key}/${slugify(project.name)}`;
+    let link =
+      currentYear === project.year
+        ? `/projects/${project.key}/${slugify(project.name)}`
+        : `/years/${project.year}/projects/${project.key}/${slugify(project.name)}`;
 
     let projectMembers = Object.keys(project.members || {})
       .map(memberKey => {

@@ -32,7 +32,7 @@ class ProjectListItem extends Component {
         return userList[memberKey];
       })
       .filter(member => member !== null);
-
+    projectMembers.sort((a, b) => ('' + a.displayName).localeCompare(b.displayName));
     let awards = mapObject(awardList).filter(award => award.project === project.key);
 
     return (

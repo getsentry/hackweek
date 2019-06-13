@@ -56,7 +56,7 @@ class ProjectDetails extends Component {
         return userList[memberKey];
       })
       .filter(member => member !== null);
-
+    projectMembers.sort((a, b) => ('' + a.displayName).localeCompare(b.displayName));
     // XXX(dcramer): not sure why this would happen
     if (!profile) profile = {};
     let media = Object.keys(project.media || {}).map(mediaKey => ({

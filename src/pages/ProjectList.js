@@ -12,6 +12,7 @@ import {currentYear} from '../config';
 import {mapObject, orderedPopulatedDataToJS} from '../helpers';
 import Avatar from '../components/Avatar';
 import Layout from '../components/Layout';
+import {slugify} from '../utils';
 
 class ProjectListItem extends Component {
   static propTypes = {
@@ -24,7 +25,7 @@ class ProjectListItem extends Component {
 
   render() {
     let {awardList, project, userList} = this.props;
-    let link = `/years/${project.year}/projects/${project.key}`;
+    let link = `/years/${project.year}/projects/${project.key}/${slugify(project.name)}`;
 
     let projectMembers = Object.keys(project.members || {})
       .map(memberKey => {

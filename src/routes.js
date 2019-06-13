@@ -23,6 +23,10 @@ export default (
     <Route path="/projects" component={loginRequired(ProjectList)} />
     <Route path="/new-project" component={loginRequired(NewProject)} />
     <Route path="/projects/:projectKey" component={loginRequired(ProjectDetails)} />
+    <Route
+      path="/projects/:projectKey/:title"
+      component={loginRequired(ProjectDetails)}
+    />
     <Route path="/years" component={loginRequired(YearList)} />
     <Route path="/years/:year/projects" component={loginRequired(ProjectList)} />
     <Route
@@ -33,7 +37,10 @@ export default (
       path="/years/:year/projects/:projectKey/edit"
       component={loginRequired(EditProject)}
     />
-
+    <Route
+      path="/years/:year/projects/:projectKey/:title"
+      component={loginRequired(ProjectDetails)}
+    />
     <Route path="/admin" component={loginRequired(Admin)} />
     <Route path="/admin/years/:year" component={loginRequired(ManageYear)}>
       <IndexRoute component={loginRequired(ManageYearDetails)} />

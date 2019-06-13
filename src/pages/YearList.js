@@ -11,6 +11,7 @@ import './YearList.css';
 import {mapObject, orderedPopulatedDataToJS} from '../helpers';
 import Avatar from '../components/Avatar';
 import Layout from '../components/Layout';
+import {slugify} from '../utils';
 
 class ProjectList extends Component {
   static propTypes = {
@@ -75,7 +76,11 @@ class ProjectList extends Component {
                             return (
                               <li key={award.name}>
                                 <em>{award.name}</em> &mdash;{' '}
-                                <Link to={`/years/${year}/projects/${award.project}`}>
+                                <Link
+                                  to={`/years/${year}/projects/${award.project}/${slugify(
+                                    project.name
+                                  )}`}
+                                >
                                   {project.name}
                                 </Link>
                               </li>

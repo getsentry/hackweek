@@ -115,3 +115,27 @@ dl dd {
   height: 50px;
   display: inline-block;
 }
+
+.form-group .checkbox,
+.form-group .radio {
+  margin: 0;
+}
+
+.alert {
+  font-size: 0.9em;
+  border: 0;
+}
+
+.alert blockquote {
+  padding: 0;
+  margin-bottom: 0;
+  font-size: inherit;
+  border: 0;
+  font-style: italic;
+}
+
+.alert blockquote header {
+  display: block;
+  font-style: normal;
+  margin-bottom: 20px;
+}

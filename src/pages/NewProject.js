@@ -53,6 +53,7 @@ class NewProject extends Component {
         name: this.state.name,
         summary: this.state.summary,
         needHelp: this.state.needHelp,
+        needHelpComments: this.state.needHelpComments,
         year: currentYear,
         ts: Date.now(),
         creator: auth.uid,
@@ -125,19 +126,6 @@ class NewProject extends Component {
               required
             />
           </div>
-          <div className="checkbox">
-            <label>
-              <input
-                type="checkbox"
-                name="needHelp"
-                checked={this.state.needHelp}
-                onChange={e => {
-                  this.setState({needHelp: e.target.checked});
-                }}
-              />{' '}
-              I'm looking for help on this project!
-            </label>
-          </div>
           <div className="form-group">
             <label>Team</label>
             <Select
@@ -148,6 +136,37 @@ class NewProject extends Component {
               onChange={this.onChangeTeam}
             />
           </div>
+          <h3>Looking for Help?</h3>
+          <div className="form-group">
+            <div className="checkbox">
+              <label>
+                <input
+                  type="checkbox"
+                  name="needHelp"
+                  checked={this.state.needHelp}
+                  onChange={e => {
+                    this.setState({needHelp: e.target.checked});
+                  }}
+                />{' '}
+                I'm looking for help on this project!
+              </label>
+            </div>
+          </div>
+          {this.state.needHelp && (
+            <div className="form-group">
+              <div className="help-block help-text">
+                What kind of help are you looking for?
+              </div>
+              <textarea
+                className="form-control"
+                name="needHelpComments"
+                value={this.state.needHelpComments}
+                onChange={this.onChangeField}
+                rows={6}
+                required
+              />
+            </div>
+          )}
           <div className="btn-set" style={{textAlign: 'right'}}>
             <button className="btn btn-primary">Save Changes</button>
           </div>

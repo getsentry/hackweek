@@ -108,8 +108,23 @@ class ProjectDetails extends Component {
               <h3>Team</h3>
               {project.needHelp && (
                 <div className="alert alert-block alert-info">
-                  This project is looking for help! Reach out someone on the team for more
-                  details.
+                  {project.needHelpComments ? (
+                    <blockquote>
+                      <header>
+                        <strong>This project is looking for help!</strong>
+                      </header>
+                      <span
+                        dangerouslySetInnerHTML={{
+                          __html: marked(project.needHelpComments),
+                        }}
+                      />
+                    </blockquote>
+                  ) : (
+                    <p>
+                      <strong>This project is looking for help!</strong> Reach out someone
+                      on the team for more details.
+                    </p>
+                  )}
                 </div>
               )}
               {projectMembers.length ? (
@@ -118,7 +133,12 @@ class ProjectDetails extends Component {
                     return (
                       <li key={member.email}>
                         <Avatar user={member} />
-                        <span className="Project-member-name">{member.displayName}</span>
+                        <a
+                          href={`mailto:${member.displayName} <${member.email}>`}
+                          className="Project-member-name"
+                        >
+                          {member.displayName} &lt;{member.email}&gt;
+                        </a>
                       </li>
                     );
                   })}

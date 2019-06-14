@@ -40,6 +40,7 @@ class EditProject extends Component {
         name: project.name,
         summary: project.summary,
         needHelp: project.needHelp || false,
+        needHelpComments: project.needHelpComments || '',
         team: Object.keys(project.members || {}).map(memberKey => ({
           value: memberKey,
           label: userList[memberKey].displayName,
@@ -69,6 +70,7 @@ class EditProject extends Component {
         name: this.state.name,
         summary: this.state.summary,
         needHelp: this.state.needHelp,
+        needHelpComments: this.state.needHelpComments,
       })
       .then(snapshot => {
         let updates = {};
@@ -222,19 +224,6 @@ class EditProject extends Component {
               required
             />
           </div>
-          <div className="checkbox">
-            <label>
-              <input
-                type="checkbox"
-                name="needHelp"
-                checked={this.state.needHelp}
-                onChange={e => {
-                  this.setState({needHelp: e.target.checked});
-                }}
-              />{' '}
-              I'm looking for help on this project!
-            </label>
-          </div>
           <div className="form-group">
             <label>Team</label>
             <Select
@@ -245,6 +234,39 @@ class EditProject extends Component {
               onChange={this.onChangeTeam}
             />
           </div>
+
+          <h3>Looking for Help?</h3>
+          <div className="form-group">
+            <div className="checkbox">
+              <label>
+                <input
+                  type="checkbox"
+                  name="needHelp"
+                  checked={this.state.needHelp}
+                  onChange={e => {
+                    this.setState({needHelp: e.target.checked});
+                  }}
+                />{' '}
+                I'm looking for help on this project!
+              </label>
+            </div>
+          </div>
+          {this.state.needHelp && (
+            <div className="form-group">
+              <div className="help-block help-text">
+                What kind of help are you looking for?
+              </div>
+              <textarea
+                className="form-control"
+                name="needHelpComments"
+                value={this.state.needHelpComments}
+                onChange={this.onChangeField}
+                rows={6}
+                required
+              />
+            </div>
+          )}
+
           {!!this.state.media.length && (
             <div>
               <h3>Media</h3>

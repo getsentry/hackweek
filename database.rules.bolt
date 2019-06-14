@@ -46,6 +46,7 @@ type Project {
     summary: String | Null,
     ts: InitialTimestamp,
     needHelp: Boolean | Null,
+    needHelpComments: String | Null,
     year: String,
 
     validate() { prior(this.members) == null || prior(this.members[auth.uid]) != null || isAdmin() }

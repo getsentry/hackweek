@@ -52,8 +52,8 @@ class NewProject extends Component {
       .push(`/years/${currentYear}/projects`, {
         name: this.state.name,
         summary: this.state.summary,
-        needHelp: this.state.needHelp,
-        needHelpComments: this.state.needHelpComments,
+        needHelp: this.state.needHelp || false,
+        needHelpComments: this.state.needHelpComments || '',
         year: currentYear,
         ts: Date.now(),
         creator: auth.uid,

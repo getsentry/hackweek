@@ -170,7 +170,7 @@ class ProjectList extends Component {
     return (
       <div>
         <ul className="tabs">
-          <li>
+          <li style={{fontWeight: showProjects ? 'bold' : null}}>
             <Link
               to={{
                 pathname: this.props.location.pathname,
@@ -182,7 +182,7 @@ class ProjectList extends Component {
               Projects ({projectsLFH.length + otherProjects.length})
             </Link>
           </li>
-          <li>
+          <li style={{fontWeight: showIdeas ? 'bold' : null}}>
             <Link
               to={{
                 pathname: this.props.location.pathname,

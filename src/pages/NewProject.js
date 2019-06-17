@@ -11,6 +11,7 @@ import './ProjectList.css';
 import {currentYear} from '../config';
 import Layout from '../components/Layout';
 import {mapObject, orderedPopulatedDataToJS} from '../helpers';
+import {slugify} from '../utils';
 
 class NewProject extends Component {
   static propTypes = {
@@ -75,7 +76,9 @@ class NewProject extends Component {
           .ref()
           .update(updates)
           .then(() => {
-            this.context.router.push(`/years/${currentYear}/projects/${projectKey}`);
+            this.context.router.push(
+              `/years/${currentYear}/projects/${projectKey}/${slugify(this.state.name)}`
+            );
           });
       });
   };

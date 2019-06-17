@@ -149,11 +149,16 @@ class ProjectList extends Component {
 
     let projects = mapObject(projectList);
     let projectsLFH = [];
+    let projectIdeas = [];
     let otherProjects = [];
     projects.forEach(p => {
-      if (p.needHelp) projectsLFH.push(p);
+      if (p.isIdea) projectIdeas.push(p);
+      else if (p.needHelp) projectsLFH.push(p);
       else otherProjects.push(p);
     });
+
+    let showProjects = this.props.location.query.show !== 'ideas';
+    let showIdeas = this.props.location.query.show === 'ideas';
 
     if (!projects.length)
       return (
@@ -164,7 +169,56 @@ class ProjectList extends Component {
 
     return (
       <div>
-        {!!projectsLFH.length && (
+        <ul className="tabs">
+          <li>
+            <Link
+              to={{
+                pathname: this.props.location.pathname,
+                query: {
+                  show: 'projects',
+                },
+              }}
+            >
+              Projects ({projectsLFH.length + otherProjects.length})
+            </Link>
+          </li>
+          <li>
+            <Link
+              to={{
+                pathname: this.props.location.pathname,
+                query: {
+                  show: 'ideas',
+                },
+              }}
+            >
+              Ideas ({projectIdeas.length})
+            </Link>
+          </li>
+        </ul>
+        {showIdeas && projectIdeas.length && (
+          <div>
+            <h3>Project Ideas</h3>
+            <p>
+              Need an idea? Take a look at these submissions. Claim one by using the [Edit
+              Project] action.
+            </p>
+            <ul className="list-group Project-List">
+              {projectIdeas.map(project => {
+                return (
+                  <ProjectListItem
+                    key={project.key}
+                    auth={auth}
+                    firebase={firebase}
+                    project={project}
+                    awardList={awardList}
+                    userList={userList}
+                  />
+                );
+              })}
+            </ul>
+          </div>
+        )}
+        {showProjects && !!projectsLFH.length && (
           <div>
             <h3>Looking for Help</h3>
             <ul className="list-group Project-List">
@@ -183,7 +237,7 @@ class ProjectList extends Component {
             </ul>
           </div>
         )}
-        {!!otherProjects.length && (
+        {showProjects && !!otherProjects.length && (
           <div>
             {!!projectsLFH.length && <h3>Other Projects</h3>}
             <ul className="list-group Project-List">

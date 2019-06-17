@@ -55,6 +55,7 @@ class NewProject extends Component {
         summary: this.state.summary,
         needHelp: this.state.needHelp || false,
         needHelpComments: this.state.needHelpComments || '',
+        isIdea: this.state.isIdea || false,
         year: currentYear,
         ts: Date.now(),
         creator: auth.uid,
@@ -130,15 +131,32 @@ class NewProject extends Component {
             />
           </div>
           <div className="form-group">
-            <label>Team</label>
-            <Select
-              name="team"
-              value={this.state.team}
-              multi={true}
-              options={options}
-              onChange={this.onChangeTeam}
-            />
+            <div className="checkbox">
+              <label>
+                <input
+                  type="checkbox"
+                  name="isIdea"
+                  checked={this.state.isIdea}
+                  onChange={e => {
+                    this.setState({isIdea: e.target.checked});
+                  }}
+                />{' '}
+                This project is just being shared as an idea.
+              </label>
+            </div>
           </div>
+          {!this.state.isIdea && (
+            <div className="form-group">
+              <label>Team</label>
+              <Select
+                name="team"
+                value={this.state.team}
+                multi={true}
+                options={options}
+                onChange={this.onChangeTeam}
+              />
+            </div>
+          )}
           <h3>Looking for Help?</h3>
           <div className="form-group">
             <div className="checkbox">

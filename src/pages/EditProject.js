@@ -41,6 +41,7 @@ class EditProject extends Component {
         summary: project.summary,
         needHelp: project.needHelp || false,
         needHelpComments: project.needHelpComments || '',
+        isIdea: this.state.isIdea || false,
         team: Object.keys(project.members || {}).map(memberKey => ({
           value: memberKey,
           label: userList[memberKey].displayName,
@@ -69,6 +70,7 @@ class EditProject extends Component {
       .update(`/years/${params.year || currentYear}/projects/${params.projectKey}`, {
         name: this.state.name,
         summary: this.state.summary,
+        isIdea: this.state.isIdea,
         needHelp: this.state.needHelp,
         needHelpComments: this.state.needHelpComments,
       })
@@ -78,7 +80,7 @@ class EditProject extends Component {
         let currentMembers = new Set(Object.keys(project.members || {}));
         let remainingMembers = new Set(currentMembers);
         // first get the team in order
-        this.state.team.forEach(({value}) => {
+        (this.state.isIdea ? [] : this.state.team).forEach(({value}) => {
           if (!currentMembers.has(value)) {
             updates[
               `/years/${params.year || currentYear}/projects/${
@@ -225,15 +227,32 @@ class EditProject extends Component {
             />
           </div>
           <div className="form-group">
-            <label>Team</label>
-            <Select
-              name="team"
-              value={this.state.team}
-              multi={true}
-              options={options}
-              onChange={this.onChangeTeam}
-            />
+            <div className="checkbox">
+              <label>
+                <input
+                  type="checkbox"
+                  name="isIdea"
+                  checked={this.state.isIdea}
+                  onChange={e => {
+                    this.setState({isIdea: e.target.checked});
+                  }}
+                />{' '}
+                This project is just being shared as an idea.
+              </label>
+            </div>
           </div>
+          {!this.state.isIdea && (
+            <div className="form-group">
+              <label>Team</label>
+              <Select
+                name="team"
+                value={this.state.team}
+                multi={true}
+                options={options}
+                onChange={this.onChangeTeam}
+              />
+            </div>
+          )}
 
           <h3>Looking for Help?</h3>
           <div className="form-group">

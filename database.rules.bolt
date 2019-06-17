@@ -45,6 +45,7 @@ type Project {
     name: String,
     summary: String | Null,
     ts: InitialTimestamp,
+    isIdea: Boolean | Null,
     needHelp: Boolean | Null,
     needHelpComments: String | Null,
     year: String,

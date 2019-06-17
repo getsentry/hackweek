@@ -30,10 +30,11 @@ class EditProject extends Component {
     this.state = {loaded: false, pendingUploads: [], saving: false};
   }
 
-  componentWillReceiveProps({project, userList}) {
+  componentWillReceiveProps({auth, location, project, userList}) {
     if (project === null) {
       this.context.router.push('/');
     }
+    const isClaim = 'claim' in location.query;
     if (isLoaded(project) && isLoaded(userList) && !this.state.loaded) {
       this.setState({
         loaded: true,
@@ -41,11 +42,19 @@ class EditProject extends Component {
         summary: project.summary,
         needHelp: project.needHelp || false,
         needHelpComments: project.needHelpComments || '',
-        isIdea: project.isIdea || false,
-        team: Object.keys(project.members || {}).map(memberKey => ({
-          value: memberKey,
-          label: userList[memberKey].displayName,
-        })),
+        isIdea: (!isClaim && project.isIdea) || false,
+        team:
+          isClaim && project.isIdea
+            ? [
+                {
+                  value: auth.uid,
+                  label: auth.displayName,
+                },
+              ]
+            : Object.keys(project.members || {}).map(memberKey => ({
+                value: memberKey,
+                label: userList[memberKey].displayName,
+              })),
         media: Object.keys(project.media || {}).map(mediaKey => ({
           ...project.media[mediaKey],
           key: mediaKey,

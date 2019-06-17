@@ -43,7 +43,7 @@ class ProjectListItem extends Component {
         {project.isIdea && currentYear === project.year && (
           <div className="Project-idea-claim">
             <Link
-              to={`/years/${project.year}/projects/${project.key}/edit`}
+              to={`/years/${project.year}/projects/${project.key}/edit?claim`}
               className="btn btn-xs btn-default"
             >
               Claim Project

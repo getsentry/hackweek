@@ -117,7 +117,7 @@ class ProjectDetails extends Component {
                     <Link
                       to={`/years/${params.year || currentYear}/projects/${
                         params.projectKey
-                      }/edit`}
+                      }/edit?claim`}
                       className="btn btn-xs btn-primary"
                     >
                       Claim this project

@@ -42,7 +42,10 @@ class ProjectListItem extends Component {
       <li className="list-group-item Project clearfix">
         {project.isIdea && currentYear === project.year && (
           <div className="Project-idea-claim">
-            <Link to={`/projects/${project.key}/edit`} className="btn btn-xs btn-default">
+            <Link
+              to={`/years/${project.year}/projects/${project.key}/edit`}
+              className="btn btn-xs btn-default"
+            >
               Claim Project
             </Link>
           </div>

@@ -4172,6 +4172,10 @@ he@1.2.x:
   version "1.2.0"
   resolved "https://registry.yarnpkg.com/he/-/he-1.2.0.tgz#84ae65fa7eafb165fddb61566ae14baf05664f0f"
 
+he@~0.4.1:
+  version "0.4.1"
+  resolved "https://registry.yarnpkg.com/he/-/he-0.4.1.tgz#c86667614d2dd71bc737a197c760fb2eec8a1921"
+
 hex-color-regex@^1.1.0:
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/hex-color-regex/-/hex-color-regex-1.1.0.tgz#4c06fccb4602fe2602b3c93df82d7e7dbf1a8a8e"
@@ -5627,7 +5631,7 @@ map-visit@^1.0.0:
   dependencies:
     object-visit "^1.0.0"
 
-marked@^0.3.6:
+marked@^0.3.6, marked@~0.3:
   version "0.3.19"
   resolved "https://registry.yarnpkg.com/marked/-/marked-0.3.19.tgz#5d47f709c4c9fc3c216b6d46127280f40b39d790"
 
@@ -8432,6 +8436,13 @@ stylehacks@^4.0.0:
     browserslist "^4.0.0"
     postcss "^7.0.0"
     postcss-selector-parser "^3.0.0"
+
+summarize-markdown@^0.3.1:
+  version "0.3.1"
+  resolved "https://registry.yarnpkg.com/summarize-markdown/-/summarize-markdown-0.3.1.tgz#f1979622109dee70f9c248117795edd1533f3e67"
+  dependencies:
+    he "~0.4.1"
+    marked "~0.3"
 
 supports-color@^2.0.0:
   version "2.0.0"

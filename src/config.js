@@ -1,5 +1,6 @@
 const getFirebaseConfig = () => {
-  const isProd = process.env.NODE_ENV === 'production';
+  // const isProd = process.env.NODE_ENV === 'production';
+  const isProd = true;
 
   const projectId = isProd ? 'hackweek-34e1d' : 'hackweek-34e1d-dev';
   const apiKey = isProd
@@ -17,6 +18,6 @@ const getFirebaseConfig = () => {
 
 export const firebase = getFirebaseConfig();
 
-export const currentYear = '2019';
+export const currentYear = new Date().getFullYear() + '';
 
 export default {firebase};

@@ -98,3 +98,15 @@
   height: 100%;
   border: 1px solid #eee;
 }
+
+.Project-idea-summary {
+  font-size: 0.9em;
+  margin-right: 120px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.Project-idea-claim {
+  float: right;
+}

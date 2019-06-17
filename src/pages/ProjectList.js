@@ -1,10 +1,10 @@
 import React, {Component} from 'react';
 import {Link} from 'react-router';
 import PropTypes from 'prop-types';
-
 import {connect} from 'react-redux';
 import {compose} from 'redux';
 import {firebaseConnect, isLoaded, pathToJS} from 'react-redux-firebase';
+import summarize from 'summarize-markdown';
 
 import './ProjectList.css';
 
@@ -40,6 +40,13 @@ class ProjectListItem extends Component {
 
     return (
       <li className="list-group-item Project clearfix">
+        {project.isIdea && currentYear === project.year && (
+          <div className="Project-idea-claim">
+            <Link to={`/projects/${project.key}/edit`} className="btn btn-xs btn-default">
+              Claim Project
+            </Link>
+          </div>
+        )}
         {!!awards.length && (
           <div className="Project-award">
             <span
@@ -51,23 +58,29 @@ class ProjectListItem extends Component {
         <Link to={link}>
           <strong>{project.name}</strong>
         </Link>
-        {project.needHelp && currentYear === project.year && (
-          <div className="badge">looking for help</div>
+        {project.isIdea ? (
+          <div className="Project-idea-summary">{summarize(project.summary)}</div>
+        ) : (
+          <React.Fragment>
+            {project.needHelp && currentYear === project.year && (
+              <div className="badge">looking for help</div>
+            )}
+            <div className="Project-member-list-condensed">
+              {projectMembers.length ? (
+                projectMembers.map(member => {
+                  return (
+                    <div className="Project-member" key={member.email}>
+                      <Avatar user={member} />
+                      <span className="Project-member-name">{member.displayName}</span>
+                    </div>
+                  );
+                })
+              ) : (
+                <em>up for grabs</em>
+              )}
+            </div>
+          </React.Fragment>
         )}
-        <div className="Project-member-list-condensed">
-          {projectMembers.length ? (
-            projectMembers.map(member => {
-              return (
-                <div className="Project-member" key={member.email}>
-                  <Avatar user={member} />
-                  <span className="Project-member-name">{member.displayName}</span>
-                </div>
-              );
-            })
-          ) : (
-            <em>up for grabs</em>
-          )}
-        </div>
       </li>
     );
   }

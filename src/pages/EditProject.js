@@ -262,7 +262,6 @@ class EditProject extends Component {
                 value={this.state.needHelpComments}
                 onChange={this.onChangeField}
                 rows={6}
-                required
               />
             </div>
           )}

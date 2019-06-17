@@ -146,46 +146,48 @@ class NewProject extends Component {
             </div>
           </div>
           {!this.state.isIdea && (
-            <div className="form-group">
-              <label>Team</label>
-              <Select
-                name="team"
-                value={this.state.team}
-                multi={true}
-                options={options}
-                onChange={this.onChangeTeam}
-              />
-            </div>
-          )}
-          <h3>Looking for Help?</h3>
-          <div className="form-group">
-            <div className="checkbox">
-              <label>
-                <input
-                  type="checkbox"
-                  name="needHelp"
-                  checked={this.state.needHelp}
-                  onChange={e => {
-                    this.setState({needHelp: e.target.checked});
-                  }}
-                />{' '}
-                I'm looking for help on this project!
-              </label>
-            </div>
-          </div>
-          {this.state.needHelp && (
-            <div className="form-group">
-              <div className="help-block help-text">
-                What kind of help are you looking for?
+            <React.Fragment>
+              <div className="form-group">
+                <label>Team</label>
+                <Select
+                  name="team"
+                  value={this.state.team}
+                  multi={true}
+                  options={options}
+                  onChange={this.onChangeTeam}
+                />
               </div>
-              <textarea
-                className="form-control"
-                name="needHelpComments"
-                value={this.state.needHelpComments}
-                onChange={this.onChangeField}
-                rows={6}
-              />
-            </div>
+              <h3>Looking for Help?</h3>
+              <div className="form-group">
+                <div className="checkbox">
+                  <label>
+                    <input
+                      type="checkbox"
+                      name="needHelp"
+                      checked={this.state.needHelp}
+                      onChange={e => {
+                        this.setState({needHelp: e.target.checked});
+                      }}
+                    />{' '}
+                    I'm looking for help on this project!
+                  </label>
+                </div>
+              </div>
+              {this.state.needHelp && (
+                <div className="form-group">
+                  <div className="help-block help-text">
+                    What kind of help are you looking for?
+                  </div>
+                  <textarea
+                    className="form-control"
+                    name="needHelpComments"
+                    value={this.state.needHelpComments}
+                    onChange={this.onChangeField}
+                    rows={6}
+                  />
+                </div>
+              )}
+            </React.Fragment>
           )}
           <div className="btn-set" style={{textAlign: 'right'}}>
             <button className="btn btn-primary">Save Changes</button>

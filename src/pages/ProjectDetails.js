@@ -105,48 +105,71 @@ class ProjectDetails extends Component {
                   __html: marked(project.summary),
                 }}
               />
-              <h3>Team</h3>
-              {project.needHelp && (
-                <div className="alert alert-block alert-info">
-                  {project.needHelpComments ? (
-                    <blockquote>
-                      <header>
-                        <strong>This project is looking for help!</strong>
-                      </header>
-                      <span
-                        dangerouslySetInnerHTML={{
-                          __html: marked(project.needHelpComments),
-                        }}
-                      />
-                    </blockquote>
+              {project.isIdea ? (
+                <div
+                  className="alert alert-block alert-info"
+                  style={{textAlign: 'center'}}
+                >
+                  <p>
+                    This project is was posted as an idea and is up for grabs. Interested?
+                  </p>
+                  <p>
+                    <Link
+                      to={`/years/${params.year || currentYear}/projects/${
+                        params.projectKey
+                      }/edit`}
+                      className="btn btn-xs btn-primary"
+                    >
+                      Claim this project
+                    </Link>
+                  </p>
+                </div>
+              ) : (
+                <React.Fragment>
+                  <h3>Team</h3>
+                  {project.needHelp && (
+                    <div className="alert alert-block alert-info">
+                      {project.needHelpComments ? (
+                        <blockquote>
+                          <header>
+                            <strong>This project is looking for help!</strong>
+                          </header>
+                          <span
+                            dangerouslySetInnerHTML={{
+                              __html: marked(project.needHelpComments),
+                            }}
+                          />
+                        </blockquote>
+                      ) : (
+                        <p>
+                          <strong>This project is looking for help!</strong> Reach out
+                          someone on the team for more details.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  {projectMembers.length ? (
+                    <ul className="Project-member-list">
+                      {projectMembers.map(member => {
+                        return (
+                          <li key={member.email}>
+                            <Avatar user={member} />
+                            <a
+                              href={`mailto:${member.displayName} <${member.email}>`}
+                              className="Project-member-name"
+                            >
+                              {member.displayName} &lt;{member.email}&gt;
+                            </a>
+                          </li>
+                        );
+                      })}
+                    </ul>
                   ) : (
                     <p>
-                      <strong>This project is looking for help!</strong> Reach out someone
-                      on the team for more details.
+                      <em>up for grabs</em>
                     </p>
                   )}
-                </div>
-              )}
-              {projectMembers.length ? (
-                <ul className="Project-member-list">
-                  {projectMembers.map(member => {
-                    return (
-                      <li key={member.email}>
-                        <Avatar user={member} />
-                        <a
-                          href={`mailto:${member.displayName} <${member.email}>`}
-                          className="Project-member-name"
-                        >
-                          {member.displayName} &lt;{member.email}&gt;
-                        </a>
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : (
-                <p>
-                  <em>up for grabs</em>
-                </p>
+                </React.Fragment>
               )}
               {!!media.length && (
                 <div>

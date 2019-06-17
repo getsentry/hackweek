@@ -41,7 +41,7 @@ class EditProject extends Component {
         summary: project.summary,
         needHelp: project.needHelp || false,
         needHelpComments: project.needHelpComments || '',
-        isIdea: this.state.isIdea || false,
+        isIdea: project.isIdea || false,
         team: Object.keys(project.members || {}).map(memberKey => ({
           value: memberKey,
           label: userList[memberKey].displayName,
@@ -71,7 +71,7 @@ class EditProject extends Component {
         name: this.state.name,
         summary: this.state.summary,
         isIdea: this.state.isIdea,
-        needHelp: this.state.needHelp,
+        needHelp: !this.state.isIdea && this.state.needHelp,
         needHelpComments: this.state.needHelpComments,
       })
       .then(snapshot => {
@@ -242,91 +242,92 @@ class EditProject extends Component {
             </div>
           </div>
           {!this.state.isIdea && (
-            <div className="form-group">
-              <label>Team</label>
-              <Select
-                name="team"
-                value={this.state.team}
-                multi={true}
-                options={options}
-                onChange={this.onChangeTeam}
-              />
-            </div>
-          )}
-
-          <h3>Looking for Help?</h3>
-          <div className="form-group">
-            <div className="checkbox">
-              <label>
-                <input
-                  type="checkbox"
-                  name="needHelp"
-                  checked={this.state.needHelp}
-                  onChange={e => {
-                    this.setState({needHelp: e.target.checked});
-                  }}
-                />{' '}
-                I'm looking for help on this project!
-              </label>
-            </div>
-          </div>
-          {this.state.needHelp && (
-            <div className="form-group">
-              <div className="help-block help-text">
-                What kind of help are you looking for?
+            <React.Fragment>
+              <div className="form-group">
+                <label>Team</label>
+                <Select
+                  name="team"
+                  value={this.state.team}
+                  multi={true}
+                  options={options}
+                  onChange={this.onChangeTeam}
+                />
               </div>
-              <textarea
-                className="form-control"
-                name="needHelpComments"
-                value={this.state.needHelpComments}
-                onChange={this.onChangeField}
-                rows={6}
-              />
-            </div>
-          )}
 
-          {!!this.state.media.length && (
-            <div>
-              <h3>Media</h3>
-              <div className="Project-media">
-                {this.state.media.map(media => (
-                  <MediaObject
-                    key={media.key}
-                    firebase={firebase}
-                    media={media}
-                    project={project}
-                    projectKey={params.projectKey}
-                    onDelete={this.onRemoveMedia.bind(this, media)}
-                    canDelete={true}
+              <h3>Looking for Help?</h3>
+              <div className="form-group">
+                <div className="checkbox">
+                  <label>
+                    <input
+                      type="checkbox"
+                      name="needHelp"
+                      checked={this.state.needHelp}
+                      onChange={e => {
+                        this.setState({needHelp: e.target.checked});
+                      }}
+                    />{' '}
+                    I'm looking for help on this project!
+                  </label>
+                </div>
+              </div>
+              {this.state.needHelp && (
+                <div className="form-group">
+                  <div className="help-block help-text">
+                    What kind of help are you looking for?
+                  </div>
+                  <textarea
+                    className="form-control"
+                    name="needHelpComments"
+                    value={this.state.needHelpComments}
+                    onChange={this.onChangeField}
+                    rows={6}
                   />
-                ))}
-              </div>
-            </div>
-          )}
-          {!!this.state.pendingUploads.length && (
-            <div>
-              <h3>Pending Uploads</h3>
-              <ul>
-                {this.state.pendingUploads.map(upload => {
-                  return (
-                    <li key={upload.name}>
-                      {upload.name} - {upload.size} bytes
-                    </li>
-                  );
-                })}
-              </ul>
-              <p>Once you hit save, give it a minute as uploads are slow!</p>
-            </div>
-          )}
+                </div>
+              )}
+              {!!this.state.media.length && (
+                <div>
+                  <h3>Media</h3>
+                  <div className="Project-media">
+                    {this.state.media.map(media => (
+                      <MediaObject
+                        key={media.key}
+                        firebase={firebase}
+                        media={media}
+                        project={project}
+                        projectKey={params.projectKey}
+                        onDelete={this.onRemoveMedia.bind(this, media)}
+                        canDelete={true}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+              {!!this.state.pendingUploads.length && (
+                <div>
+                  <h3>Pending Uploads</h3>
+                  <ul>
+                    {this.state.pendingUploads.map(upload => {
+                      return (
+                        <li key={upload.name}>
+                          {upload.name} - {upload.size} bytes
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  <p>Once you hit save, give it a minute as uploads are slow!</p>
+                </div>
+              )}
 
-          <div className="dropzone">
-            <h3>Add Media</h3>
-            <Dropzone onDrop={this.onAddMedia}>
-              <p style={{padding: 10}}>
-                Drop your media here, or click to select files to upload.
-              </p>
-            </Dropzone>
-          </div>
+              <div className="dropzone">
+                <h3>Add Media</h3>
+                <Dropzone onDrop={this.onAddMedia}>
+                  <p style={{padding: 10}}>
+                    Drop your media here, or click to select files to upload.
+                  </p>
+                </Dropzone>
+              </div>
+            </React.Fragment>
+          )}
 
           <div className="btn-set" style={{textAlign: 'right'}}>
             <Link

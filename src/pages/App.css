@@ -1,21 +1,25 @@
 .App {
-  width: 800px;
+  max-width: 800px;
   margin: 0 auto;
 }
 
 .App-header {
-  height: 90px;
   padding: 20px 0;
   margin: 0;
   border-bottom: 3px solid #000;
   margin-bottom: 20px;
+  overflow: hidden;
+  margin-left: 20px;
+  margin-right: 20px;
 }
 
 .App-title {
   font-size: 2em;
   line-height: 60px;
   float: left;
+  margin-bottom: 0;
 }
+
 .App-title a,
 .App-title a:hover {
   text-decoration: none;
@@ -37,6 +41,15 @@
   margin-top: 10px;
   font-size: 0.8em;
   text-align: right;
+}
+
+@media (max-width: 500px) {
+  .App-auth p {
+    display: none;
+  }
+  .App-auth {
+    width: 36px;
+  }
 }
 
 .App-auth p {
@@ -83,6 +96,11 @@
   margin: 20px auto;
   border-radius: 4px;
   padding: 20px 40px 20px;
+}
+
+.App-main {
+  padding-left: 20px;
+  padding-right: 20px;
 }
 
 .App-main h3 {

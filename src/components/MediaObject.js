@@ -16,7 +16,7 @@ export default class MediaObject extends Component {
     this.state = {loaded: false, deleting: false};
   }
 
-  onDelete = e => {
+  onDelete = (e) => {
     if (this.state.deleting) return;
     this.setState({deleting: true});
     let {firebase, media, project, projectKey} = this.props;
@@ -39,11 +39,12 @@ export default class MediaObject extends Component {
     storageRef
       .child(media.path)
       .getDownloadURL()
-      .then(url => {
+      .then((url) => {
         this.setState({url, loaded: true});
       })
-      .catch(ex => {
+      .catch((ex) => {
         console.error(ex);
+        if (window.Sentry) window.Sentry.captureException(ex);
       });
   }
 

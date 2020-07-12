@@ -51,11 +51,11 @@ class EditProject extends Component {
                   label: auth.displayName,
                 },
               ]
-            : Object.keys(project.members || {}).map(memberKey => ({
+            : Object.keys(project.members || {}).map((memberKey) => ({
                 value: memberKey,
                 label: userList[memberKey].displayName,
               })),
-        media: Object.keys(project.media || {}).map(mediaKey => ({
+        media: Object.keys(project.media || {}).map((mediaKey) => ({
           ...project.media[mediaKey],
           key: mediaKey,
         })),
@@ -68,7 +68,7 @@ class EditProject extends Component {
     return `/years/${params.year || currentYear}/projects/${params.projectKey}`;
   }
 
-  onSubmit = e => {
+  onSubmit = (e) => {
     e.preventDefault();
     if (this.state.saving) return null;
     this.setState({saving: true});
@@ -83,7 +83,7 @@ class EditProject extends Component {
         needHelp: !this.state.isIdea && this.state.needHelp,
         needHelpComments: this.state.needHelpComments,
       })
-      .then(snapshot => {
+      .then((snapshot) => {
         let updates = {};
 
         let currentMembers = new Set(Object.keys(project.members || {}));
@@ -102,7 +102,7 @@ class EditProject extends Component {
             remainingMembers.delete(value);
           }
         });
-        remainingMembers.forEach(memberKey => {
+        remainingMembers.forEach((memberKey) => {
           let path = `/years/${params.year || currentYear}/projects/${
             params.projectKey
           }/members/${memberKey}`;
@@ -111,7 +111,7 @@ class EditProject extends Component {
 
         if (this.state.pendingUploads.length !== 0) {
           let filesReadyToUpload = [];
-          this.state.pendingUploads.forEach(upload => {
+          this.state.pendingUploads.forEach((upload) => {
             let fileRef = firebase
               .database()
               .ref()
@@ -150,14 +150,16 @@ class EditProject extends Component {
                 .then(() => {
                   this.context.router.push(this.getProjectUrl());
                 })
-                .catch(ex => {
+                .catch((ex) => {
                   console.error(ex);
                   this.setState({saving: false});
+                  if (window.Sentry) window.Sentry.captureException(ex);
                 });
             })
-            .catch(ex => {
+            .catch((ex) => {
               console.error(ex);
               this.setState({saving: false});
+              if (window.Sentry) window.Sentry.captureException(ex);
             });
         } else {
           firebase
@@ -167,35 +169,37 @@ class EditProject extends Component {
             .then(() => {
               this.context.router.push(this.getProjectUrl());
             })
-            .catch(ex => {
+            .catch((ex) => {
               console.error(ex);
               this.setState({saving: false});
+              if (window.Sentry) window.Sentry.captureException(ex);
             });
         }
       })
-      .catch(ex => {
+      .catch((ex) => {
         console.error(ex);
         this.setState({saving: false});
+        if (window.Sentry) window.Sentry.captureException(ex);
       });
   };
 
-  onAddMedia = files => {
+  onAddMedia = (files) => {
     this.setState({pendingUploads: files.concat(this.state.pendingUploads)});
   };
 
-  onRemoveMedia = media => {
-    this.setState(state => ({
-      media: state.media.filter(m => m.key !== media.key),
+  onRemoveMedia = (media) => {
+    this.setState((state) => ({
+      media: state.media.filter((m) => m.key !== media.key),
     }));
   };
 
-  onChangeField = e => {
+  onChangeField = (e) => {
     this.setState({
       [e.target.name]: e.target.value,
     });
   };
 
-  onChangeTeam = team => {
+  onChangeTeam = (team) => {
     this.setState({team});
   };
 
@@ -242,7 +246,7 @@ class EditProject extends Component {
                   type="checkbox"
                   name="isIdea"
                   checked={this.state.isIdea}
-                  onChange={e => {
+                  onChange={(e) => {
                     this.setState({isIdea: e.target.checked});
                   }}
                 />{' '}
@@ -271,7 +275,7 @@ class EditProject extends Component {
                       type="checkbox"
                       name="needHelp"
                       checked={this.state.needHelp}
-                      onChange={e => {
+                      onChange={(e) => {
                         this.setState({needHelp: e.target.checked});
                       }}
                     />{' '}
@@ -297,7 +301,7 @@ class EditProject extends Component {
                 <div>
                   <h3>Media</h3>
                   <div className="Project-media">
-                    {this.state.media.map(media => (
+                    {this.state.media.map((media) => (
                       <MediaObject
                         key={media.key}
                         firebase={firebase}
@@ -315,7 +319,7 @@ class EditProject extends Component {
                 <div>
                   <h3>Pending Uploads</h3>
                   <ul>
-                    {this.state.pendingUploads.map(upload => {
+                    {this.state.pendingUploads.map((upload) => {
                       return (
                         <li key={upload.name}>
                           {upload.name} - {upload.size} bytes
@@ -357,7 +361,7 @@ class EditProject extends Component {
 }
 
 export default compose(
-  firebaseConnect(props => [
+  firebaseConnect((props) => [
     {
       path: `/users`,
       queryParams: ['orderByValue=displayName'],

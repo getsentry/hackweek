@@ -16,13 +16,16 @@ class Login extends Component {
     router: PropTypes.object.isRequired,
   };
 
-  googleLogin = loginData => {
+  googleLogin = (loginData) => {
     return this.props.firebase
       .login({provider: 'google', type: 'popup'})
       .then(() => {
         this.context.router.push('/');
       })
-      .catch(error => {});
+      .catch((error) => {
+        console.error(error);
+        if (window.Sentry) window.Sentry.captureException(error);
+      });
   };
 
   componentWillReceiveProps({auth}) {

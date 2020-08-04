@@ -57,10 +57,15 @@ type ProjectRef extends String {
   validate() { this.parent().parent().parent().projects[this] != null }
 }
 
+type AwardCategoryRef extends String {
+    validate() { this.parent().parent().parent().awardCategories[this] != null }
+}
+
 type Award {
     creator: InitialUserRef,
     project: ProjectRef,
     name: String,
+    awardCategory: AwardCategoryRef,
     ts: InitialTimestamp,
 }
 

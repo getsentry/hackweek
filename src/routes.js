@@ -10,6 +10,7 @@ import ProjectDetails from './pages/ProjectDetails';
 import YearList from './pages/YearList';
 
 import Admin from './pages/Admin';
+import ManageAwardCategories from './pages/ManageAwardCategories';
 import ManageAwards from './pages/ManageAwards';
 import ManageYear from './pages/ManageYear';
 import ManageYearDetails from './pages/ManageYearDetails';
@@ -44,6 +45,10 @@ export default (
     <Route path="/admin" component={loginRequired(Admin)} />
     <Route path="/admin/years/:year" component={loginRequired(ManageYear)}>
       <IndexRoute component={loginRequired(ManageYearDetails)} />
+      <Route
+        path="/admin/years/:year/award-categories"
+        component={loginRequired(ManageAwardCategories)}
+      />
       <Route path="/admin/years/:year/awards" component={loginRequired(ManageAwards)} />
     </Route>
   </Route>

@@ -64,6 +64,12 @@ type Award {
     ts: InitialTimestamp,
 }
 
+type AwardCategory {
+    creator: InitialUserRef,
+    name: String,
+    ts: InitialTimestamp
+}
+
 path / {
     read() { isAllowedUser() }
 }
@@ -73,6 +79,11 @@ path /users/{userId} is User {
 }
 
 path /years/{year} {
+    path /awardCategories/{awardCategoryId} is AwardCategory {
+        write() { isAdmin() }
+        index() { ["creator"] }
+    }
+
     path /awards/{awardId} is Award {
         write() { isAdmin() }
         index() { ["creator", "project"] }

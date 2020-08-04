@@ -54,7 +54,7 @@ type Project {
 }
 
 type ProjectRef extends String {
-  validate() { this.parent().parent().projects[this] != null }
+  validate() { this.parent().parent().parent().projects[this] != null }
 }
 
 type Award {

@@ -75,6 +75,10 @@ type AwardCategory {
     ts: InitialTimestamp
 }
 
+type Year {
+    votingEnabled: Boolean | Null
+}
+
 path / {
     read() { isAllowedUser() }
 }
@@ -83,7 +87,7 @@ path /users/{userId} is User {
     write() { isAllowedUser() && isCurrentUser(userId) }
 }
 
-path /years/{year} {
+path /years/{year} is Year {
     path /awardCategories/{awardCategoryId} is AwardCategory {
         write() { isAdmin() }
         index() { ["creator"] }
@@ -102,4 +106,6 @@ path /years/{year} {
 
         path /members/{memberId} is ProjectMember {}
     }
+
+    write() { isAdmin() }
 }

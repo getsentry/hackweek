@@ -84,6 +84,8 @@ type Vote {
     project: ProjectRef,
     awardCategory: AwardCategoryRef,
     ts: Number
+
+    validate() { $voteId == this.creator + ':' + this.awardCategory }
 }
 
 path / {

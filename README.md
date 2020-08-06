@@ -11,6 +11,8 @@ yarn install && yarn start
 And to deploy:
 
 ```
+yarn global add firebase-tools
+firebase login
 yarn deploy
 ```
 

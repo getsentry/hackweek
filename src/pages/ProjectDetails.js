@@ -139,19 +139,16 @@ class ProjectDetails extends Component {
 
     let vote = this.state.userVote;
 
-    if (vote && vote.key) {
-      firebase.update(`/years/${year}/votes/${vote.key}`, {
-        project: projectKey,
-        awardCategory: awardCategoryKey,
-      });
-    } else {
-      firebase.push(`/years/${year}/votes`, {
-        project: projectKey,
-        awardCategory: awardCategoryKey,
-        ts: Date.now(),
-        creator: auth.uid,
-      });
-    }
+    // Enforce unique constraint by having key by combination of
+    // user and award category
+    let voteKey = auth.uid + ':' + awardCategoryKey;
+
+    firebase.ref(`years/${year}/votes/${voteKey}`).set({
+      creator: auth.uid,
+      project: projectKey,
+      awardCategory: awardCategoryKey,
+      ts: Date.now(),
+    });
   };
   render() {
     let {

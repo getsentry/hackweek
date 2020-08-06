@@ -14,6 +14,15 @@ import Avatar from '../components/Avatar';
 import Layout from '../components/Layout';
 import {slugify} from '../utils';
 
+function getAuthUserVotes(uid, voteList) {
+  return Object.keys(voteList || {})
+    .map((voteKey) => ({
+      ...voteList[voteKey],
+      key: voteKey,
+    }))
+    .filter((vote) => vote.creator === uid);
+}
+
 class ProjectListItem extends Component {
   static propTypes = {
     awardList: PropTypes.object,
@@ -21,23 +30,23 @@ class ProjectListItem extends Component {
     firebase: PropTypes.object,
     project: PropTypes.object,
     userList: PropTypes.object,
+    userVote: PropTypes.object,
   };
 
   render() {
-    let {awardList, project, userList} = this.props;
+    let {awardList, project, userList, userVote} = this.props;
     let link =
       currentYear === project.year
         ? `/projects/${project.key}/${slugify(project.name)}`
         : `/years/${project.year}/projects/${project.key}/${slugify(project.name)}`;
 
     let projectMembers = Object.keys(project.members || {})
-      .map(memberKey => {
+      .map((memberKey) => {
         return userList[memberKey];
       })
-      .filter(member => member !== null);
+      .filter((member) => member !== null);
     projectMembers.sort((a, b) => ('' + a.displayName).localeCompare(b.displayName));
-    let awards = mapObject(awardList).filter(award => award.project === project.key);
-
+    let awards = mapObject(awardList).filter((award) => award.project === project.key);
     return (
       <li className="list-group-item Project clearfix">
         {project.isIdea && currentYear === project.year && (
@@ -54,8 +63,13 @@ class ProjectListItem extends Component {
           <div className="Project-award">
             <span
               className="glyphicon glyphicon-star"
-              title={awards.map(a => a.name).join(', ')}
+              title={awards.map((a) => a.name).join(', ')}
             />
+          </div>
+        )}
+        {!!userVote.length && (
+          <div className="Project-vote">
+            <span>You voted for this</span>
           </div>
         )}
         <Link to={link}>
@@ -70,7 +84,7 @@ class ProjectListItem extends Component {
             )}
             <div className="Project-member-list-condensed">
               {projectMembers.length ? (
-                projectMembers.map(member => {
+                projectMembers.map((member) => {
                   return (
                     <div className="Project-member" key={member.email}>
                       <Avatar user={member} />
@@ -92,6 +106,7 @@ class ProjectListItem extends Component {
 class ProjectList extends Component {
   static propTypes = {
     auth: PropTypes.object,
+    year: PropTypes.object,
     awardList: PropTypes.object,
     firebase: PropTypes.object,
     projectList: PropTypes.object,
@@ -99,17 +114,19 @@ class ProjectList extends Component {
   };
 
   renderPreviousYearBody() {
-    let {auth, awardList, firebase, projectList, userList} = this.props;
+    let {auth, awardList, firebase, projectList, userList, year} = this.props;
     let projects = mapObject(projectList);
     let winningProjects = [];
     let otherProjects = [];
-    projects.forEach(p => {
-      if (mapObject(awardList).find(award => award.project === p.key)) {
+    projects.forEach((p) => {
+      if (mapObject(awardList).find((award) => award.project === p.key)) {
         winningProjects.push(p);
       } else {
         otherProjects.push(p);
       }
     });
+
+    let userVotes = year ? getAuthUserVotes(auth.uid, year) : [];
 
     return (
       <div>
@@ -117,10 +134,11 @@ class ProjectList extends Component {
           <div>
             <h3>Awards</h3>
             <ul className="list-group Project-List">
-              {winningProjects.map(project => {
+              {winningProjects.map((project) => {
                 return (
                   <ProjectListItem
                     key={project.key}
+                    userVote={userVotes.filter((v) => v.project === project.key)}
                     auth={auth}
                     firebase={firebase}
                     project={project}
@@ -136,11 +154,12 @@ class ProjectList extends Component {
           <div>
             {!!winningProjects.length && <h3>All Projects</h3>}
             <ul className="list-group Project-List">
-              {projects.map(project => {
+              {projects.map((project) => {
                 return (
                   <ProjectListItem
                     key={project.key}
                     auth={auth}
+                    userVote={userVotes.filter((v) => v.project === project.key)}
                     firebase={firebase}
                     project={project}
                     awardList={awardList}
@@ -156,7 +175,7 @@ class ProjectList extends Component {
   }
 
   renderBody() {
-    let {auth, awardList, firebase, params, projectList, userList} = this.props;
+    let {auth, awardList, firebase, params, projectList, userList, year} = this.props;
     if (!isLoaded(projectList)) return <div className="loading-indicator">Loading..</div>;
 
     if (params.year && currentYear !== params.year) {
@@ -167,7 +186,7 @@ class ProjectList extends Component {
     let projectsLFH = [];
     let projectIdeas = [];
     let otherProjects = [];
-    projects.forEach(p => {
+    projects.forEach((p) => {
       if (p.isIdea) projectIdeas.push(p);
       else if (p.needHelp) projectsLFH.push(p);
       else otherProjects.push(p);
@@ -182,6 +201,8 @@ class ProjectList extends Component {
           Oops! No projects have been created yet for this year!
         </div>
       );
+
+    let userVotes = year ? getAuthUserVotes(auth.uid, year.votes) : [];
 
     return (
       <div>
@@ -219,11 +240,12 @@ class ProjectList extends Component {
               Project] action.
             </p>
             <ul className="list-group Project-List">
-              {projectIdeas.map(project => {
+              {projectIdeas.map((project) => {
                 return (
                   <ProjectListItem
                     key={project.key}
                     auth={auth}
+                    userVote={userVotes.filter((v) => v.project === project.key)}
                     firebase={firebase}
                     project={project}
                     awardList={awardList}
@@ -238,11 +260,12 @@ class ProjectList extends Component {
           <div>
             <h3>Looking for Help</h3>
             <ul className="list-group Project-List">
-              {projectsLFH.map(project => {
+              {projectsLFH.map((project) => {
                 return (
                   <ProjectListItem
                     key={project.key}
                     auth={auth}
+                    userVote={userVotes.filter((v) => v.project === project.key)}
                     firebase={firebase}
                     project={project}
                     awardList={awardList}
@@ -257,11 +280,12 @@ class ProjectList extends Component {
           <div>
             {!!projectsLFH.length && <h3>Other Projects</h3>}
             <ul className="list-group Project-List">
-              {otherProjects.map(project => {
+              {otherProjects.map((project) => {
                 return (
                   <ProjectListItem
                     key={project.key}
                     auth={auth}
+                    userVote={userVotes.filter((v) => v.project === project.key)}
                     firebase={firebase}
                     project={project}
                     awardList={awardList}
@@ -307,7 +331,7 @@ const keyPopulates = [{keyProp: 'key'}];
 const projectPopulates = [{child: 'creator', root: 'users', keyProp: 'key'}];
 
 export default compose(
-  firebaseConnect(props => [
+  firebaseConnect((props) => [
     {
       path: `/users`,
       queryParams: ['orderByValue=displayName'],
@@ -326,9 +350,14 @@ export default compose(
       populates: projectPopulates,
       storeAs: 'activeProjects',
     },
+    {
+      path: `/years/${props.params.year || currentYear}`,
+      storeAs: 'year',
+    },
   ]),
   connect(({firebase}) => ({
     auth: pathToJS(firebase, 'auth'),
+    year: orderedPopulatedDataToJS(firebase, 'year'),
     awardList: orderedPopulatedDataToJS(firebase, 'awardList', keyPopulates),
     projectList: orderedPopulatedDataToJS(firebase, 'activeProjects', projectPopulates),
     userList: orderedPopulatedDataToJS(firebase, 'userList'),

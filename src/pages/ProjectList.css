@@ -12,8 +12,15 @@
   text-align: left;
 }
 
-.Project-award {
+.Project-award,
+.Project-vote {
   float: right;
+}
+.Project-vote {
+  font-style: italic;
+}
+.Project-award {
+  margin-left: 1em;
 }
 
 .Project-summary {

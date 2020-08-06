@@ -16,14 +16,15 @@ import Avatar from '../components/Avatar';
 import Layout from '../components/Layout';
 import MediaObject from '../components/MediaObject';
 
-function Awards({awardList}) {
-  return awardList && awardList.length ? (
+function Awards({awards, awardCategories}) {
+  return awards && awards.length ? (
     <div className="Project-meta" key="awards">
       <h3>Awards</h3>
       <ul className="Project-award-list">
-        {awardList.map((award) => (
+        {awards.map((award) => (
           <li key={award.key}>
-            <span className="glyphicon glyphicon-star" /> {award.name}
+            <span className="glyphicon glyphicon-star" />{' '}
+            {awardCategories.find((ac) => ac.key === award.awardCategory).name}
           </li>
         ))}
       </ul>
@@ -61,7 +62,6 @@ class ProjectVote extends Component {
         value: awardCategory.key,
         label: awardCategory.name,
       }));
-    console.log(this.state.userVote);
 
     return (
       <div className="Project-meta" key="awards">
@@ -202,7 +202,7 @@ class ProjectDetails extends Component {
     let creator = userList[project.creator] || null;
 
     let awards = mapObject(awardList).filter((award) => award.project === projectKey);
-    console.log(this.state.userVote);
+
     return (
       <Layout>
         <div className="Project-Details">
@@ -327,7 +327,7 @@ class ProjectDetails extends Component {
                   onSave={this.onSaveUserVote}
                 />
               ) : (
-                <Awards awards={awards} />
+                <Awards awards={awards} awardCategories={awardCategories} />
               )}
 
               <div className="Project-meta" key="meta">

@@ -30,7 +30,7 @@ class ProjectListItem extends Component {
     firebase: PropTypes.object,
     project: PropTypes.object,
     userList: PropTypes.object,
-    userVote: PropTypes.object,
+    userVote: PropTypes.array,
   };
 
   render() {
@@ -319,6 +319,11 @@ class ProjectList extends Component {
           <div className="alert alert-block alert-info">
             You're viewing an archive of Hackweek projects for {this.props.params.year}{' '}
             &mdash; <Link to="/projects">Fast forward to {currentYear}</Link>
+          </div>
+        )}
+        {this.props.year && this.props.year.votingEnabled && (
+          <div className="alert alert-block alert-info">
+            Voting is currently enabled! Visit a project to cast your vote &hellip;
           </div>
         )}
         {this.renderBody()}

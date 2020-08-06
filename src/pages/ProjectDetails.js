@@ -37,6 +37,7 @@ class ProjectVote extends Component {
     awardCategoryList: PropTypes.array,
     userVote: PropTypes.string,
     onSave: PropTypes.func,
+    disabled: PropTypes.bool,
   };
 
   constructor(props, ...args) {
@@ -72,6 +73,7 @@ class ProjectVote extends Component {
             value={this.state.userVote}
             multi={false}
             options={awardCategoryOptions}
+            disabled={this.props.disabled}
             onChange={this.onChangeVote}
           />
         </div>
@@ -137,7 +139,9 @@ class ProjectDetails extends Component {
     let year = params.year || currentYear;
     let {projectKey} = this.props.params;
 
-    let vote = this.state.userVote;
+    if (this.isProjectMember()) {
+      return; // no-op attempt to vote for your own project
+    }
 
     // Enforce unique constraint by having key by combination of
     // user and award category
@@ -150,6 +154,10 @@ class ProjectDetails extends Component {
       ts: Date.now(),
     });
   };
+
+  isProjectMember() {
+    return (this.props.project.members || {}).hasOwnProperty(this.props.auth.uid);
+  }
   render() {
     let {
       auth,
@@ -194,10 +202,7 @@ class ProjectDetails extends Component {
 
     let projectKey = this.props.params.projectKey;
 
-    let canEdit =
-      profile.admin ||
-      (project.members || {}).hasOwnProperty(auth.uid) ||
-      !projectMembers.length;
+    let canEdit = profile.admin || this.isProjectMember() || !projectMembers.length;
 
     let creator = userList[project.creator] || null;
 
@@ -324,6 +329,7 @@ class ProjectDetails extends Component {
                   userVote={
                     this.state.userVote ? this.state.userVote.awardCategory : null
                   }
+                  disabled={this.isProjectMember()}
                   onSave={this.onSaveUserVote}
                 />
               ) : (

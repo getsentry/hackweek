@@ -4,7 +4,6 @@ import PropTypes from 'prop-types';
 import {connect} from 'react-redux';
 import {compose} from 'redux';
 import {firebaseConnect, isLoaded, pathToJS} from 'react-redux-firebase';
-import Select from 'react-select';
 
 import {mapObject, orderedPopulatedDataToJS} from '../helpers';
 

@@ -6,6 +6,7 @@ import marked from 'marked';
 import {connect} from 'react-redux';
 import {compose} from 'redux';
 import {firebaseConnect, isLoaded, pathToJS} from 'react-redux-firebase';
+import Select from 'react-select';
 
 import './ProjectList.css';
 
@@ -15,20 +16,110 @@ import Avatar from '../components/Avatar';
 import Layout from '../components/Layout';
 import MediaObject from '../components/MediaObject';
 
+function Awards({awardList}) {
+  return awardList && awardList.length ? (
+    <div className="Project-meta" key="awards">
+      <h3>Awards</h3>
+      <ul className="Project-award-list">
+        {awardList.map((award) => (
+          <li key={award.key}>
+            <span className="glyphicon glyphicon-star" /> {award.name}
+          </li>
+        ))}
+      </ul>
+    </div>
+  ) : null;
+}
+
+class ProjectVote extends Component {
+  static propTypes = {
+    awardCategoryList: PropTypes.array,
+    userVote: PropTypes.string,
+    onSave: PropTypes.func,
+  };
+
+  constructor(props, ...args) {
+    super(props, ...args);
+    this.state = {
+      userVote: props.userVote,
+    };
+  }
+
+  onChangeVote = (choice) => {
+    let awardCategory = choice.value;
+
+    this.setState({userVote: awardCategory}, () => {
+      this.props.onSave(awardCategory);
+    });
+  };
+  render() {
+    let {awardCategoryList} = this.props;
+
+    let awardCategoryOptions = mapObject(awardCategoryList)
+      .sort((a, b) => ('' + a.name).localeCompare(b.name))
+      .map((awardCategory) => ({
+        value: awardCategory.key,
+        label: awardCategory.name,
+      }));
+    console.log(this.state.userVote);
+
+    return (
+      <div className="Project-meta" key="awards">
+        <h3>Vote</h3>
+        <div>
+          <Select
+            name="category"
+            value={this.state.userVote}
+            multi={false}
+            options={awardCategoryOptions}
+            onChange={this.onChangeVote}
+          />
+        </div>
+      </div>
+    );
+  }
+}
+
 class ProjectDetails extends Component {
   static propTypes = {
     auth: PropTypes.object,
     awardList: PropTypes.object,
+    year: PropTypes.object,
     firebase: PropTypes.object,
     profile: PropTypes.object,
     project: PropTypes.object,
     userList: PropTypes.object,
+    awardCategoryList: PropTypes.object,
   };
 
   static contextTypes = {
     router: PropTypes.object,
   };
 
+  constructor(props) {
+    super(props);
+    this.state = {
+      userVote: null,
+    };
+  }
+  componentDidUpdate(prevProps, prevState) {
+    let {year, auth, params} = this.props;
+    if (!isLoaded(year)) {
+      return;
+    }
+
+    let userVote = Object.keys(year.votes || {})
+      .map((voteKey) => ({
+        ...year.votes[voteKey],
+        key: voteKey,
+      }))
+      .filter((vote) => vote.creator === auth.uid && vote.project === params.projectKey);
+    userVote = userVote.length ? userVote[0] : null;
+
+    if (prevState.userVote === null && userVote !== null) {
+      this.setState({userVote});
+    }
+  }
   componentWillReceiveProps(nextProps) {
     if (nextProps.project === null) {
       this.context.router.push('/');
@@ -41,28 +132,68 @@ class ProjectDetails extends Component {
     firebase.remove(`/years/${params.year || currentYear}/projects/${params.projectKey}`);
   };
 
+  onSaveUserVote = (awardCategoryKey) => {
+    let {auth, firebase, params} = this.props;
+    let year = params.year || currentYear;
+    let {projectKey} = this.props.params;
+
+    let vote = this.state.userVote;
+
+    if (vote && vote.key) {
+      firebase.update(`/years/${year}/votes/${vote.key}`, {
+        project: projectKey,
+        awardCategory: awardCategoryKey,
+      });
+    } else {
+      firebase.push(`/years/${year}/votes`, {
+        project: projectKey,
+        awardCategory: awardCategoryKey,
+        ts: Date.now(),
+        creator: auth.uid,
+      });
+    }
+  };
   render() {
-    let {auth, awardList, firebase, params, profile, project, userList} = this.props;
+    let {
+      auth,
+      awardList,
+      firebase,
+      params,
+      profile,
+      project,
+      userList,
+      year,
+    } = this.props;
     if (
       !isLoaded(project) ||
       !isLoaded(userList) ||
       !isLoaded(awardList) ||
-      !isLoaded(profile)
+      !isLoaded(profile) ||
+      !isLoaded(year)
     )
       return <div className="loading-indicator">Loading..</div>;
     if (project === null) return <Layout />;
+
     let projectMembers = Object.keys(project.members || {})
-      .map(memberKey => {
+      .map((memberKey) => {
         return userList[memberKey];
       })
-      .filter(member => member !== null);
+      .filter((member) => member !== null);
+
     projectMembers.sort((a, b) => ('' + a.displayName).localeCompare(b.displayName));
     // XXX(dcramer): not sure why this would happen
     if (!profile) profile = {};
-    let media = Object.keys(project.media || {}).map(mediaKey => ({
+    let media = Object.keys(project.media || {}).map((mediaKey) => ({
       ...project.media[mediaKey],
       key: mediaKey,
     }));
+
+    let awardCategories = Object.keys(year.awardCategories || {}).map(
+      (awardCategoryKey) => ({
+        ...year.awardCategories[awardCategoryKey],
+        key: awardCategoryKey,
+      })
+    );
 
     let projectKey = this.props.params.projectKey;
 
@@ -73,8 +204,8 @@ class ProjectDetails extends Component {
 
     let creator = userList[project.creator] || null;
 
-    let awards = mapObject(awardList).filter(award => award.project === projectKey);
-
+    let awards = mapObject(awardList).filter((award) => award.project === projectKey);
+    console.log(this.state.userVote);
     return (
       <Layout>
         <div className="Project-Details">
@@ -150,7 +281,7 @@ class ProjectDetails extends Component {
                   )}
                   {projectMembers.length ? (
                     <ul className="Project-member-list">
-                      {projectMembers.map(member => {
+                      {projectMembers.map((member) => {
                         return (
                           <li key={member.email}>
                             <Avatar user={member} />
@@ -175,7 +306,7 @@ class ProjectDetails extends Component {
                 <div>
                   <h3>Media</h3>
                   <div className="Project-media">
-                    {media.map(media => (
+                    {media.map((media) => (
                       <MediaObject
                         key={media.key}
                         firebase={firebase}
@@ -189,18 +320,19 @@ class ProjectDetails extends Component {
               )}
             </div>
             <div className="col-md-3 col-md-offset-1">
-              {!!awards.length && (
-                <div className="Project-meta" key="awards">
-                  <h3>Awards</h3>
-                  <ul className="Project-award-list">
-                    {awards.map(award => (
-                      <li key={award.key}>
-                        <span className="glyphicon glyphicon-star" /> {award.name}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+              {year.votingEnabled ? (
+                <ProjectVote
+                  key={this.state.userVote && this.state.userVote.awardCategory}
+                  awardCategoryList={awardCategories}
+                  userVote={
+                    this.state.userVote ? this.state.userVote.awardCategory : null
+                  }
+                  onSave={this.onSaveUserVote}
+                />
+              ) : (
+                <Awards awards={awards} />
               )}
+
               <div className="Project-meta" key="meta">
                 <h3>Meta</h3>
                 <dl>
@@ -226,7 +358,7 @@ class ProjectDetails extends Component {
 const keyPopulates = [{keyProp: 'key'}];
 
 export default compose(
-  firebaseConnect(props => [
+  firebaseConnect((props) => [
     {
       path: `/years/${props.params.year || currentYear}/awards`,
       queryParams: ['orderByChild=name'],
@@ -245,14 +377,20 @@ export default compose(
       storeAs: 'project',
       keyProp: 'key',
     },
+    {
+      path: `/years/${props.params.year || currentYear}`,
+      storeAs: 'year',
+    },
   ]),
   connect(({firebase}) => {
     return {
       auth: pathToJS(firebase, 'auth'),
       profile: pathToJS(firebase, 'profile'),
+      year: orderedPopulatedDataToJS(firebase, 'year'),
       awardList: orderedPopulatedDataToJS(firebase, 'awardList', keyPopulates),
       project: orderedPopulatedDataToJS(firebase, 'project'),
       userList: orderedPopulatedDataToJS(firebase, 'userList'),
+      awardCategoryList: orderedPopulatedDataToJS(firebase, 'awardCategoryList'),
     };
   })
 )(ProjectDetails);

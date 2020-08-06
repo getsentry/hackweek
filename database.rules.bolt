@@ -79,6 +79,13 @@ type Year {
     votingEnabled: Boolean | Null
 }
 
+type Vote {
+    creator: InitialUserRef,
+    project: ProjectRef,
+    awardCategory: AwardCategoryRef,
+    ts: Number
+}
+
 path / {
     read() { isAllowedUser() }
 }
@@ -105,6 +112,11 @@ path /years/{year} is Year {
         path /media/{mediaId} is ProjectMedia {}
 
         path /members/{memberId} is ProjectMember {}
+    }
+
+    path /votes/{voteId} is Vote {
+        write() { isAllowedUser() }
+        index() { ["creator", "awardCategory"]}
     }
 
     write() { isAdmin() }

@@ -14,6 +14,7 @@ class AwardRow extends Component {
     onDelete: PropTypes.func.isRequired,
     onSave: PropTypes.func.isRequired,
     projectList: PropTypes.object.isRequired,
+    awardCategoryList: PropTypes.object.isRequired,
     year: PropTypes.string.isRequired,
   };
 
@@ -26,25 +27,34 @@ class AwardRow extends Component {
     this.state = {
       name: '',
       project: null,
+      awardCategory: null,
       ...(props.award || {}),
     };
   }
 
-  onChangeField = e => {
+  onChangeField = (e) => {
     this.setState({
       [e.target.name]: e.target.value,
     });
   };
 
-  onChangeProject = choice => {
+  onChangeProject = (choice) => {
     this.setState({project: choice.value});
+  };
+
+  onChangeAwardCategory = (choice) => {
+    this.setState({awardCategory: choice.value});
   };
 
   hasChanges() {
     let {award} = this.props;
     let state = this.state;
-    if (!award) return state.name || state.project;
-    return award.name !== state.name || award.project !== state.project;
+    if (!award) return state.name || state.project || state.awardCategory;
+    return (
+      award.name !== state.name ||
+      award.project !== state.project ||
+      award.awardCategory !== state.awardCategory
+    );
   }
 
   onSuccess = () => {
@@ -54,30 +64,36 @@ class AwardRow extends Component {
   };
 
   render() {
-    let {award, projectList} = this.props;
+    let {award, projectList, awardCategoryList} = this.props;
     let projectOptions = mapObject(projectList)
       .sort((a, b) => ('' + a.name).localeCompare(b.name))
-      .map(project => ({
+      .map((project) => ({
         value: project.key,
         label: project.name,
       }));
 
+    let awardCategoryOptions = mapObject(awardCategoryList)
+      .sort((a, b) => ('' + a.name).localeCompare(b.name))
+      .map((awardCategory) => ({
+        value: awardCategory.key,
+        label: awardCategory.name,
+      }));
+
     return (
       <form
-        onSubmit={e =>
+        onSubmit={(e) =>
           e.preventDefault() && this.props.onSave(this.state, this.onSuccess)
         }
         className="form Award-Form"
       >
         <div className="row">
           <div className="col-sm-5">
-            <input
-              className="form-control"
-              type="text"
-              name="name"
-              value={this.state.name}
-              onChange={this.onChangeField}
-              required
+            <Select
+              name="category"
+              value={this.state.awardCategory}
+              multi={false}
+              options={awardCategoryOptions}
+              onChange={this.onChangeAwardCategory}
             />
           </div>
           <div className="col-sm-5">
@@ -117,6 +133,7 @@ class ManageAwards extends Component {
   static propTypes = {
     auth: PropTypes.object,
     awardList: PropTypes.object,
+    awardCategoryList: PropTypes.object,
     firebase: PropTypes.object,
     projectList: PropTypes.object,
   };
@@ -130,7 +147,7 @@ class ManageAwards extends Component {
     this.state = {};
   }
 
-  onDelete = award => {
+  onDelete = (award) => {
     let {firebase, params} = this.props;
     firebase.remove(`/years/${params.year}/awards/${award.key}`);
   };
@@ -143,6 +160,7 @@ class ManageAwards extends Component {
         .update(`/years/${year}/awards/${award.key}`, {
           name: award.name,
           project: award.project || null,
+          awardCategory: award.awardCategory || null,
         })
         .then(onSuccess);
     } else {
@@ -150,6 +168,7 @@ class ManageAwards extends Component {
         .push(`/years/${year}/awards`, {
           name: award.name,
           project: award.project || null,
+          awardCategory: award.awardCategory || null,
           ts: Date.now(),
           creator: auth.uid,
         })
@@ -158,23 +177,30 @@ class ManageAwards extends Component {
   };
 
   render() {
-    let {awardList, auth, projectList} = this.props;
-    if (!isLoaded(auth) || !isLoaded(awardList) || !isLoaded(projectList))
+    let {awardList, auth, projectList, awardCategoryList} = this.props;
+    if (
+      !isLoaded(auth) ||
+      !isLoaded(awardList) ||
+      !isLoaded(projectList) ||
+      !isLoaded(awardCategoryList)
+    )
       return <div className="loading-indocator">Loading...</div>;
 
     let {year} = this.props.params;
 
+    console.dir(awardCategoryList);
     return (
       <div>
         {mapObject(awardList)
           .sort((a, b) => ('' + a.name).localeCompare(b.name))
-          .map(award => (
+          .map((award) => (
             <AwardRow
               key={award.key}
               award={award}
               onSave={this.onSave}
               onDelete={this.onDelete}
               projectList={projectList}
+              awardCategoryList={awardCategoryList}
               year={year}
             />
           ))}
@@ -182,6 +208,7 @@ class ManageAwards extends Component {
           onSave={this.onSave}
           onDelete={this.onDelete}
           projectList={projectList}
+          awardCategoryList={awardCategoryList}
           year={year}
         />
       </div>
@@ -205,10 +232,21 @@ export default compose(
       populates: keyPopulates,
       storeAs: 'awardList',
     },
+    {
+      path: `/years/${params.year}/awardCategories`,
+      queryParams: ['orderByChild=name'],
+      populates: keyPopulates,
+      storeAs: 'awardCategoryList',
+    },
   ]),
   connect(({firebase}) => ({
     auth: pathToJS(firebase, 'auth'),
     awardList: orderedPopulatedDataToJS(firebase, 'awardList', keyPopulates),
+    awardCategoryList: orderedPopulatedDataToJS(
+      firebase,
+      'awardCategoryList',
+      keyPopulates
+    ),
     projectList: orderedPopulatedDataToJS(firebase, 'projectList', keyPopulates),
   }))
 )(ManageAwards);

@@ -16,7 +16,7 @@ import {
   defaultsDeep,
 } from 'lodash';
 
-export const getPopulateObj = str => {
+export const getPopulateObj = (str) => {
   if (!isString(str)) {
     return str;
   }
@@ -25,11 +25,11 @@ export const getPopulateObj = str => {
   return {child: strArray[0], root: strArray[1]};
 };
 
-export const getPopulateObjs = arr => {
+export const getPopulateObjs = (arr) => {
   if (!isArray(arr)) {
     return arr;
   }
-  return arr.map(o => (isObject(o) ? o : getPopulateObj(o)));
+  return arr.map((o) => (isObject(o) ? o : getPopulateObj(o)));
 };
 
 /**
@@ -62,7 +62,7 @@ export const orderedPopulatedDataToJS = (data, path, populates, notSetValue) => 
       ? populates(last(split(path, '/')), dataToJS(data, path))
       : populates
   );
-  const dataHasPopluateChilds = every(populatesForData, populate =>
+  const dataHasPopluateChilds = every(populatesForData, (populate) =>
     has(dataToJS(data, path), populate.child)
   );
 

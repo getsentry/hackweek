@@ -54,14 +54,36 @@ type Project {
 }
 
 type ProjectRef extends String {
-  validate() { this.parent().parent().projects[this] != null }
+  validate() { this.parent().parent().parent().projects[this] != null }
+}
+
+type AwardCategoryRef extends String {
+    validate() { this.parent().parent().parent().awardCategories[this] != null }
 }
 
 type Award {
     creator: InitialUserRef,
     project: ProjectRef,
     name: String,
+    awardCategory: AwardCategoryRef,
     ts: InitialTimestamp,
+}
+
+type AwardCategory {
+    creator: InitialUserRef,
+    name: String,
+    ts: InitialTimestamp
+}
+
+type Year {
+    votingEnabled: Boolean | Null
+}
+
+type Vote {
+    creator: InitialUserRef,
+    project: ProjectRef,
+    awardCategory: AwardCategoryRef,
+    ts: Number
 }
 
 path / {
@@ -72,7 +94,12 @@ path /users/{userId} is User {
     write() { isAllowedUser() && isCurrentUser(userId) }
 }
 
-path /years/{year} {
+path /years/{year} is Year {
+    path /awardCategories/{awardCategoryId} is AwardCategory {
+        write() { isAdmin() }
+        index() { ["creator"] }
+    }
+
     path /awards/{awardId} is Award {
         write() { isAdmin() }
         index() { ["creator", "project"] }
@@ -86,4 +113,11 @@ path /years/{year} {
 
         path /members/{memberId} is ProjectMember {}
     }
+
+    path /votes/{voteId} is Vote {
+        write() { isAllowedUser() }
+        index() { ["creator", "awardCategory"]}
+    }
+
+    write() { isAdmin() }
 }

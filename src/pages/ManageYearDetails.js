@@ -18,6 +18,23 @@ class ManageYearDetails extends Component {
     router: PropTypes.object.isRequired,
   };
 
+  constructor(props, ...args) {
+    super(props, ...args);
+    this.state = {
+      votingEnabled: props.year.votingEnabled,
+    };
+  }
+
+  onVotingChange = (e) => {
+    let {firebase, params} = this.props;
+    let {year} = params;
+
+    let votingEnabled = e.target.checked;
+    this.setState({votingEnabled}, () => {
+      firebase.update(`/years/${year}/`, {votingEnabled});
+    });
+  };
+
   render() {
     let {year} = this.props;
     if (!isLoaded(year)) return <div className="loading-indocator">Loading...</div>;
@@ -35,8 +52,18 @@ class ManageYearDetails extends Component {
               type="text"
               name="year"
               value={yearKey}
-              readonly
+              readOnly
               disabled
+            />
+          </div>
+          <div className="form-group">
+            <label>Voting Enabled</label>
+            <input
+              className="form-control"
+              type="checkbox"
+              name="votingEnabled"
+              checked={this.state.votingEnabled}
+              onChange={this.onVotingChange}
             />
           </div>
         </div>

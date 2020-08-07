@@ -40,6 +40,7 @@ class EditProject extends Component {
         loaded: true,
         name: project.name,
         summary: project.summary,
+        repository: project.repository,
         needHelp: project.needHelp || false,
         needHelpComments: project.needHelpComments || '',
         isIdea: (!isClaim && project.isIdea) || false,
@@ -79,6 +80,7 @@ class EditProject extends Component {
       .update(`/years/${params.year || currentYear}/projects/${params.projectKey}`, {
         name: this.state.name,
         summary: this.state.summary,
+        repository: this.state.repository,
         isIdea: this.state.isIdea,
         needHelp: !this.state.isIdea && this.state.needHelp,
         needHelpComments: this.state.needHelpComments,
@@ -236,6 +238,17 @@ class EditProject extends Component {
               value={this.state.summary}
               onChange={this.onChangeField}
               rows={6}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label>Repository</label>
+            <input
+              className="form-control"
+              type="text"
+              name="repository"
+              value={this.state.repository}
+              onChange={this.onChangeField}
               required
             />
           </div>

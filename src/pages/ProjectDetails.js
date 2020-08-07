@@ -253,6 +253,12 @@ class ProjectDetails extends Component {
                   __html: marked(project.summary),
                 }}
               />
+              {project.repository && (
+                <div className="Project-summary">
+                  <h3>Repository</h3>
+                  <div>{project.repository}</div>
+                </div>
+              )}
               {project.isIdea ? (
                 <div
                   className="alert alert-block alert-info"

@@ -44,6 +44,7 @@ type Project {
     creator: InitialUserRef,
     name: String,
     summary: String | Null,
+    repository: String | Null,
     ts: InitialTimestamp,
     isIdea: Boolean | Null,
     needHelp: Boolean | Null,

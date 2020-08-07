@@ -16,6 +16,10 @@ import Avatar from '../components/Avatar';
 import Layout from '../components/Layout';
 import MediaObject from '../components/MediaObject';
 
+function getVoteKey(uid, awardCategoryKey) {
+  return `${uid}:${awardCategoryKey}`;
+}
+
 function Awards({awards, awardCategories}) {
   return awards && awards.length ? (
     <div className="Project-meta" key="awards">
@@ -37,6 +41,7 @@ class ProjectVote extends Component {
     awardCategoryList: PropTypes.array,
     userVote: PropTypes.string,
     onSave: PropTypes.func,
+    onDelete: PropTypes.func,
     disabled: PropTypes.bool,
   };
 
@@ -48,10 +53,12 @@ class ProjectVote extends Component {
   }
 
   onChangeVote = (choice) => {
-    let awardCategory = choice.value;
+    let awardCategory = choice ? choice.value : null;
 
+    let oldAwardCategory = this.state.userVote;
     this.setState({userVote: awardCategory}, () => {
-      this.props.onSave(awardCategory);
+      if (awardCategory) this.props.onSave(awardCategory);
+      else this.props.onDelete(oldAwardCategory);
     });
   };
   render() {
@@ -145,7 +152,7 @@ class ProjectDetails extends Component {
 
     // Enforce unique constraint by having key by combination of
     // user and award category
-    let voteKey = auth.uid + ':' + awardCategoryKey;
+    let voteKey = getVoteKey(auth.uid, awardCategoryKey);
 
     firebase.ref(`years/${year}/votes/${voteKey}`).set({
       creator: auth.uid,
@@ -153,6 +160,14 @@ class ProjectDetails extends Component {
       awardCategory: awardCategoryKey,
       ts: Date.now(),
     });
+  };
+
+  onDeleteUserVote = (awardCategoryKey) => {
+    let {auth, firebase, params} = this.props;
+    let year = params.year || currentYear;
+
+    let voteKey = getVoteKey(auth.uid, awardCategoryKey);
+    firebase.remove(`years/${year}/votes/${voteKey}`);
   };
 
   isProjectMember() {
@@ -331,6 +346,7 @@ class ProjectDetails extends Component {
                   }
                   disabled={this.isProjectMember()}
                   onSave={this.onSaveUserVote}
+                  onDelete={this.onDeleteUserVote}
                 />
               ) : (
                 <Awards awards={awards} awardCategories={awardCategories} />

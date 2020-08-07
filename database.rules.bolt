@@ -85,7 +85,7 @@ type Vote {
     awardCategory: AwardCategoryRef,
     ts: Number
 
-    validate() { $voteId == this.creator + ':' + this.awardCategory }
+    validate() { ($voteId == this.creator + ':' + this.awardCategory) && this.parent().parent().projects[this.project].members[auth.uid] == null }
 }
 
 path / {

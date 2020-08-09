@@ -12,6 +12,7 @@ import YearList from './pages/YearList';
 import Admin from './pages/Admin';
 import ManageAwardCategories from './pages/ManageAwardCategories';
 import ManageAwards from './pages/ManageAwards';
+import ManageVotes from './pages/ManageVotes';
 import ManageYear from './pages/ManageYear';
 import ManageYearDetails from './pages/ManageYearDetails';
 
@@ -49,6 +50,7 @@ export default (
         path="/admin/years/:year/award-categories"
         component={loginRequired(ManageAwardCategories)}
       />
+      <Route path="/admin/years/:year/votes" component={loginRequired(ManageVotes)} />
       <Route path="/admin/years/:year/awards" component={loginRequired(ManageAwards)} />
     </Route>
   </Route>

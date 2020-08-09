@@ -37,6 +37,7 @@ class ManageYear extends Component {
             Award Categories
           </ListLink>
           <ListLink to={`/admin/years/${yearKey}/awards`}>Awards</ListLink>
+          <ListLink to={`/admin/years/${yearKey}/votes`}>Votes</ListLink>
         </ul>
         {this.props.children}
       </Layout>

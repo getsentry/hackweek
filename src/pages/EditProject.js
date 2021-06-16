@@ -6,6 +6,7 @@ import {connect} from 'react-redux';
 import {compose} from 'redux';
 import {firebaseConnect, isLoaded, pathToJS} from 'react-redux-firebase';
 import Select from 'react-select';
+import * as Sentry from '@sentry/react';
 
 import './ProjectList.css';
 
@@ -155,13 +156,13 @@ class EditProject extends Component {
                 .catch((ex) => {
                   console.error(ex);
                   this.setState({saving: false});
-                  if (window.Sentry) window.Sentry.captureException(ex);
+                  Sentry.captureException(ex);
                 });
             })
             .catch((ex) => {
               console.error(ex);
               this.setState({saving: false});
-              if (window.Sentry) window.Sentry.captureException(ex);
+              Sentry.captureException(ex);
             });
         } else {
           firebase
@@ -174,14 +175,14 @@ class EditProject extends Component {
             .catch((ex) => {
               console.error(ex);
               this.setState({saving: false});
-              if (window.Sentry) window.Sentry.captureException(ex);
+              Sentry.captureException(ex);
             });
         }
       })
       .catch((ex) => {
         console.error(ex);
         this.setState({saving: false});
-        if (window.Sentry) window.Sentry.captureException(ex);
+        Sentry.captureException(ex);
       });
   };
 

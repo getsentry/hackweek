@@ -39,18 +39,8 @@
       To begin the development, run `npm start` or `yarn start`.
       To create a production bundle, use `npm run build` or `yarn build`.
     -->
-    <script
-      src="https://browser.sentry-cdn.com/6.7.1/bundle.tracing.min.js"
-      integrity="sha384-qOxN14zTU0r3W+9JaAYnMQohi2monmTNAx1i1DhAlCDh8NNx5JYiXfgL/ifXRNcq"
-      crossorigin="anonymous"
-    ></script>
     <script>
-      Sentry.init({
-        dsn: 'https://85d6630bef7e4d02922ad3e41b7a80b3@o1.ingest.sentry.io/239368',
-        allowUrls: [/hackweek\.getsentry\.net/],
-        integrations: [new Sentry.Integrations.BrowserTracing()],
-        tracesSampleRate: 1.0,
-      });
+      window.SENTRY_DSN = "https://85d6630bef7e4d02922ad3e41b7a80b3@o1.ingest.sentry.io/239368";
     </script>
   </body>
 </html>

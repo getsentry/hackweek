@@ -2,8 +2,11 @@ import {createStore, compose} from 'redux';
 import rootReducer from './reducer';
 import {firebase as fbConfig} from './config';
 import {reactReduxFirebase} from 'react-redux-firebase';
+import * as Sentry from '@sentry/react';
 
 export default function configureStore(initialState, history) {
+  const sentryReduxEnhancer = Sentry.createReduxEnhancer();
+
   const createStoreWithMiddleware = compose(
     reactReduxFirebase(fbConfig, {
       userProfile: 'users',
@@ -11,8 +14,10 @@ export default function configureStore(initialState, history) {
     }),
     typeof window === 'object' && typeof window.devToolsExtension !== 'undefined'
       ? window.devToolsExtension()
-      : f => f
+      : (f) => f,
+    sentryReduxEnhancer
   )(createStore);
+
   const store = createStoreWithMiddleware(rootReducer);
 
   if (module.hot) {

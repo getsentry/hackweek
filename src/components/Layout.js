@@ -4,6 +4,7 @@ import PropTypes from 'prop-types';
 import {connect} from 'react-redux';
 import {compose} from 'redux';
 import {firebaseConnect, pathToJS} from 'react-redux-firebase';
+import * as Sentry from '@sentry/react';
 
 import {currentYear} from '../config';
 import Avatar from './Avatar';
@@ -19,18 +20,17 @@ class Layout extends Component {
 
   componentDidUpdate() {
     let {auth, profile} = this.props;
-    window.Sentry &&
-      window.Sentry.configureScope(scope => {
-        scope.setUser(
-          !!auth && !!profile
-            ? {
-                id: auth.uid,
-                email: auth.email,
-                isAdmin: profile.admin,
-              }
-            : {}
-        );
-      });
+    Sentry.configureScope((scope) => {
+      scope.setUser(
+        !!auth && !!profile
+          ? {
+              id: auth.uid,
+              email: auth.email,
+              isAdmin: profile.admin,
+            }
+          : {}
+      );
+    });
   }
 
   render() {

@@ -4,6 +4,7 @@ import GoogleButton from 'react-google-button';
 import {connect} from 'react-redux';
 import {compose} from 'redux';
 import {firebaseConnect, isEmpty, isLoaded, pathToJS} from 'react-redux-firebase';
+import * as Sentry from '@sentry/react';
 
 class Login extends Component {
   static propTypes = {
@@ -24,7 +25,7 @@ class Login extends Component {
       })
       .catch((error) => {
         console.error(error);
-        if (window.Sentry) window.Sentry.captureException(error);
+        Sentry.captureException(error);
       });
   };
 

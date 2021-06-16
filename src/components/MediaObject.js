@@ -1,5 +1,6 @@
 import React, {Component} from 'react';
 import PropTypes from 'prop-types';
+import * as Sentry from '@sentry/react';
 
 export default class MediaObject extends Component {
   static propTypes = {
@@ -44,7 +45,7 @@ export default class MediaObject extends Component {
       })
       .catch((ex) => {
         console.error(ex);
-        if (window.Sentry) window.Sentry.captureException(ex);
+        Sentry.captureException(ex);
       });
   }
 

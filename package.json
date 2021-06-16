@@ -6,19 +6,19 @@
     "bootstrap": "3",
     "firebase": "7",
     "firebase-bolt": "^0.8",
-    "idx": "^2.2.0",
+    "idx": "^2.5.6",
     "marked": "^0.3.6",
-    "moment": "^2.19.1",
-    "react": "^16.0.0",
+    "moment": "^2.29.1",
+    "react": "^16.14.0",
     "react-bootstrap": "^0.31.5",
-    "react-dom": "^16.0.0",
+    "react-dom": "^16.14.0",
     "react-dropzone": "^4.2.1",
     "react-google-button": "^0.4.0",
     "react-gravatar": "^2.6.3",
-    "react-redux": "^5.0.7",
+    "react-redux": "^5.1.2",
     "react-redux-firebase": "^1.5.1",
-    "react-router": "3",
-    "react-scripts": "^3.0.0",
+    "react-router": "^3.2.6",
+    "react-scripts": "^3.4.4",
     "react-select": "^1.0.0-rc.10",
     "redux": "^3.7.2",
     "summarize-markdown": "^0.3.1"
@@ -54,5 +54,9 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "volta": {
+    "node": "14.16.0",
+    "yarn": "1.22.5"
   }
 }

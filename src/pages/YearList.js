@@ -29,12 +29,13 @@ class ProjectList extends Component {
         <ul className="list-group Year-list">
           {Object.keys(yearList)
             .sort((a, b) => b - a)
-            .map(year => {
+            .map((year) => {
               let projects = yearList[year].projects || {};
+              let awardCategories = yearList[year].awardCategories || {};
               let awardList = mapObject(yearList[year].awards || {});
               let allMembers = new Set();
-              Object.values(projects).forEach(project => {
-                Object.keys(project.members || {}).forEach(memberKey => {
+              Object.values(projects).forEach((project) => {
+                Object.keys(project.members || {}).forEach((memberKey) => {
                   allMembers.add(memberKey);
                 });
               });
@@ -50,12 +51,12 @@ class ProjectList extends Component {
                     <div className="Year-section">
                       <ul className="Year-member-list">
                         {allMembers
-                          .map(k => userList[k])
-                          .filter(m => m !== null)
+                          .map((k) => userList[k])
+                          .filter((m) => m !== null)
                           .sort((a, b) =>
                             ('' + a.displayName).localeCompare(b.displayName)
                           )
-                          .map(member => {
+                          .map((member) => {
                             return (
                               <li key={member.email} title={member.displayName}>
                                 <Avatar user={member} />
@@ -69,13 +70,16 @@ class ProjectList extends Component {
                     <div className="Year-section">
                       <ul className="Year-award-list">
                         {awardList
-                          .sort((a, b) => ('' + a.name).localeCompare(b.name))
-                          .filter(award => award.project && projects[award.project])
-                          .map(award => {
+                          .map((award) => {
+                            return [award, awardCategories[award.awardCategory]];
+                          })
+                          .sort((a, b) => ('' + a[1].name).localeCompare(b[1].name))
+                          .filter(([award]) => award.project && projects[award.project])
+                          .map(([award, awardCategory]) => {
                             let project = projects[award.project];
                             return (
-                              <li key={award.name}>
-                                <em>{award.name}</em> &mdash;{' '}
+                              <li key={awardCategory.name}>
+                                <em>{awardCategory.name}</em> &mdash;{' '}
                                 <Link
                                   to={`/years/${year}/projects/${award.project}/${slugify(
                                     project.name
@@ -110,7 +114,7 @@ class ProjectList extends Component {
 }
 
 export default compose(
-  firebaseConnect(props => [
+  firebaseConnect((props) => [
     {
       path: `/users`,
       queryParams: ['orderByValue=displayName'],

@@ -1,5 +1,6 @@
 const getFirebaseConfig = () => {
-  const isProd = process.env.NODE_ENV === 'production';
+  const isProd =
+    (process.env.REACT_APP_ENVIRONMENT || process.env.NODE_ENV) === 'production';
 
   const projectId = isProd ? 'hackweek-34e1d' : 'hackweek-34e1d-dev';
   const apiKey = isProd

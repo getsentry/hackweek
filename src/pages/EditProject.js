@@ -80,7 +80,7 @@ class EditProject extends Component {
       .update(`/years/${params.year || currentYear}/projects/${params.projectKey}`, {
         name: this.state.name,
         summary: this.state.summary,
-        repository: this.state.repository,
+        repository: this.state.repository || '',
         isIdea: this.state.isIdea,
         needHelp: !this.state.isIdea && this.state.needHelp,
         needHelpComments: this.state.needHelpComments,
@@ -241,17 +241,18 @@ class EditProject extends Component {
               required
             />
           </div>
-          <div className="form-group">
-            <label>Repository</label>
-            <input
-              className="form-control"
-              type="text"
-              name="repository"
-              value={this.state.repository}
-              onChange={this.onChangeField}
-              required
-            />
-          </div>
+          {!this.state.isIdea && (
+            <div className="form-group">
+              <label>Repository</label>
+              <input
+                className="form-control"
+                type="text"
+                name="repository"
+                value={this.state.repository}
+                onChange={this.onChangeField}
+              />
+            </div>
+          )}
           <div className="form-group">
             <div className="checkbox">
               <label>

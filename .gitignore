@@ -23,3 +23,6 @@ yarn-error.log*
 firebase-debug.log*
 
 junit.xml
+
+# generated
+src/version.json

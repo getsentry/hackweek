@@ -16,6 +16,8 @@ import './index.css';
 import * as Sentry from '@sentry/react';
 import {Integrations as TracingIntegrations} from '@sentry/tracing';
 
+import {version} from './config';
+
 Sentry.init({
   dsn: window.SENTRY_DSN,
   allowUrls: [/hackweek\.getsentry\.net/],
@@ -28,7 +30,9 @@ Sentry.init({
       ),
     }),
   ],
+  release: `hackweek@${version}`,
   tracesSampleRate: 1,
+  autoSessionTracking: true,
 });
 
 const initialState = window.__INITIAL_STATE__ || {firebase: {authError: null}};

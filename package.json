@@ -27,10 +27,11 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build",
-    "deploy": "NODE_ENV=production && firebase deploy -P default",
-    "deploy-dev": "NODE_ENV=production && firebase deploy -P dev",
-    "predeploy": "NODE_ENV=production && react-scripts build",
+    "bind-version": "echo \"{\\\"version\\\": \\\"$(git rev-parse HEAD)\\\"}\" > src/version.json",
+    "build": "npm run bind-version && react-scripts build",
+    "deploy": "npm run bind-version && NODE_ENV=production firebase deploy -P default",
+    "deploy-dev": "npm run bind-version && NODE_ENV=production firebase deploy -P dev",
+    "predeploy": "npm run bind-version && NODE_ENV=production react-scripts build",
     "test": "react-scripts test --env=jsdom",
     "eject": "react-scripts eject"
   },

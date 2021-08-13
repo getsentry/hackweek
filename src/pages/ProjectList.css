@@ -85,15 +85,20 @@
 }
 
 .Project-media .Project-media-item {
-  margin-bottom: 10px;
   text-align: center;
   vertical-align: middle;
   display: inline-block;
   overflow: hidden;
   margin-right: 5px;
   margin-bottom: 5px;
+  padding: 2px;
+  border: 1px solid #000;
+}
+.Project-media .Project-media-item a {
+  display: block;
 }
 .Project-media .Project-media-item video {
+  display: block;
   max-width: 490px;
   max-height: 300px;
 }

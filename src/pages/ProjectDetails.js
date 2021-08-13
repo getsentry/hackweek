@@ -174,16 +174,8 @@ class ProjectDetails extends Component {
     return (this.props.project.members || {}).hasOwnProperty(this.props.auth.uid);
   }
   render() {
-    let {
-      auth,
-      awardList,
-      firebase,
-      params,
-      profile,
-      project,
-      userList,
-      year,
-    } = this.props;
+    let {auth, awardList, firebase, params, profile, project, userList, year} =
+      this.props;
     if (
       !isLoaded(project) ||
       !isLoaded(userList) ||

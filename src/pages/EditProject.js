@@ -14,6 +14,7 @@ import {currentYear} from '../config';
 import Layout from '../components/Layout';
 import {mapObject, orderedPopulatedDataToJS} from '../helpers';
 import MediaObject from '../components/MediaObject';
+import {humanizeBytes} from '../utils';
 
 class EditProject extends Component {
   static propTypes = {
@@ -337,7 +338,7 @@ class EditProject extends Component {
                     {this.state.pendingUploads.map((upload) => {
                       return (
                         <li key={upload.name}>
-                          {upload.name} - {upload.size} bytes
+                          {upload.name} - {humanizeBytes(upload.size)}
                         </li>
                       );
                     })}

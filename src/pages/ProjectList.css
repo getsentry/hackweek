@@ -85,8 +85,6 @@
 }
 
 .Project-media .Project-media-item {
-  max-width: 150px;
-  max-height: 150px;
   margin-bottom: 10px;
   text-align: center;
   vertical-align: middle;
@@ -95,9 +93,13 @@
   margin-right: 5px;
   margin-bottom: 5px;
 }
+.Project-media .Project-media-item video {
+  max-width: 490px;
+  max-height: 300px;
+}
 .Project-media .Project-media-item img {
-  max-width: 100%;
-  max-height: 100%;
+  max-width: 150px;
+  max-height: 150px;
 }
 .Project-media .Project-media-item em {
   display: block;

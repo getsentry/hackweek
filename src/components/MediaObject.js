@@ -52,6 +52,12 @@ export default class MediaObject extends Component {
   getEmbed() {
     let extension = this.props.media.name.split(/\./).reverse()[0];
     switch (extension) {
+      case 'mp4':
+        return (
+          <video controls>
+            <source src={this.state.url} type={`video/${extension}`} />
+          </video>
+        );
       case 'jpg':
       case 'jpeg':
       case 'gif':

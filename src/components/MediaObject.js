@@ -53,7 +53,6 @@ export default class MediaObject extends Component {
     let extension = this.props.media.name.split(/\./).reverse()[0];
     switch (extension) {
       case 'mp4':
-      case 'm4v':
       case 'ogg':
       case 'webm':
         return (

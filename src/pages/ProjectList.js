@@ -68,6 +68,10 @@ class ProjectListItem extends Component {
       })
       .filter((member) => member !== null);
     projectMembers.sort((a, b) => ('' + a.displayName).localeCompare(b.displayName));
+
+    // hide project if its not executed on
+    if ((submissionsClosed && project.isIdea) || projectMembers.length === 0) return null;
+
     let awards = mapObject(awardList).filter((award) => award.project === project.key);
 
     return (

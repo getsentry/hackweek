@@ -41,16 +41,22 @@ class ProjectListItem extends Component {
     awardCategoryOptions: PropTypes.object,
     awardList: PropTypes.object,
     auth: PropTypes.object,
-    canClaim: PropTypes.bool,
     firebase: PropTypes.object,
     project: PropTypes.object,
     userList: PropTypes.object,
     userVote: PropTypes.array,
+    submissionsClosed: PropTypes.bool,
   };
 
   render() {
-    let {awardList, awardCategoryOptions, canClaim, project, userList, userVote} =
-      this.props;
+    let {
+      awardList,
+      awardCategoryOptions,
+      submissionsClosed,
+      project,
+      userList,
+      userVote,
+    } = this.props;
     let link =
       currentYear === project.year
         ? `/projects/${project.key}/${slugify(project.name)}`
@@ -66,7 +72,7 @@ class ProjectListItem extends Component {
 
     return (
       <li className="list-group-item Project clearfix">
-        {project.isIdea && canClaim && (
+        {project.isIdea && submissionsClosed && (
           <div className="Project-idea-claim">
             <Link
               to={`/years/${project.year}/projects/${project.key}/edit?claim`}
@@ -98,7 +104,7 @@ class ProjectListItem extends Component {
           <div className="Project-idea-summary">{summarize(project.summary)}</div>
         ) : (
           <React.Fragment>
-            {project.needHelp && currentYear === project.year && (
+            {project.needHelp && submissionsClosed && (
               <div className="badge">looking for help</div>
             )}
             <div className="Project-member-list-condensed">
@@ -167,7 +173,7 @@ class ProjectList extends Component {
                     userVote={userVotes.filter((v) => v.project === project.key)}
                     awardList={awardList}
                     userList={userList}
-                    canClaim={false}
+                    submissionsClosed={true}
                   />
                 );
               })}
@@ -189,7 +195,7 @@ class ProjectList extends Component {
                     userVote={userVotes.filter((v) => v.project === project.key)}
                     awardList={awardList}
                     userList={userList}
-                    canClaim={false}
+                    submissionsClosed={true}
                   />
                 );
               })}
@@ -205,9 +211,8 @@ class ProjectList extends Component {
       this.props;
     if (!isLoaded(projectList)) return <div className="loading-indicator">Loading..</div>;
 
-    let hasSubmissions = !!year.submissionsClosed;
-
-    if (!hasSubmissions) {
+    let submissionsClosed = year.submissionsClosed;
+    if (submissionsClosed) {
       return this.renderClosedYear();
     }
 
@@ -281,7 +286,7 @@ class ProjectList extends Component {
                     awardCategoryOptions={awardCategoryOptions}
                     awardList={awardList}
                     userList={userList}
-                    canClaim
+                    submissionsClosed={submissionsClosed}
                   />
                 );
               })}
@@ -303,6 +308,7 @@ class ProjectList extends Component {
                     awardCategoryOptions={awardCategoryOptions}
                     awardList={awardList}
                     userList={userList}
+                    submissionsClosed={submissionsClosed}
                   />
                 );
               })}
@@ -324,6 +330,7 @@ class ProjectList extends Component {
                     awardCategoryOptions={awardCategoryOptions}
                     awardList={awardList}
                     userList={userList}
+                    submissionsClosed={submissionsClosed}
                   />
                 );
               })}

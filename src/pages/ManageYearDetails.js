@@ -22,17 +22,19 @@ class ManageYearDetails extends Component {
     super(props, ...args);
     this.state = {
       votingEnabled: props.year.votingEnabled,
+      submissionsClosed: props.year.submissionsClosed,
     };
   }
 
-  onVotingChange = (e) => {
-    let {firebase, params} = this.props;
-    let {year} = params;
-
-    let votingEnabled = e.target.checked;
-    this.setState({votingEnabled}, () => {
-      firebase.update(`/years/${year}/`, {votingEnabled});
-    });
+  onConfigChange = (cb) => {
+    return (e) => {
+      let {firebase, params} = this.props;
+      let {year} = params;
+      let config = cb(e);
+      this.setState(config, () => {
+        firebase.update(`/years/${year}/`, config);
+      });
+    };
   };
 
   render() {
@@ -57,13 +59,27 @@ class ManageYearDetails extends Component {
             />
           </div>
           <div className="form-group">
+            <label>Submissions Closed</label>
+            <input
+              className="form-control"
+              type="checkbox"
+              name="submissionsClosed"
+              checked={this.state.submissionsClosed}
+              onChange={this.onConfigChange((e) => ({
+                submissionsClosed: e.target.checked,
+              }))}
+            />
+          </div>
+          <div className="form-group">
             <label>Voting Enabled</label>
             <input
               className="form-control"
               type="checkbox"
               name="votingEnabled"
               checked={this.state.votingEnabled}
-              onChange={this.onVotingChange}
+              onChange={this.onConfigChange((e) => ({
+                votingEnabled: e.target.checked,
+              }))}
             />
           </div>
         </div>

@@ -6,6 +6,10 @@ isCurrentUser(uid) { auth != null && auth.uid == uid }
 
 isUser(uid) { prior(root.users[uid]) != null }
 
+hasSubmissions(year) { prior(root.years[year].submissionsClosed) != true }
+
+canVote(year) { prior(root.years[year].votingEnabled) == true }
+
 type UserRef extends String {
     validate() { isUser(this) }
 }
@@ -77,7 +81,8 @@ type AwardCategory {
 }
 
 type Year {
-    votingEnabled: Boolean | Null
+    votingEnabled: Boolean | Null,
+    submissionsClosed: Boolean | Null,
 }
 
 type Vote {
@@ -109,7 +114,7 @@ path /years/{year} is Year {
     }
 
     path /projects/{projectId} is Project {
-        write() { isAllowedUser() }
+        write() { isAllowedUser() && hasSubmissions(year) }
         index() { ["creator"] }
 
         path /media/{mediaId} is ProjectMedia {}
@@ -118,7 +123,7 @@ path /years/{year} is Year {
     }
 
     path /votes/{voteId} is Vote {
-        write() { isAllowedUser() }
+        write() { isAllowedUser() && canVote(year) }
         index() { ["creator", "awardCategory"]}
     }
 

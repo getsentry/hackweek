@@ -41,6 +41,7 @@ class ProjectListItem extends Component {
     awardCategoryOptions: PropTypes.object,
     awardList: PropTypes.object,
     auth: PropTypes.object,
+    canClaim: PropTypes.bool,
     firebase: PropTypes.object,
     project: PropTypes.object,
     userList: PropTypes.object,
@@ -48,7 +49,8 @@ class ProjectListItem extends Component {
   };
 
   render() {
-    let {awardList, awardCategoryOptions, project, userList, userVote} = this.props;
+    let {awardList, awardCategoryOptions, canClaim, project, userList, userVote} =
+      this.props;
     let link =
       currentYear === project.year
         ? `/projects/${project.key}/${slugify(project.name)}`
@@ -64,7 +66,7 @@ class ProjectListItem extends Component {
 
     return (
       <li className="list-group-item Project clearfix">
-        {project.isIdea && currentYear === project.year && (
+        {project.isIdea && canClaim && (
           <div className="Project-idea-claim">
             <Link
               to={`/years/${project.year}/projects/${project.key}/edit?claim`}
@@ -131,7 +133,7 @@ class ProjectList extends Component {
     userList: PropTypes.object,
   };
 
-  renderPreviousYearBody() {
+  renderClosedYear() {
     let {auth, awardCategoryList, awardList, firebase, projectList, userList, year} =
       this.props;
     let projects = mapObject(projectList);
@@ -165,6 +167,7 @@ class ProjectList extends Component {
                     userVote={userVotes.filter((v) => v.project === project.key)}
                     awardList={awardList}
                     userList={userList}
+                    canClaim={false}
                   />
                 );
               })}
@@ -186,6 +189,7 @@ class ProjectList extends Component {
                     userVote={userVotes.filter((v) => v.project === project.key)}
                     awardList={awardList}
                     userList={userList}
+                    canClaim={false}
                   />
                 );
               })}
@@ -196,21 +200,15 @@ class ProjectList extends Component {
     );
   }
 
-  renderBody() {
-    let {
-      auth,
-      awardCategoryList,
-      awardList,
-      firebase,
-      params,
-      projectList,
-      userList,
-      year,
-    } = this.props;
+  renderBody(year) {
+    let {auth, awardCategoryList, awardList, firebase, projectList, userList} =
+      this.props;
     if (!isLoaded(projectList)) return <div className="loading-indicator">Loading..</div>;
 
-    if (params.year && currentYear !== params.year) {
-      return this.renderPreviousYearBody();
+    let hasSubmissions = !!year.submissionsClosed;
+
+    if (!hasSubmissions) {
+      return this.renderClosedYear();
     }
 
     let projects = mapObject(projectList);
@@ -283,6 +281,7 @@ class ProjectList extends Component {
                     awardCategoryOptions={awardCategoryOptions}
                     awardList={awardList}
                     userList={userList}
+                    canClaim
                   />
                 );
               })}
@@ -336,10 +335,27 @@ class ProjectList extends Component {
   }
 
   render() {
+    let year = this.props.year;
+    if (!year) {
+      if (this.props.params.year) {
+        return null;
+      }
+      year = {
+        votingEnabled: false,
+        submissionsClosed: false,
+      };
+    }
+
+    // TODO(dcramer): just make sure the UI is correct for old years
+    if (this.props.params.year && currentYear !== this.props.params.year) {
+      year.votingEnabled = false;
+      year.submissionsClosed = true;
+    }
+
     return (
       <Layout>
         <div>
-          {currentYear === (this.props.params.year || currentYear) && (
+          {!year.submissionsClosed && (
             <Link
               to="/new-project"
               className="btn btn-sm btn-primary"
@@ -356,12 +372,12 @@ class ProjectList extends Component {
             &mdash; <Link to="/projects">Fast forward to {currentYear}</Link>
           </div>
         )}
-        {this.props.year && this.props.year.votingEnabled && (
+        {year.votingEnabled && (
           <div className="alert alert-block alert-info">
             Voting is currently enabled! Visit a project to cast your vote &hellip;
           </div>
         )}
-        {this.renderBody()}
+        {this.renderBody(year)}
       </Layout>
     );
   }

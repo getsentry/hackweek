@@ -53,6 +53,8 @@ export default class MediaObject extends Component {
     let extension = this.props.media.name.split(/\./).reverse()[0];
     switch (extension) {
       case 'mp4':
+      case 'ogg':
+      case 'webm':
         return (
           <video controls>
             <source src={this.state.url} type={`video/${extension}`} />
@@ -62,6 +64,7 @@ export default class MediaObject extends Component {
       case 'jpeg':
       case 'gif':
       case 'png':
+      case 'svg':
         return <img src={this.state.url} alt={this.props.media.name} />;
       default:
         return <em>{this.props.media.name}</em>;

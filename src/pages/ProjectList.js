@@ -23,8 +23,22 @@ function getAuthUserVotes(uid, voteList) {
     .filter((vote) => vote.creator === uid);
 }
 
+function getAwardCategories(awardCategoryList) {
+  if (!awardCategoryList) return {};
+  let result = {};
+  Object.keys(awardCategoryList).forEach(
+    (categoryKey) =>
+      (result[categoryKey] = {
+        ...awardCategoryList[categoryKey],
+        key: categoryKey,
+      })
+  );
+  return result;
+}
+
 class ProjectListItem extends Component {
   static propTypes = {
+    awardCategoryOptions: PropTypes.object,
     awardList: PropTypes.object,
     auth: PropTypes.object,
     firebase: PropTypes.object,
@@ -34,7 +48,7 @@ class ProjectListItem extends Component {
   };
 
   render() {
-    let {awardList, project, userList, userVote} = this.props;
+    let {awardList, awardCategoryOptions, project, userList, userVote} = this.props;
     let link =
       currentYear === project.year
         ? `/projects/${project.key}/${slugify(project.name)}`
@@ -47,6 +61,7 @@ class ProjectListItem extends Component {
       .filter((member) => member !== null);
     projectMembers.sort((a, b) => ('' + a.displayName).localeCompare(b.displayName));
     let awards = mapObject(awardList).filter((award) => award.project === project.key);
+
     return (
       <li className="list-group-item Project clearfix">
         {project.isIdea && currentYear === project.year && (
@@ -69,7 +84,9 @@ class ProjectListItem extends Component {
         )}
         {!!userVote.length && (
           <div className="Project-vote">
-            <span>You voted for this</span>
+            <span>
+              You voted for this ({awardCategoryOptions[userVote[0].awardCategory].name})
+            </span>
           </div>
         )}
         <Link to={link}>
@@ -107,6 +124,7 @@ class ProjectList extends Component {
   static propTypes = {
     auth: PropTypes.object,
     year: PropTypes.object,
+    awardCategoryList: PropTypes.object,
     awardList: PropTypes.object,
     firebase: PropTypes.object,
     projectList: PropTypes.object,
@@ -114,7 +132,8 @@ class ProjectList extends Component {
   };
 
   renderPreviousYearBody() {
-    let {auth, awardList, firebase, projectList, userList, year} = this.props;
+    let {auth, awardCategoryList, awardList, firebase, projectList, userList, year} =
+      this.props;
     let projects = mapObject(projectList);
     let winningProjects = [];
     let otherProjects = [];
@@ -127,6 +146,7 @@ class ProjectList extends Component {
     });
 
     let userVotes = year ? getAuthUserVotes(auth.uid, year) : [];
+    let awardCategoryOptions = getAwardCategories(awardCategoryList);
 
     return (
       <div>
@@ -138,10 +158,11 @@ class ProjectList extends Component {
                 return (
                   <ProjectListItem
                     key={project.key}
-                    userVote={userVotes.filter((v) => v.project === project.key)}
                     auth={auth}
                     firebase={firebase}
                     project={project}
+                    awardCategoryOptions={awardCategoryOptions}
+                    userVote={userVotes.filter((v) => v.project === project.key)}
                     awardList={awardList}
                     userList={userList}
                   />
@@ -159,9 +180,10 @@ class ProjectList extends Component {
                   <ProjectListItem
                     key={project.key}
                     auth={auth}
-                    userVote={userVotes.filter((v) => v.project === project.key)}
                     firebase={firebase}
                     project={project}
+                    awardCategoryOptions={awardCategoryOptions}
+                    userVote={userVotes.filter((v) => v.project === project.key)}
                     awardList={awardList}
                     userList={userList}
                   />
@@ -175,7 +197,16 @@ class ProjectList extends Component {
   }
 
   renderBody() {
-    let {auth, awardList, firebase, params, projectList, userList, year} = this.props;
+    let {
+      auth,
+      awardCategoryList,
+      awardList,
+      firebase,
+      params,
+      projectList,
+      userList,
+      year,
+    } = this.props;
     if (!isLoaded(projectList)) return <div className="loading-indicator">Loading..</div>;
 
     if (params.year && currentYear !== params.year) {
@@ -203,6 +234,7 @@ class ProjectList extends Component {
       );
 
     let userVotes = year ? getAuthUserVotes(auth.uid, year.votes) : [];
+    let awardCategoryOptions = getAwardCategories(awardCategoryList);
 
     return (
       <div>
@@ -248,6 +280,7 @@ class ProjectList extends Component {
                     userVote={userVotes.filter((v) => v.project === project.key)}
                     firebase={firebase}
                     project={project}
+                    awardCategoryOptions={awardCategoryOptions}
                     awardList={awardList}
                     userList={userList}
                   />
@@ -268,6 +301,7 @@ class ProjectList extends Component {
                     userVote={userVotes.filter((v) => v.project === project.key)}
                     firebase={firebase}
                     project={project}
+                    awardCategoryOptions={awardCategoryOptions}
                     awardList={awardList}
                     userList={userList}
                   />
@@ -288,6 +322,7 @@ class ProjectList extends Component {
                     userVote={userVotes.filter((v) => v.project === project.key)}
                     firebase={firebase}
                     project={project}
+                    awardCategoryOptions={awardCategoryOptions}
                     awardList={awardList}
                     userList={userList}
                   />
@@ -350,6 +385,11 @@ export default compose(
       storeAs: 'awardList',
     },
     {
+      path: `/years/${props.params.year || currentYear}/awardCategories`,
+      queryParams: ['orderByChild=name'],
+      storeAs: 'awardCategoryList',
+    },
+    {
       path: `/years/${props.params.year || currentYear}/projects`,
       queryParams: ['orderByChild=name'],
       populates: projectPopulates,
@@ -363,6 +403,7 @@ export default compose(
   connect(({firebase}) => ({
     auth: pathToJS(firebase, 'auth'),
     year: orderedPopulatedDataToJS(firebase, 'year'),
+    awardCategoryList: orderedPopulatedDataToJS(firebase, 'awardCategoryList'),
     awardList: orderedPopulatedDataToJS(firebase, 'awardList', keyPopulates),
     projectList: orderedPopulatedDataToJS(firebase, 'activeProjects', projectPopulates),
     userList: orderedPopulatedDataToJS(firebase, 'userList'),

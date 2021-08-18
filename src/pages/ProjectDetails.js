@@ -383,6 +383,11 @@ export default compose(
       populates: keyPopulates,
     },
     {
+      path: `/years/${props.params.year || currentYear}/awardCategories`,
+      queryParams: ['orderByChild=name'],
+      storeAs: 'awardCategoryList',
+    },
+    {
       path: `/users`,
       queryParams: ['orderByValue=displayName'],
       storeAs: 'userList',

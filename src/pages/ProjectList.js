@@ -72,7 +72,7 @@ class ProjectListItem extends Component {
 
     return (
       <li className="list-group-item Project clearfix">
-        {project.isIdea && submissionsClosed && (
+        {project.isIdea && !submissionsClosed && (
           <div className="Project-idea-claim">
             <Link
               to={`/years/${project.year}/projects/${project.key}/edit?claim`}
@@ -104,7 +104,7 @@ class ProjectListItem extends Component {
           <div className="Project-idea-summary">{summarize(project.summary)}</div>
         ) : (
           <React.Fragment>
-            {project.needHelp && submissionsClosed && (
+            {project.needHelp && !submissionsClosed && (
               <div className="badge">looking for help</div>
             )}
             <div className="Project-member-list-condensed">

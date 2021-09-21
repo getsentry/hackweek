@@ -1835,6 +1835,81 @@
   version "1.1.0"
   resolved "https://registry.yarnpkg.com/@protobufjs/utf8/-/utf8-1.1.0.tgz#a777360b5b39a1a2e5106f8e858f2fd2d060c570"
 
+"@sentry/browser@6.13.1":
+  version "6.13.1"
+  resolved "https://registry.yarnpkg.com/@sentry/browser/-/browser-6.13.1.tgz#0c66d16a5c1cf00a46117746059d4eaf9e463487"
+  integrity sha512-xr/cUzXmnFhEdKoIPY4c46zjPZ+qOf8eJzz4jSni9wSto7zZRwQINVzSTVm+y+46rLdJtamMIsrlFHkASbB5qw==
+  dependencies:
+    "@sentry/core" "6.13.1"
+    "@sentry/types" "6.13.1"
+    "@sentry/utils" "6.13.1"
+    tslib "^1.9.3"
+
+"@sentry/core@6.13.1":
+  version "6.13.1"
+  resolved "https://registry.yarnpkg.com/@sentry/core/-/core-6.13.1.tgz#158cb7391c1aed4083fe12f40a3aecc951e3d354"
+  integrity sha512-IGitAHYtsDPhPPcSTDqL/NMOwTbrqPezQOo4rlU1p1lpyZKSKrgzn/8LCrb+eRV2ffaio6+3kwqjCN2SvU8S7A==
+  dependencies:
+    "@sentry/hub" "6.13.1"
+    "@sentry/minimal" "6.13.1"
+    "@sentry/types" "6.13.1"
+    "@sentry/utils" "6.13.1"
+    tslib "^1.9.3"
+
+"@sentry/hub@6.13.1":
+  version "6.13.1"
+  resolved "https://registry.yarnpkg.com/@sentry/hub/-/hub-6.13.1.tgz#587227fa502e3ed699878ac903f2a5100849cb00"
+  integrity sha512-O7bR5suyVNTNyr6tm0IjhZ7NvxSHIbHoy5KYbVv05HQ/DmvAbYWq4dtOMvYQuuTD9krGkZdwPg4Gm6KnFaKqoQ==
+  dependencies:
+    "@sentry/types" "6.13.1"
+    "@sentry/utils" "6.13.1"
+    tslib "^1.9.3"
+
+"@sentry/minimal@6.13.1":
+  version "6.13.1"
+  resolved "https://registry.yarnpkg.com/@sentry/minimal/-/minimal-6.13.1.tgz#86865cc0d6090d9c8be2c44ec7f14a9c66910e7d"
+  integrity sha512-waRLPRFT1G95LsklH25LvfJy4vSe54PPRSeAGNPa4xVLCP56CnbNXGEXGDyPUewtqESwVpRG6GPL1QRV67IixA==
+  dependencies:
+    "@sentry/hub" "6.13.1"
+    "@sentry/types" "6.13.1"
+    tslib "^1.9.3"
+
+"@sentry/react@^6.7.1":
+  version "6.13.1"
+  resolved "https://registry.yarnpkg.com/@sentry/react/-/react-6.13.1.tgz#ddf324349b379a63b1f0aab767ac0affdf40ce38"
+  integrity sha512-GD4uLreYZi6MenkeSkXjg5LwL1+bAVfwARUAkYMs4XElhpIoouvC8pk22rEegtw1KmJ+SWuzH7fkVJS0Tnb8tg==
+  dependencies:
+    "@sentry/browser" "6.13.1"
+    "@sentry/minimal" "6.13.1"
+    "@sentry/types" "6.13.1"
+    "@sentry/utils" "6.13.1"
+    hoist-non-react-statics "^3.3.2"
+    tslib "^1.9.3"
+
+"@sentry/tracing@^6.7.1":
+  version "6.13.1"
+  resolved "https://registry.yarnpkg.com/@sentry/tracing/-/tracing-6.13.1.tgz#eec84740a2566132c14c151e855f2a8a2dac3716"
+  integrity sha512-UF0yHtWXi5SfDa5oKCSw463P3AyAf635w6zFMiLV6kt8DDjnOwJRcT7dekRIU8F4Du+2nWJFPoXsmt1sablycw==
+  dependencies:
+    "@sentry/hub" "6.13.1"
+    "@sentry/minimal" "6.13.1"
+    "@sentry/types" "6.13.1"
+    "@sentry/utils" "6.13.1"
+    tslib "^1.9.3"
+
+"@sentry/types@6.13.1":
+  version "6.13.1"
+  resolved "https://registry.yarnpkg.com/@sentry/types/-/types-6.13.1.tgz#650e5e5fe4aa415987e14cfa2ca03e5d5eb3e347"
+  integrity sha512-dYm8qv/O6QhOCmWi5rlJBX9rjEqvnjnZH1zqhQCWhMmF9aYS151Y41P1C0TS0o17Z0ClonLiYMG1J+zE/Pmtqg==
+
+"@sentry/utils@6.13.1":
+  version "6.13.1"
+  resolved "https://registry.yarnpkg.com/@sentry/utils/-/utils-6.13.1.tgz#5c974c4235615ac50caed2b25c30b33a6a234425"
+  integrity sha512-qFDup/nBj2u2rAcQADFG3njVYUCo4XOQkCT7XdA5Flg1a++r6tIBdjiRyyjb8nqwHZ/OQsKr/V/EQaJiW29ETA==
+  dependencies:
+    "@sentry/types" "6.13.1"
+    tslib "^1.9.3"
+
 "@svgr/babel-plugin-add-jsx-attribute@^4.2.0":
   version "4.2.0"
   resolved "https://registry.yarnpkg.com/@svgr/babel-plugin-add-jsx-attribute/-/babel-plugin-add-jsx-attribute-4.2.0.tgz#dadcb6218503532d6884b210e7f3c502caaa44b1"
@@ -10632,8 +10707,9 @@ tmp@^0.0.33:
     os-tmpdir "~1.0.2"
 
 tmpl@1.0.x:
-  version "1.0.4"
-  resolved "https://registry.yarnpkg.com/tmpl/-/tmpl-1.0.4.tgz#23640dd7b42d00433911140820e5cf440e521dd1"
+  version "1.0.5"
+  resolved "https://registry.yarnpkg.com/tmpl/-/tmpl-1.0.5.tgz#8683e0b902bb9c20c4f726e3c0b69f36518c07cc"
+  integrity sha512-3f0uOEAQwIqGuWW2MVzYg8fV/QNnc/IpuJNG837rLuczAaLVHslWHZQj4IGiEl5Hs3kkbhwL9Ab7Hrsmuj+Smw==
 
 to-arraybuffer@^1.0.0:
   version "1.0.1"
@@ -10723,6 +10799,11 @@ tslib@^1.11.1:
 tslib@^1.8.1, tslib@^1.9.0:
   version "1.10.0"
   resolved "https://registry.yarnpkg.com/tslib/-/tslib-1.10.0.tgz#c3c19f95973fb0a62973fb09d90d961ee43e5c8a"
+
+tslib@^1.9.3:
+  version "1.14.1"
+  resolved "https://registry.yarnpkg.com/tslib/-/tslib-1.14.1.tgz#cf2d38bdc34a134bcaf1091c41f6619e2f672d00"
+  integrity sha512-Xni35NKzjgMrwevysHTCArtLDpPvye8zV/0E4EyYn43P7/7qvQwPh9BGkHewbMulVntbigmcT7rdX3BNo9wRJg==
 
 tslib@^2.0.3:
   version "2.3.0"

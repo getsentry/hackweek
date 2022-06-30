@@ -70,13 +70,13 @@ class ProjectListItem extends Component {
     projectMembers.sort((a, b) => ('' + a.displayName).localeCompare(b.displayName));
 
     // hide project if its not executed on
-    if ((submissionsClosed && project.isIdea) || projectMembers.length === 0) return null;
+    if (submissionsClosed && project.isIdea) return null;
 
     let awards = mapObject(awardList).filter((award) => award.project === project.key);
 
     return (
       <li className="list-group-item Project clearfix">
-        {project.isIdea && !submissionsClosed && (
+        {(project.isIdea || projectMembers.length === 0) && !submissionsClosed && (
           <div className="Project-idea-claim">
             <Link
               to={`/years/${project.year}/projects/${project.key}/edit?claim`}
@@ -104,7 +104,7 @@ class ProjectListItem extends Component {
         <Link to={link}>
           <strong>{project.name}</strong>
         </Link>
-        {project.isIdea ? (
+        {project.isIdea || projectMembers.length === 0 ? (
           <div className="Project-idea-summary">{summarize(project.summary)}</div>
         ) : (
           <React.Fragment>

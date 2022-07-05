@@ -10,9 +10,9 @@ jobs:
       - name: Checkout Repo
         uses: actions/checkout@master
       - name: Install Dependencies
-        run: yarn install
+        run: npm install
       - name: Build
-        run: yarn build
+        run: npm run build
       - name: Bind Config
         run: npm run bind-version
       - name: Archive Production Artifact
@@ -33,7 +33,7 @@ jobs:
           name: build
           path: build
       - name: Test
-        run: yarn test -- --testResultsProcessor="jest-junit" --coverage
+        run: npm test -- --testResultsProcessor="jest-junit" --coverage
       - name: Publish Test Report
         uses: mikepenz/action-junit-report@v3
         if: always() # always run even if the previous step fails

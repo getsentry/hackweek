@@ -81,13 +81,13 @@ export default class MediaObject extends Component {
 
         {this.props.canDelete && (
           <div className="btn-set" style={{textAlign: 'center', marginTop: 5}}>
-            <a
+            <button
               onClick={this.onDelete}
               className="btn btn-xs btn-danger"
               disabled={this.state.deleting}
             >
               Delete
-            </a>
+            </button>
           </div>
         )}
       </div>

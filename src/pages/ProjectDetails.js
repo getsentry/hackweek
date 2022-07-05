@@ -174,8 +174,7 @@ class ProjectDetails extends Component {
     return (this.props.project.members || {}).hasOwnProperty(this.props.auth.uid);
   }
   render() {
-    let {auth, awardList, firebase, params, profile, project, userList, year} =
-      this.props;
+    let {awardList, firebase, params, profile, project, userList, year} = this.props;
     if (
       !isLoaded(project) ||
       !isLoaded(userList) ||
@@ -229,9 +228,9 @@ class ProjectDetails extends Component {
                 >
                   Edit Project
                 </Link>
-                <a onClick={this.onDelete} className="btn btn-sm btn-danger">
+                <button onClick={this.onDelete} className="btn btn-sm btn-danger">
                   Delete Project
-                </a>
+                </button>
               </div>
             )}
             <h2>{project.name}</h2>

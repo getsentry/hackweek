@@ -45,7 +45,13 @@ class Layout extends Component {
           <div className="App-auth">
             <div className="App-avatar">
               {auth && (
-                <a onClick={this.props.firebase.logout}>
+                <a
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    this.props.firebase.logout();
+                  }}
+                >
                   <Avatar user={profile} />
                 </a>
               )}

@@ -70,11 +70,15 @@
   border-radius: 2px;
 }
 
-.App-avatar a {
+.App-avatar button {
+  border: 0;
+  padding: 0;
+  display: inline-block;
+  background: inherit;
   cursor: pointer;
 }
 
-.App-avatar a:hover:before {
+.App-avatar button:hover:before {
   font-family: 'Glyphicons Halflings';
   content: '\e017';
   position: absolute;
@@ -86,7 +90,7 @@
   text-align: center;
   line-height: 36px;
 }
-.App-avatar a:hover > img {
+.App-avatar button:hover > img {
   opacity: 0.2;
 }
 

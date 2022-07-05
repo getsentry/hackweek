@@ -15,23 +15,6 @@ jobs:
         run: npm run build
       - name: Bind Config
         run: npm run bind-version
-      - name: Archive Production Artifact
-        uses: actions/upload-artifact@master
-        with:
-          name: build
-          path: build
-  deploy:
-    name: Test
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repo
-        uses: actions/checkout@master
-      - name: Download Artifact
-        uses: actions/download-artifact@master
-        with:
-          name: build
-          path: build
       - name: Test
         run: npm test -- --testResultsProcessor="jest-junit" --coverage
       - name: Publish Test Report
@@ -39,3 +22,8 @@ jobs:
         if: always() # always run even if the previous step fails
         with:
           report_paths: '**/junit.xml'
+      - name: Archive Production Artifact
+        uses: actions/upload-artifact@master
+        with:
+          name: build
+          path: build

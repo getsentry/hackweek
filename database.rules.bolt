@@ -1,4 +1,4 @@
-isAllowedUser() { auth != null && auth.token.email_verified == true && auth.token.email.endsWith('sentry.io') }
+isAllowedUser() { auth != null && auth.token.email_verified == true && auth.token.email.endsWith('@sentry.io') }
 
 isAdmin() { prior(root.users[auth.uid].admin) == true }
 

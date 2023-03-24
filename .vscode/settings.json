@@ -1,33 +1,33 @@
 {
-    "files.exclude": {
-        "**/*.min.js": true,
-        "**/*.js.map": true,
-        "/build/": true,
-        "node_modules": true,
-        "htmlcov": true,
-        "build": true,
-        "*.log": true
-    },
-    "files.trimTrailingWhitespace": true,
-    "files.trimFinalNewlines": true,
+  "files.exclude": {
+    "**/*.min.js": true,
+    "**/*.js.map": true,
+    "/build/": true,
+    "node_modules": true,
+    "htmlcov": true,
+    "build": true,
+    "*.log": true
+  },
+  "files.trimTrailingWhitespace": true,
+  "files.trimFinalNewlines": true,
 
-    "files.associations": {
-        "*.jsx": "javascriptreact"
-    },
+  "files.associations": {
+    "*.yaml": "home-assistant"
+  },
 
-    "[javascript]": {
-        "editor.formatOnSave": true
-    },
+  "[javascript]": {
+    "editor.formatOnSave": true
+  },
 
-    "[javascriptreact]": {
-        "editor.formatOnSave": true
-    },
+  "[javascriptreact]": {
+    "editor.formatOnSave": true
+  },
 
-    "[less]": {
-        "editor.formatOnSave": true
-    },
+  "[less]": {
+    "editor.formatOnSave": true
+  },
 
-    "[css]": {
-        "editor.formatOnSave": true
-    }
+  "[css]": {
+    "editor.formatOnSave": true
+  }
 }

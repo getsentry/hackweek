@@ -46,9 +46,3 @@ jobs:
         if: always() # always run even if the previous step fails
         with:
           report_paths: '**/junit.xml'
-
-      - name: Archive Production Artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: build
-          path: build

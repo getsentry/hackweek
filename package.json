@@ -26,7 +26,7 @@
     "summarize-markdown": "^0.3.1"
   },
   "scripts": {
-    "start": "react-scripts start",
+    "start": "npm run bind-version && react-scripts start",
     "bind-version": "echo \"{\\\"version\\\": \\\"$(git rev-parse HEAD)\\\"}\" > src/version.json",
     "build": "npm run bind-version && react-scripts build",
     "deploy": "npm run bind-version && NODE_ENV=production firebase deploy -P default",

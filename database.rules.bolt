@@ -54,12 +54,24 @@ type Project {
     needHelp: Boolean | Null,
     needHelpComments: String | Null,
     year: String,
+    group: GroupRef | Null,
 
     validate() { prior(this.members) == null || prior(this.members[auth.uid]) != null || isAdmin() }
 }
 
 type ProjectRef extends String {
-  validate() { this.parent().parent().parent().projects[this] != null }
+    validate() { this.parent().parent().parent().projects[this] != null }
+}
+
+type Group {
+    name: String,
+    year: String,
+    creator: InitialUserRef,
+    ts: InitialTimestamp
+}
+
+type GroupRef extends String {
+    validate() { this.parent().parent().parent().groups[this] != null }
 }
 
 type AwardCategoryRef extends String {
@@ -125,6 +137,11 @@ path /years/{year} is Year {
     path /votes/{voteId} is Vote {
         write() { isAllowedUser() && canVote(year) }
         index() { ["creator", "awardCategory"]}
+    }
+
+    path /groups/{groupId} is Group {
+      write() { isAdmin() }
+      index() { ["name"] }
     }
 
     write() { isAdmin() }

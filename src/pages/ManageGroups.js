@@ -95,6 +95,7 @@ class ManageGroups extends Component {
   static propTypes = {
     auth: PropTypes.object,
     groupsList: PropTypes.object,
+    projectsList: PropTypes.object,
     firebase: PropTypes.object,
   };
 
@@ -108,8 +109,19 @@ class ManageGroups extends Component {
   }
 
   onDelete = (group) => {
-    let {firebase, params} = this.props;
-    firebase.remove(`/years/${params.year}/groups/${group.key}`);
+    let {firebase, params, projectsList} = this.props;
+    firebase.remove(`/years/${params.year}/groups/${group.key}`).then(async () => {
+      const projectsToUpdate = Object.values(projectsList).filter(
+        (project) => project.group === group.key
+      );
+      await Promise.all(
+        projectsToUpdate.map((project) =>
+          firebase.update(`/years/${project.year}/projects/${project.key}`, {
+            group: null,
+          })
+        )
+      );
+    });
   };
 
   onSave = (group, onSuccess) => {
@@ -127,7 +139,7 @@ class ManageGroups extends Component {
           name: group.name,
           ts: Date.now(),
           creator: auth.uid,
-          year: currentYear,
+          year,
         })
         .then(onSuccess);
     }
@@ -147,7 +159,7 @@ class ManageGroups extends Component {
           .map((group) => (
             <GroupRow
               key={group.key}
-              grup={group}
+              group={group}
               onSave={this.onSave}
               onDelete={this.onDelete}
               year={year}
@@ -160,6 +172,7 @@ class ManageGroups extends Component {
 }
 
 const keyPopulates = [{keyProp: 'key'}];
+const projectPopulates = [{child: 'creator', root: 'users', keyProp: 'key'}];
 
 export default compose(
   firebaseConnect(({params}) => [
@@ -169,9 +182,16 @@ export default compose(
       populates: keyPopulates,
       storeAs: 'groupsList',
     },
+    {
+      path: `/years/${params.year || currentYear}/projects`,
+      queryParams: ['orderByChild=name'],
+      populates: projectPopulates,
+      storeAs: 'activeProjects',
+    },
   ]),
   connect(({firebase}) => ({
     auth: pathToJS(firebase, 'auth'),
     groupsList: orderedPopulatedDataToJS(firebase, 'groupsList', keyPopulates),
+    projectsList: orderedPopulatedDataToJS(firebase, 'activeProjects', projectPopulates),
   }))
 )(ManageGroups);

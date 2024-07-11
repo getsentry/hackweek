@@ -33,7 +33,7 @@ class EditProject extends Component {
     this.state = {loaded: false, pendingUploads: [], saving: false};
   }
 
-  componentWillReceiveProps({auth, location, project, userList}) {
+  componentWillReceiveProps({auth, location, project, groupsList, userList}) {
     if (project === null) {
       this.context.router.push('/');
     }
@@ -88,7 +88,7 @@ class EditProject extends Component {
     firebase
       .update(`/years/${params.year || currentYear}/projects/${params.projectKey}`, {
         name: this.state.name,
-        group: this.state.group,
+        group: this.state.group.value,
         summary: this.state.summary,
         repository: this.state.repository || '',
         isIdea: this.state.isIdea,
@@ -220,7 +220,7 @@ class EditProject extends Component {
   };
 
   render() {
-    let {firebase, params, project, userList} = this.props;
+    let {firebase, params, project, userList, groupsList} = this.props;
     if (!this.state.loaded) return <div className="loading-indocator">Loading...</div>;
     if (project === null) return <Layout />;
 
@@ -229,7 +229,7 @@ class EditProject extends Component {
       label: user.displayName,
     }));
 
-    let groupOptions = mapObject(groupList, (group, groupKey) => ({
+    let groupOptions = mapObject(groupsList, (group, groupKey) => ({
       value: groupKey,
       label: group.name,
     }));

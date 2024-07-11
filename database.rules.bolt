@@ -139,7 +139,14 @@ path /years/{year} is Year {
         index() { ["creator", "awardCategory"]}
     }
 
-    path /groups/{groupId} is Group {
+    path /groups {
+      read() { isAllowedUser() }
+      write() { isAdmin() }
+      index() { ["name"] }
+    }
+
+    path /groups/{groupid} is Group {
+      read() { isAllowedUser() }
       write() { isAdmin() }
       index() { ["name"] }
     }

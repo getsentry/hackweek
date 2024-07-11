@@ -6,6 +6,7 @@ import {compose} from 'redux';
 import {firebaseConnect, isLoaded, pathToJS} from 'react-redux-firebase';
 
 import {mapObject, orderedPopulatedDataToJS} from '../helpers';
+import {currentYear} from '../config';
 
 class GroupRow extends Component {
   static propTypes = {
@@ -126,6 +127,7 @@ class ManageGroups extends Component {
           name: group.name,
           ts: Date.now(),
           creator: auth.uid,
+          year: currentYear,
         })
         .then(onSuccess);
     }

@@ -250,7 +250,7 @@ class EditProject extends Component {
             />
           </div>
           <div className="form-group">
-            <label>Team</label>
+            <label>Group</label>
             <Select
               name="group"
               value={this.state.group}

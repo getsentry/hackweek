@@ -2,6 +2,20 @@
   margin-bottom: 20px;
 }
 
+.filter-groups {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  border-top: 1px solid black;
+  border-bottom: 1px solid black;
+  padding: 1rem 0;
+}
+
+.filter-groups .Select {
+  min-width: 150px;
+}
+
 .New-Project-Form {
   border: 3px solid #000;
   border-radius: 4px;

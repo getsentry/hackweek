@@ -21,6 +21,7 @@ class EditProject extends Component {
     auth: PropTypes.object,
     userList: PropTypes.object,
     project: PropTypes.object,
+    groupsList: PropTypes.object,
   };
 
   static contextTypes = {
@@ -32,16 +33,22 @@ class EditProject extends Component {
     this.state = {loaded: false, pendingUploads: [], saving: false};
   }
 
-  componentWillReceiveProps({auth, location, project, userList}) {
+  componentWillReceiveProps({auth, location, project, groupsList, userList}) {
     if (project === null) {
       this.context.router.push('/');
     }
     const isClaim = 'claim' in location.query;
-    if (isLoaded(project) && isLoaded(userList) && !this.state.loaded) {
+    if (
+      isLoaded(project) &&
+      isLoaded(groupsList) &&
+      isLoaded(userList) &&
+      !this.state.loaded
+    ) {
       this.setState({
         loaded: true,
         name: project.name,
         summary: project.summary,
+        group: project.group,
         repository: project.repository,
         needHelp: project.needHelp || false,
         needHelpComments: project.needHelpComments || '',
@@ -81,6 +88,7 @@ class EditProject extends Component {
     firebase
       .update(`/years/${params.year || currentYear}/projects/${params.projectKey}`, {
         name: this.state.name,
+        group: this.state.group.value,
         summary: this.state.summary,
         repository: this.state.repository || '',
         isIdea: this.state.isIdea,
@@ -207,14 +215,23 @@ class EditProject extends Component {
     this.setState({team});
   };
 
+  onChangeGroup = (group) => {
+    this.setState({group});
+  };
+
   render() {
-    let {firebase, params, project, userList} = this.props;
+    let {firebase, params, project, userList, groupsList} = this.props;
     if (!this.state.loaded) return <div className="loading-indocator">Loading...</div>;
     if (project === null) return <Layout />;
 
-    let options = mapObject(userList, (user, userKey) => ({
+    let teamOptions = mapObject(userList, (user, userKey) => ({
       value: userKey,
       label: user.displayName,
+    }));
+
+    let groupOptions = mapObject(groupsList, (group, groupKey) => ({
+      value: groupKey,
+      label: group.name,
     }));
 
     return (
@@ -229,6 +246,17 @@ class EditProject extends Component {
               name="name"
               value={this.state.name}
               onChange={this.onChangeField}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label>Team</label>
+            <Select
+              name="group"
+              value={this.state.group}
+              multi={false}
+              options={groupOptions}
+              onChange={this.onChangeGroup}
               required
             />
           </div>
@@ -278,7 +306,7 @@ class EditProject extends Component {
                   name="team"
                   value={this.state.team}
                   multi={true}
-                  options={options}
+                  options={teamOptions}
                   onChange={this.onChangeTeam}
                 />
               </div>
@@ -391,10 +419,17 @@ export default compose(
       populates: [],
       storeAs: 'project',
     },
+    {
+      path: `/years/${currentYear}/groups`,
+      queryParams: ['orderByValue=name'],
+      populates: [],
+      storeAs: 'groupsList',
+    },
   ]),
   connect(({firebase}) => ({
     auth: pathToJS(firebase, 'auth'),
     project: orderedPopulatedDataToJS(firebase, 'project'),
     userList: orderedPopulatedDataToJS(firebase, 'userList'),
+    groupsList: orderedPopulatedDataToJS(firebase, 'groupsList'),
   }))
 )(EditProject);

@@ -17,6 +17,7 @@ class NewProject extends Component {
   static propTypes = {
     auth: PropTypes.object,
     userList: PropTypes.object,
+    groupsList: PropTypes.object,
   };
 
   static contextTypes = {
@@ -44,7 +45,7 @@ class NewProject extends Component {
     }
   }
 
-  onSubmit = e => {
+  onSubmit = (e) => {
     e.preventDefault();
 
     let {auth, firebase} = this.props;
@@ -56,11 +57,12 @@ class NewProject extends Component {
         needHelp: this.state.needHelp || false,
         needHelpComments: this.state.needHelpComments || '',
         isIdea: this.state.isIdea || false,
+        group: this.state.group?.value,
         year: currentYear,
         ts: Date.now(),
         creator: auth.uid,
       })
-      .then(snapshot => {
+      .then((snapshot) => {
         let projectKey = snapshot.key;
         let updates = {};
         this.state.team.forEach(({value}) => {
@@ -84,24 +86,33 @@ class NewProject extends Component {
       });
   };
 
-  onChangeField = e => {
+  onChangeField = (e) => {
     this.setState({
       [e.target.name]: e.target.value,
     });
   };
 
-  onChangeTeam = team => {
+  onChangeTeam = (team) => {
     this.setState({team});
   };
 
+  onChangeGroup = (group) => {
+    this.setState({group});
+  };
+
   render() {
-    let {auth, userList} = this.props;
-    if (!isLoaded(auth) || !isLoaded(userList))
+    let {auth, userList, groupsList} = this.props;
+    if (!isLoaded(auth) || !isLoaded(userList) || !isLoaded(groupsList))
       return <div className="loading-indocator">Loading...</div>;
 
-    let options = mapObject(userList, (user, userKey) => ({
+    let teamOptions = mapObject(userList, (user, userKey) => ({
       value: userKey,
       label: user.displayName,
+    }));
+
+    let groupOptions = mapObject(groupsList, (group, groupKey) => ({
+      value: groupKey,
+      label: group.name,
     }));
 
     return (
@@ -116,6 +127,17 @@ class NewProject extends Component {
               name="name"
               value={this.state.name}
               onChange={this.onChangeField}
+              required
+            />
+          </div>
+          <div className="form-group">
+            <label>Group</label>
+            <Select
+              name="group"
+              value={this.state.group}
+              multi={false}
+              options={groupOptions}
+              onChange={this.onChangeGroup}
               required
             />
           </div>
@@ -137,7 +159,7 @@ class NewProject extends Component {
                   type="checkbox"
                   name="isIdea"
                   checked={this.state.isIdea}
-                  onChange={e => {
+                  onChange={(e) => {
                     this.setState({isIdea: e.target.checked});
                   }}
                 />{' '}
@@ -153,7 +175,7 @@ class NewProject extends Component {
                   name="team"
                   value={this.state.team}
                   multi={true}
-                  options={options}
+                  options={teamOptions}
                   onChange={this.onChangeTeam}
                 />
               </div>
@@ -165,7 +187,7 @@ class NewProject extends Component {
                       type="checkbox"
                       name="needHelp"
                       checked={this.state.needHelp}
-                      onChange={e => {
+                      onChange={(e) => {
                         this.setState({needHelp: e.target.checked});
                       }}
                     />{' '}
@@ -206,9 +228,16 @@ export default compose(
       populates: [],
       storeAs: 'userList',
     },
+    {
+      path: `/years/${currentYear}/groups`,
+      queryParams: ['orderByValue=name'],
+      populates: [],
+      storeAs: 'groupsList',
+    },
   ]),
   connect(({firebase}) => ({
     auth: pathToJS(firebase, 'auth'),
     userList: orderedPopulatedDataToJS(firebase, 'userList'),
+    groupsList: orderedPopulatedDataToJS(firebase, 'groupsList'),
   }))
 )(NewProject);

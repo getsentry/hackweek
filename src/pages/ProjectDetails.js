@@ -97,6 +97,7 @@ class ProjectDetails extends Component {
     firebase: PropTypes.object,
     profile: PropTypes.object,
     project: PropTypes.object,
+    groupsList: PropTypes.object,
     userList: PropTypes.object,
     awardCategoryList: PropTypes.object,
   };
@@ -174,9 +175,11 @@ class ProjectDetails extends Component {
     return (this.props.project.members || {}).hasOwnProperty(this.props.auth.uid);
   }
   render() {
-    let {awardList, firebase, params, profile, project, userList, year} = this.props;
+    let {awardList, firebase, params, profile, project, groupsList, userList, year} =
+      this.props;
     if (
       !isLoaded(project) ||
+      !isLoaded(groupsList) ||
       !isLoaded(userList) ||
       !isLoaded(awardList) ||
       !isLoaded(profile) ||
@@ -190,6 +193,8 @@ class ProjectDetails extends Component {
         return userList[memberKey];
       })
       .filter((member) => member !== null);
+
+    let group = groupsList?.[project.group];
 
     projectMembers.sort((a, b) => ('' + a.displayName).localeCompare(b.displayName));
     // XXX(dcramer): not sure why this would happen
@@ -361,6 +366,8 @@ class ProjectDetails extends Component {
                   ]}
                   <dt>Created On</dt>
                   <dd>{moment(project.ts).format('ll')}</dd>
+                  <dt>Group</dt>
+                  <dd>{group?.name}</dd>
                 </dl>
               </div>
             </div>
@@ -392,6 +399,12 @@ export default compose(
       storeAs: 'userList',
     },
     {
+      path: `/years/${props.params.year || currentYear}/groups`,
+      queryParams: ['orderByValue=name'],
+      populates: [],
+      storeAs: 'groupsList',
+    },
+    {
       path: `/years/${props.params.year || currentYear}/projects/${
         props.params.projectKey
       }`,
@@ -410,6 +423,7 @@ export default compose(
       year: orderedPopulatedDataToJS(firebase, 'year'),
       awardList: orderedPopulatedDataToJS(firebase, 'awardList', keyPopulates),
       project: orderedPopulatedDataToJS(firebase, 'project'),
+      groupsList: orderedPopulatedDataToJS(firebase, 'groupsList'),
       userList: orderedPopulatedDataToJS(firebase, 'userList'),
       awardCategoryList: orderedPopulatedDataToJS(firebase, 'awardCategoryList'),
     };

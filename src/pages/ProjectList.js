@@ -13,6 +13,7 @@ import {mapObject, orderedPopulatedDataToJS} from '../helpers';
 import Avatar from '../components/Avatar';
 import Layout from '../components/Layout';
 import {slugify} from '../utils';
+import Select from 'react-select/lib/Select';
 
 function getAuthUserVotes(uid, voteList) {
   return Object.keys(voteList || {})
@@ -138,10 +139,16 @@ class ProjectList extends Component {
     year: PropTypes.object,
     awardCategoryList: PropTypes.object,
     awardList: PropTypes.object,
+    groupsList: PropTypes.object,
     firebase: PropTypes.object,
     projectList: PropTypes.object,
     userList: PropTypes.object,
   };
+
+  constructor(...args) {
+    super(...args);
+    this.state = {};
+  }
 
   renderClosedYear() {
     let {auth, awardCategoryList, awardList, firebase, projectList, userList, year} =
@@ -221,6 +228,15 @@ class ProjectList extends Component {
     }
 
     let projects = mapObject(projectList);
+    if (this.state.groupFilter) {
+      if (this.state.groupFilter.value === '') {
+        projects = projects.filter((project) => !project.group);
+      } else {
+        projects = projects.filter(
+          (project) => project.group === this.state.groupFilter.value
+        );
+      }
+    }
     let projectsLFH = [];
     let projectIdeas = [];
     let otherProjects = [];
@@ -345,6 +361,10 @@ class ProjectList extends Component {
     );
   }
 
+  onChangeGroupFilter = (groupFilter) => {
+    this.setState({groupFilter});
+  };
+
   render() {
     let year = this.props.year;
     if (!year) {
@@ -363,6 +383,14 @@ class ProjectList extends Component {
       year.submissionsClosed = true;
     }
 
+    const groupOptions = mapObject(
+      Object.assign({'': {name: 'No group'}}, this.props.groupsList),
+      (group, groupKey) => ({
+        value: groupKey,
+        label: group.name,
+      })
+    );
+
     return (
       <Layout>
         <div>
@@ -376,6 +404,16 @@ class ProjectList extends Component {
             </Link>
           )}
           <h2>Projects for {this.props.params.year || currentYear}</h2>
+        </div>
+        <div className="filter-groups">
+          <span>Filter groups:</span>
+          <Select
+            value={this.state.groupFilter}
+            multi={false}
+            options={groupOptions}
+            onChange={this.onChangeGroupFilter}
+            required
+          />
         </div>
         {currentYear !== (this.props.params.year || currentYear) && (
           <div className="alert alert-block alert-info">
@@ -423,6 +461,12 @@ export default compose(
       storeAs: 'activeProjects',
     },
     {
+      path: `/years/${props.params.year || currentYear}/groups`,
+      queryParams: ['orderByValue=name'],
+      populates: [],
+      storeAs: 'groupsList',
+    },
+    {
       path: `/years/${props.params.year || currentYear}`,
       storeAs: 'year',
     },
@@ -434,5 +478,6 @@ export default compose(
     awardList: orderedPopulatedDataToJS(firebase, 'awardList', keyPopulates),
     projectList: orderedPopulatedDataToJS(firebase, 'activeProjects', projectPopulates),
     userList: orderedPopulatedDataToJS(firebase, 'userList'),
+    groupsList: orderedPopulatedDataToJS(firebase, 'groupsList'),
   }))
 )(ProjectList);

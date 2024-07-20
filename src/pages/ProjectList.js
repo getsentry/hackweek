@@ -45,6 +45,7 @@ class ProjectListItem extends Component {
     firebase: PropTypes.object,
     project: PropTypes.object,
     userList: PropTypes.object,
+    group: PropTypes.object,
     userVote: PropTypes.array,
     submissionsClosed: PropTypes.bool,
   };
@@ -56,6 +57,7 @@ class ProjectListItem extends Component {
       submissionsClosed,
       project,
       userList,
+      group,
       userVote,
     } = this.props;
     let link =
@@ -126,6 +128,9 @@ class ProjectListItem extends Component {
                 <em>up for grabs</em>
               )}
             </div>
+            {group && (
+              <div className={`Project-group-badge ${group.id}`}>{group.name}</div>
+            )}
           </React.Fragment>
         )}
       </li>
@@ -184,6 +189,7 @@ class ProjectList extends Component {
                     userVote={userVotes.filter((v) => v.project === project.key)}
                     awardList={awardList}
                     userList={userList}
+                    group={{id: project.group, ...groupsList[project.group]}}
                     submissionsClosed={true}
                   />
                 );
@@ -206,6 +212,7 @@ class ProjectList extends Component {
                     userVote={userVotes.filter((v) => v.project === project.key)}
                     awardList={awardList}
                     userList={userList}
+                    group={{id: project.group, ...groupsList[project.group]}}
                     submissionsClosed={true}
                   />
                 );
@@ -218,8 +225,16 @@ class ProjectList extends Component {
   }
 
   renderBody(year) {
-    let {auth, awardCategoryList, awardList, firebase, projectList, userList} =
-      this.props;
+    let {
+      auth,
+      awardCategoryList,
+      awardList,
+      firebase,
+      projectList,
+      userList,
+      groupsList,
+    } = this.props;
+
     if (!isLoaded(projectList)) return <div className="loading-indicator">Loading..</div>;
 
     let submissionsClosed = year.submissionsClosed;
@@ -306,6 +321,7 @@ class ProjectList extends Component {
                     awardCategoryOptions={awardCategoryOptions}
                     awardList={awardList}
                     userList={userList}
+                    group={{id: project.group, ...groupsList[project.group]}}
                     submissionsClosed={submissionsClosed}
                   />
                 );
@@ -328,6 +344,7 @@ class ProjectList extends Component {
                     awardCategoryOptions={awardCategoryOptions}
                     awardList={awardList}
                     userList={userList}
+                    group={{id: project.group, ...groupsList[project.group]}}
                     submissionsClosed={submissionsClosed}
                   />
                 );
@@ -350,6 +367,7 @@ class ProjectList extends Component {
                     awardCategoryOptions={awardCategoryOptions}
                     awardList={awardList}
                     userList={userList}
+                    group={{id: project.group, ...groupsList[project.group]}}
                     submissionsClosed={submissionsClosed}
                   />
                 );

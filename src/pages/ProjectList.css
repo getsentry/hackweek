@@ -89,6 +89,33 @@
   height: 16px;
 }
 
+.Project-group-badge {
+  background: black;
+  color: white;
+  border-radius: 6px;
+  width: fit-content;
+  padding: 2px 6px;
+  font-size: 1rem;
+  font-weight: bold;
+  margin-top: 0.5rem;
+  text-transform: uppercase;
+}
+
+/* Viendetta badge */
+.Project-group-badge.-O1sPFU0PwMmtCUJjQ78 {
+  background: #ee871b;
+}
+
+/* Canadalada badge */
+.Project-group-badge.-O1sPEcGDurB79pjG0Gf {
+  background: #f644a6;
+}
+
+/* San Attle badge */
+.Project-group-badge.-O1sPGaicIe7NPWOYgml {
+  background: #7bae01;
+}
+
 .Project-meta {
   font-size: 0.8em;
   margin-bottom: 20px;

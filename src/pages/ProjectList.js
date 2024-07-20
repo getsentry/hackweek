@@ -128,7 +128,7 @@ class ProjectListItem extends Component {
                 <em>up for grabs</em>
               )}
             </div>
-            {group && (
+            {group.id && (
               <div className={`Project-group-badge ${group.id}`}>{group.name}</div>
             )}
           </React.Fragment>

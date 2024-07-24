@@ -156,8 +156,19 @@ class ProjectList extends Component {
   }
 
   renderClosedYear() {
-    let {auth, awardCategoryList, awardList, firebase, projectList, userList, year} =
-      this.props;
+    let {
+      auth,
+      awardCategoryList,
+      awardList,
+      firebase,
+      projectList,
+      userList,
+      year,
+      groupsList,
+    } = this.props;
+    if (!groupsList) {
+      groupsList = {};
+    }
     let projects = mapObject(projectList);
     let winningProjects = [];
     let otherProjects = [];
@@ -234,6 +245,10 @@ class ProjectList extends Component {
       userList,
       groupsList,
     } = this.props;
+
+    if (!groupsList) {
+      groupsList = {};
+    }
 
     if (!isLoaded(projectList)) return <div className="loading-indicator">Loading..</div>;
 

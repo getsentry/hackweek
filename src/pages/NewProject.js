@@ -57,7 +57,7 @@ class NewProject extends Component {
         needHelp: this.state.needHelp || false,
         needHelpComments: this.state.needHelpComments || '',
         isIdea: this.state.isIdea || false,
-        group: this.state.group?.value,
+        group: this.state.group?.value ?? '',
         year: currentYear,
         ts: Date.now(),
         creator: auth.uid,
@@ -138,7 +138,7 @@ class NewProject extends Component {
               multi={false}
               options={groupOptions}
               onChange={this.onChangeGroup}
-              required
+              required={!this.state.isIdea}
             />
           </div>
           <div className="form-group">

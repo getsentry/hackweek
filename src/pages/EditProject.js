@@ -88,10 +88,9 @@ class EditProject extends Component {
     firebase
       .update(`/years/${params.year || currentYear}/projects/${params.projectKey}`, {
         name: this.state.name,
-        group: this.state.group.value,
+        group: this.state.group,
         summary: this.state.summary,
         repository: this.state.repository || '',
-        isIdea: this.state.isIdea,
         needHelp: !this.state.isIdea && this.state.needHelp,
         needHelpComments: this.state.needHelpComments,
       })
@@ -179,7 +178,16 @@ class EditProject extends Component {
             .ref()
             .update(updates)
             .then(() => {
-              this.context.router.push(this.getProjectUrl());
+              firebase
+                .update(
+                  `/years/${params.year || currentYear}/projects/${params.projectKey}`,
+                  {
+                    isIdea: this.state.isIdea,
+                  }
+                )
+                .then(() => {
+                  this.context.router.push(this.getProjectUrl());
+                });
             })
             .catch((ex) => {
               console.error(ex);
@@ -216,7 +224,7 @@ class EditProject extends Component {
   };
 
   onChangeGroup = (group) => {
-    this.setState({group});
+    this.setState({group: group.value});
   };
 
   render() {

@@ -159,7 +159,17 @@ class EditProject extends Component {
                 .ref()
                 .update(updates)
                 .then(() => {
-                  this.context.router.push(this.getProjectUrl());
+                  // Have to update isIdea after everything because non-admins can't claim ideas created by others
+                  firebase
+                    .update(
+                      `/years/${params.year || currentYear}/projects/${params.projectKey}`,
+                      {
+                        isIdea: this.state.isIdea,
+                      }
+                    )
+                    .then(() => {
+                      this.context.router.push(this.getProjectUrl());
+                    });
                 })
                 .catch((ex) => {
                   console.error(ex);
@@ -178,6 +188,7 @@ class EditProject extends Component {
             .ref()
             .update(updates)
             .then(() => {
+              // Have to update isIdea after everything because non-admins can't claim ideas created by others
               firebase
                 .update(
                   `/years/${params.year || currentYear}/projects/${params.projectKey}`,

@@ -64,25 +64,31 @@ class NewProject extends Component {
       })
       .then((snapshot) => {
         let projectKey = snapshot.key;
-        let updates = {};
-        this.state.team.forEach(({value}) => {
-          updates[`/years/${currentYear}/projects/${projectKey}/members/${value}`] = {
-            ts: Date.now(),
-          };
-          // updates[`/users/${uid}/projects/${projectKey}`] = {
-          //   year: currentYear,
-          //   name: this.state.name,
-          // };
-        });
-        firebase
-          .database()
-          .ref()
-          .update(updates)
-          .then(() => {
-            this.context.router.push(
-              `/years/${currentYear}/projects/${projectKey}/${slugify(this.state.name)}`
-            );
+        if (!this.state.isIdea) {
+          let updates = {};
+          this.state.team.forEach(({value}) => {
+            updates[`/years/${currentYear}/projects/${projectKey}/members/${value}`] = {
+              ts: Date.now(),
+            };
+            // updates[`/users/${uid}/projects/${projectKey}`] = {
+            //   year: currentYear,
+            //   name: this.state.name,
+            // };
           });
+          firebase
+            .database()
+            .ref()
+            .update(updates)
+            .then(() => {
+              this.context.router.push(
+                `/years/${currentYear}/projects/${projectKey}/${slugify(this.state.name)}`
+              );
+            });
+        } else {
+          this.context.router.push(
+            `/years/${currentYear}/projects/${projectKey}/${slugify(this.state.name)}`
+          );
+        }
       });
   };
 

@@ -100,6 +100,7 @@ class ProjectDetails extends Component {
     groupsList: PropTypes.object,
     userList: PropTypes.object,
     awardCategoryList: PropTypes.object,
+    voteList: PropTypes.object,
   };
 
   static contextTypes = {
@@ -175,14 +176,24 @@ class ProjectDetails extends Component {
     return (this.props.project.members || {}).hasOwnProperty(this.props.auth.uid);
   }
   render() {
-    let {awardList, firebase, params, profile, project, groupsList, userList, year} =
-      this.props;
+    let {
+      awardList,
+      firebase,
+      params,
+      profile,
+      auth,
+      project,
+      groupsList,
+      userList,
+      year,
+    } = this.props;
     if (
       !isLoaded(project) ||
       !isLoaded(groupsList) ||
       !isLoaded(userList) ||
       !isLoaded(awardList) ||
       !isLoaded(profile) ||
+      !isLoaded(auth) ||
       !isLoaded(year)
     )
       return <div className="loading-indicator">Loading..</div>;
@@ -218,6 +229,18 @@ class ProjectDetails extends Component {
     let creator = userList[project.creator] || null;
 
     let awards = mapObject(awardList).filter((award) => award.project === projectKey);
+
+    let userVotes = Object.values(year.votes || {})
+      .filter((vote) => vote.creator === auth.uid)
+      .map((vote) => vote.awardCategory);
+    let userVote = Object.values(year.votes || {}).filter(
+      (vote) => vote.creator === auth.uid && vote.project === params.projectKey
+    )?.[0];
+
+    awardCategories = awardCategories.filter(
+      (category) =>
+        !userVotes.includes(category.key) || category.key === userVote?.awardCategory
+    );
 
     return (
       <Layout>
@@ -346,7 +369,7 @@ class ProjectDetails extends Component {
                   userVote={
                     this.state.userVote ? this.state.userVote.awardCategory : null
                   }
-                  disabled={this.isProjectMember()}
+                  disabled={this.isProjectMember() || awardCategories.length === 0}
                   onSave={this.onSaveUserVote}
                   onDelete={this.onDeleteUserVote}
                 />
@@ -415,6 +438,11 @@ export default compose(
       path: `/years/${props.params.year || currentYear}`,
       storeAs: 'year',
     },
+    {
+      path: `/years/${props.params.year}/votes`,
+      populates: keyPopulates,
+      storeAs: 'voteList',
+    },
   ]),
   connect(({firebase}) => {
     return {
@@ -426,6 +454,7 @@ export default compose(
       groupsList: orderedPopulatedDataToJS(firebase, 'groupsList'),
       userList: orderedPopulatedDataToJS(firebase, 'userList'),
       awardCategoryList: orderedPopulatedDataToJS(firebase, 'awardCategoryList'),
+      voteList: orderedPopulatedDataToJS(firebase, 'voteList', keyPopulates),
     };
   })
 )(ProjectDetails);

@@ -418,6 +418,17 @@ class ProjectList extends Component {
       })
     );
 
+    let votes = [];
+    if (this.props.auth && this.props.awardCategoryList && this.props.projectList) {
+      let userVotes = year ? getAuthUserVotes(this.props.auth.uid, year.votes) : [];
+      let awardCategoryOptions = getAwardCategories(this.props.awardCategoryList);
+      let projectList = this.props.projectList;
+      votes = userVotes.map((v) => ({
+        project: Object.values(projectList).find((p) => p.key === v.project),
+        award: awardCategoryOptions[v.awardCategory],
+      }));
+    }
+
     return (
       <Layout>
         <div>
@@ -450,7 +461,23 @@ class ProjectList extends Component {
         )}
         {year.votingEnabled && (
           <div className="alert alert-block alert-info">
-            Voting is currently enabled! Visit a project to cast your vote &hellip;
+            Voting is currently enabled! Visit a project to cast your vote.
+            <br />
+            {votes.length > 0 && (
+              <>
+                Your votes:
+                <ul style={{marginTop: 4}}>
+                  {votes.map((v) => (
+                    <li key={v.project.key}>
+                      <strong>{v.award.name}</strong> -
+                      <Link to={`/projects/${v.project.key}`} style={{marginLeft: 4}}>
+                        {v.project.name}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
           </div>
         )}
         {this.renderBody(year)}

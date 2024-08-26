@@ -16,12 +16,7 @@ import {slugify} from '../utils';
 import Select from 'react-select/lib/Select';
 
 function getAuthUserVotes(uid, voteList) {
-  return Object.keys(voteList || {})
-    .map((voteKey) => ({
-      ...voteList[voteKey],
-      key: voteKey,
-    }))
-    .filter((vote) => vote.creator === uid);
+  return Object.values(voteList || {}).filter((vote) => vote.creator === uid);
 }
 
 function getAwardCategories(awardCategoryList) {
@@ -46,20 +41,12 @@ class ProjectListItem extends Component {
     project: PropTypes.object,
     userList: PropTypes.object,
     group: PropTypes.object,
-    userVote: PropTypes.array,
     submissionsClosed: PropTypes.bool,
   };
 
   render() {
-    let {
-      awardList,
-      awardCategoryOptions,
-      submissionsClosed,
-      project,
-      userList,
-      group,
-      userVote,
-    } = this.props;
+    let {awardList, awardCategoryOptions, submissionsClosed, project, userList, group} =
+      this.props;
     let link =
       currentYear === project.year
         ? `/projects/${project.key}/${slugify(project.name)}`
@@ -75,7 +62,14 @@ class ProjectListItem extends Component {
     // hide project if its not executed on
     if (submissionsClosed && project.isIdea) return null;
 
-    let awards = mapObject(awardList).filter((award) => award.project === project.key);
+    let awards = mapObject(awardList)
+      .filter((award) => award.project === project.key)
+      .map((award) => ({
+        ...award,
+        name: Object.values(awardCategoryOptions).find(
+          (aco) => aco.key === award.awardCategory
+        )?.name,
+      }));
 
     return (
       <li className="list-group-item Project clearfix">
@@ -91,17 +85,11 @@ class ProjectListItem extends Component {
         )}
         {!!awards.length && (
           <div className="Project-award">
+            {awards.map((a) => a.name).join(', ')}{' '}
             <span
               className="glyphicon glyphicon-star"
               title={awards.map((a) => a.name).join(', ')}
             />
-          </div>
-        )}
-        {!!userVote.length && (
-          <div className="Project-vote">
-            <span>
-              You voted for this ({awardCategoryOptions[userVote[0].awardCategory].name})
-            </span>
           </div>
         )}
         <Link to={link}>
@@ -163,7 +151,6 @@ class ProjectList extends Component {
       firebase,
       projectList,
       userList,
-      year,
       groupsList,
     } = this.props;
     if (!groupsList) {
@@ -180,7 +167,6 @@ class ProjectList extends Component {
       }
     });
 
-    let userVotes = year ? getAuthUserVotes(auth.uid, year) : [];
     let awardCategoryOptions = getAwardCategories(awardCategoryList);
 
     if (this.state.groupFilter) {
@@ -207,7 +193,6 @@ class ProjectList extends Component {
                     firebase={firebase}
                     project={project}
                     awardCategoryOptions={awardCategoryOptions}
-                    userVote={userVotes.filter((v) => v.project === project.key)}
                     awardList={awardList}
                     userList={userList}
                     group={{id: project.group, ...groupsList[project.group]}}
@@ -230,7 +215,6 @@ class ProjectList extends Component {
                     firebase={firebase}
                     project={project}
                     awardCategoryOptions={awardCategoryOptions}
-                    userVote={userVotes.filter((v) => v.project === project.key)}
                     awardList={awardList}
                     userList={userList}
                     group={{id: project.group, ...groupsList[project.group]}}

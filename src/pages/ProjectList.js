@@ -183,6 +183,16 @@ class ProjectList extends Component {
     let userVotes = year ? getAuthUserVotes(auth.uid, year) : [];
     let awardCategoryOptions = getAwardCategories(awardCategoryList);
 
+    if (this.state.groupFilter) {
+      if (this.state.groupFilter.value === '') {
+        projects = projects.filter((project) => !project.group);
+      } else {
+        projects = projects.filter(
+          (project) => project.group === this.state.groupFilter.value
+        );
+      }
+    }
+
     return (
       <div>
         {!!winningProjects.length && (

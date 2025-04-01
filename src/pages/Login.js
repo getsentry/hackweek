@@ -108,23 +108,27 @@ class Login extends Component {
     }
 
     return (
-      <div className="login-container">
-        <Button priority="default" size="md" onClick={() => console.log('Disco time!')}>
-          Disco!
-        </Button>
-        <CountdownTimer />
-        <div className="login-box">
-          <p>Sign in to access Hackweek</p>
-          <Button
-            priority="default"
-            size="md"
-            onClick={this.googleLogin}
-            icon={<GoogleIcon />}
-            iconPosition="left"
-            style={{minWidth: '240px'}}
-          >
-            Sign in with Google
-          </Button>
+      <div>
+        <header className="app-header">
+          <div className="header-content">
+            <div className="header-title">
+              <h1>#HACKWEEK 2025</h1>
+            </div>
+            <div className="header-nav">
+              <Button
+                priority="default"
+                size="sm"
+                onClick={this.googleLogin}
+                icon={<GoogleIcon />}
+                iconPosition="left"
+              >
+                Sign in with Google
+              </Button>
+            </div>
+          </div>
+        </header>
+        <div className="login-container">
+          <CountdownTimer />
         </div>
         <style jsx global>{`
           body {
@@ -135,12 +139,47 @@ class Login extends Component {
           }
         `}</style>
         <style jsx>{`
+          .app-header {
+            position: sticky;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: #ffffff;
+            border-bottom: 1px solid #e0dce5;
+            box-shadow: 0 1px 2px rgba(43, 34, 51, 0.04);
+            z-index: 100;
+          }
+
+          .header-content {
+            max-width: 1440px;
+            margin: 0 auto;
+            padding: 0 20px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+          }
+
+          .header-title h1 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #2b2233;
+            margin: 0;
+          }
+
+          .header-nav {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+          }
+
           .login-container {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            min-height: 100vh;
+            min-height: calc(100vh - 60px);
             width: 100%;
             color: #2b2233;
             padding: 20px;
@@ -196,107 +235,6 @@ class Login extends Component {
             color: #666;
             text-transform: uppercase;
             margin-top: 5px;
-          }
-
-          .login-box {
-            background: #ffffff;
-            padding: 30px;
-            border-radius: 6px;
-            text-align: center;
-            border: 1px solid #e0dce5;
-            box-shadow: 0 1px 2px rgba(43, 34, 51, 0.04), 0 3px 0 0 #e0dce5;
-          }
-
-          .login-box p {
-            margin-bottom: 20px;
-            font-size: 18px;
-            color: #2b2233;
-          }
-
-          .google-button-wrapper {
-            position: relative;
-            display: inline-block;
-          }
-
-          .google-button-wrapper button {
-            position: relative;
-            font-weight: 600 !important;
-            height: 50px !important;
-            border-radius: 10px !important;
-            transition: all 0.1s ease-in-out !important;
-            transform: translateY(0);
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.1) !important;
-          }
-
-          .google-button-wrapper button:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2), 0 8px 16px rgba(0, 0, 0, 0.1) !important;
-          }
-
-          .google-button-wrapper button:active {
-            transform: translateY(0);
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
-          }
-
-          .google-button-wrapper button > div {
-            padding: 0 20px !important;
-          }
-
-          .google-button-wrapper button > span {
-            font-size: 16px !important;
-            padding-left: 24px !important;
-            font-weight: 600 !important;
-          }
-
-          .google-button-wrapper::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            border-radius: 10px;
-            pointer-events: none;
-            transition: all 0.2s ease;
-          }
-
-          .google-button-wrapper:focus-within::after {
-            box-shadow: 0 0 0 2px #4ecdc4;
-          }
-
-          .disco-button {
-            position: relative;
-            display: inline-block;
-            padding: 10px 16px;
-            font-size: 16px;
-            font-weight: 600;
-            color: #ffffff;
-            background: #6c5fc7;
-            border: 1px solid #6c5fc7;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.1s ease;
-            margin-bottom: 20px;
-            box-shadow: 0 1px 2px rgba(43, 34, 51, 0.04), 0 3px 0 0 #584ac0;
-          }
-
-          .disco-button:hover {
-            background: #584ac0;
-            border-color: #584ac0;
-            transform: translateY(-1px);
-            box-shadow: 0 4px 24px rgba(43, 34, 51, 0.12), 0 3px 0 0 #4a3da1;
-          }
-
-          .disco-button:active {
-            transform: translateY(2px);
-            background: #584ac0;
-            box-shadow: 0 1px 2px rgba(43, 34, 51, 0.04) inset, 0 0 0 0 #4a3da1;
-          }
-
-          .disco-button:focus {
-            outline: none;
-            box-shadow: #6c5fc7 0 0 0 1px, rgba(108, 95, 199, 0.5) 0 0 0 4px,
-              0 3px 0 0 #584ac0;
           }
         `}</style>
       </div>

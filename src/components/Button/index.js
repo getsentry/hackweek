@@ -84,10 +84,7 @@ const Button = ({
         }
 
         .custom-button-default:hover {
-          background: #f5f3f7;
-          border-color: #e0dce5;
           transform: translateY(-1px);
-          box-shadow: 0 4px 24px rgba(43, 34, 51, 0.12), 0 3px 0 0 #d1ccd8;
         }
 
         .custom-button-default:active {
@@ -103,10 +100,7 @@ const Button = ({
         }
 
         .custom-button-primary:hover {
-          background: #584ac0;
-          border-color: #584ac0;
           transform: translateY(-1px);
-          box-shadow: 0 4px 24px rgba(43, 34, 51, 0.12), 0 3px 0 0 #4a3da1;
         }
 
         .custom-button-primary:active {
@@ -122,16 +116,11 @@ const Button = ({
         }
 
         .custom-button-secondary:hover {
-          background: #2562d4;
-          border-color: #3c74dd;
           transform: translateY(-1px);
-          box-shadow: 0 4px 24px rgba(43, 34, 51, 0.12), 0 3px 0 0 #2562d4;
         }
 
         .custom-button-secondary:active {
           transform: translateY(2px);
-          background: #2562d4;
-          border-color: #3c74dd;
           box-shadow: 0 1px 2px rgba(43, 34, 51, 0.04) inset;
         }
 
@@ -154,10 +143,7 @@ const Button = ({
         }
 
         .custom-button-danger:hover {
-          background: #df3338;
-          border-color: #df3338;
           transform: translateY(-1px);
-          box-shadow: 0 4px 24px rgba(43, 34, 51, 0.12), 0 3px 0 0 #c42d31;
         }
 
         .custom-button-danger:active {

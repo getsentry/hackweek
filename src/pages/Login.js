@@ -42,7 +42,7 @@ class CountdownTimer extends Component {
     const {days, hours, minutes, seconds} = this.state;
     return (
       <div className="countdown-timer">
-        <h1>HACKWEEK 2024</h1>
+        <h1>HACKWEEK 2025</h1>
         <div className="countdown-values">
           <div className="countdown-segment">
             <span className="countdown-number">{Math.abs(days)}</span>
@@ -208,6 +208,7 @@ class Login extends Component {
             display: flex;
             gap: 20px;
             justify-content: center;
+            flex-wrap: wrap;
           }
 
           .countdown-segment {
@@ -235,6 +236,76 @@ class Login extends Component {
             color: #666;
             text-transform: uppercase;
             margin-top: 5px;
+          }
+
+          @media (max-width: 768px) {
+            .header-content {
+              padding: 0 12px;
+            }
+
+            .header-title h1 {
+              font-size: 16px;
+            }
+
+            .countdown-timer h1 {
+              font-size: 32px;
+              margin-bottom: 20px;
+            }
+
+            .countdown-timer h2 {
+              font-size: 18px;
+            }
+
+            .countdown-values {
+              gap: 12px;
+            }
+
+            .countdown-segment {
+              padding: 12px;
+              width: calc(50% - 18px);
+              min-width: 120px;
+            }
+
+            .countdown-number {
+              font-size: 36px;
+              min-width: auto;
+            }
+
+            .countdown-label {
+              font-size: 14px;
+            }
+          }
+
+          @media (max-width: 480px) {
+            .login-container {
+              padding: 12px;
+            }
+
+            .countdown-timer h1 {
+              font-size: 28px;
+            }
+
+            .countdown-timer h2 {
+              font-size: 16px;
+            }
+
+            .countdown-segment {
+              width: calc(50% - 12px);
+              padding: 10px;
+            }
+
+            .countdown-number {
+              font-size: 32px;
+            }
+
+            .countdown-label {
+              font-size: 12px;
+            }
+
+            .header-nav button {
+              padding: 6px 12px;
+              font-size: 14px;
+            }
           }
         `}</style>
       </div>

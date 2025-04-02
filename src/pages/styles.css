@@ -1,0 +1,18 @@
+body {
+  margin: 0;
+  padding: 0;
+  background: #ffffff;
+  min-height: 100vh;
+  color: #2b2233;
+}
+
+.landing-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  flex: 1;
+  width: 100%;
+}

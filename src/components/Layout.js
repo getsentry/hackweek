@@ -1,21 +1,40 @@
 import React, {Component} from 'react';
-import {Link} from 'react-router';
 import PropTypes from 'prop-types';
+import {Link} from 'react-router';
 import {connect} from 'react-redux';
 import {compose} from 'redux';
-import {firebaseConnect, pathToJS} from 'react-redux-firebase';
+import {firebaseConnect, isEmpty, isLoaded, pathToJS} from 'react-redux-firebase';
 import * as Sentry from '@sentry/react';
+import Header from './header';
 
 import {currentYear} from '../config';
 import Avatar from './Avatar';
 
 class Layout extends Component {
   static propTypes = {
-    auth: PropTypes.object,
-    profile: PropTypes.object,
+    children: PropTypes.node,
     firebase: PropTypes.shape({
+      login: PropTypes.func.isRequired,
       logout: PropTypes.func.isRequired,
     }),
+    auth: PropTypes.object,
+    profile: PropTypes.object,
+  };
+
+  handleLogin = () => {
+    return this.props.firebase
+      .login({provider: 'google', type: 'popup'})
+      .catch((error) => {
+        console.error(error);
+        Sentry.captureException(error);
+      });
+  };
+
+  handleLogout = () => {
+    return this.props.firebase.logout().catch((error) => {
+      console.error(error);
+      Sentry.captureException(error);
+    });
   };
 
   componentDidUpdate() {
@@ -34,34 +53,17 @@ class Layout extends Component {
   }
 
   render() {
-    let {auth, profile} = this.props;
+    const {auth, profile, children} = this.props;
 
     return (
       <div>
-        <header className="App-header">
-          <h1 className="App-title">
-            <Link to="/">#HACKWEEK</Link>
-          </h1>
-          <div className="App-auth">
-            <div className="App-avatar">
-              {auth && (
-                <button onClick={this.props.firebase.logout}>
-                  <Avatar user={profile} />
-                </button>
-              )}
-            </div>
-            <div className="App-email">
-              {auth && (
-                <p>
-                  Logged in as
-                  <br />
-                  {auth.email}
-                </p>
-              )}
-            </div>
-          </div>
-        </header>
-        <div className="App-main">{this.props.children}</div>
+        <Header
+          onLogin={this.handleLogin}
+          onLogout={this.handleLogout}
+          isAuthenticated={isLoaded(auth) && !isEmpty(auth)}
+          user={profile}
+        />
+        <main>{children}</main>
         <div className="App-footer">
           <Link to="/projects">This Year ({currentYear})</Link>
           <Link to="/years">The Archives</Link>

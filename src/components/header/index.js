@@ -1,45 +1,41 @@
 import React from 'react';
 import PropTypes from 'prop-types';
+import {Link} from 'react-router';
 import Button from '../Button';
 import GoogleIcon from '../GoogleIcon';
+import Avatar from '../Avatar';
 import './styles.css';
 
-const Header = ({
-  title = '#HACKWEEK 2025',
-  isAuthenticated = false,
-  onLogin,
-  onLogout,
-  user = null,
-}) => {
-  const renderAuthButton = () => {
-    if (isAuthenticated && user) {
-      return (
-        <Button priority="default" size="sm" onClick={onLogout} iconPosition="left">
-          Sign out
-        </Button>
-      );
-    }
-
-    return (
-      <Button
-        priority="default"
-        size="sm"
-        onClick={onLogin}
-        icon={<GoogleIcon />}
-        iconPosition="left"
-      >
-        Sign in with Google
-      </Button>
-    );
-  };
-
+const Header = ({onLogin, onLogout, isAuthenticated, user}) => {
   return (
     <header className="app-header">
       <div className="header-content">
-        <div className="header-title">
-          <h1>{title}</h1>
+        <h1 className="header-title">
+          <Link to="/">#HACKWEEK</Link>
+        </h1>
+        <div className="header-auth">
+          {!isAuthenticated ? (
+            <Button onClick={onLogin} priority="default" size="sm" iconPosition="left">
+              <GoogleIcon className="google-icon" />
+              Sign in with Google
+            </Button>
+          ) : (
+            <div className="auth-info">
+              <div className="avatar-container">
+                <button onClick={onLogout} className="avatar-button">
+                  <Avatar user={user} />
+                </button>
+              </div>
+              <div className="user-email">
+                <p>
+                  Logged in as
+                  <br />
+                  {user?.email}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
-        <div className="header-nav">{renderAuthButton()}</div>
       </div>
       <style jsx>{`
         .app-header {
@@ -71,7 +67,7 @@ const Header = ({
           margin: 0;
         }
 
-        .header-nav {
+        .header-auth {
           display: flex;
           align-items: center;
           gap: 16px;
@@ -88,7 +84,7 @@ const Header = ({
         }
 
         @media (max-width: 480px) {
-          .header-nav button {
+          .header-auth button {
             padding: 6px 12px;
             font-size: 14px;
           }
@@ -99,14 +95,10 @@ const Header = ({
 };
 
 Header.propTypes = {
-  title: PropTypes.string,
-  isAuthenticated: PropTypes.bool,
   onLogin: PropTypes.func.isRequired,
-  onLogout: PropTypes.func,
-  user: PropTypes.shape({
-    email: PropTypes.string,
-    displayName: PropTypes.string,
-  }),
+  onLogout: PropTypes.func.isRequired,
+  isAuthenticated: PropTypes.bool.isRequired,
+  user: PropTypes.object,
 };
 
 export default Header;

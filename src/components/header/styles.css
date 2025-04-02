@@ -1,56 +1,90 @@
 .app-header {
+  height: 60px;
+  width: 100%;
   position: sticky;
   top: 0;
-  left: 0;
-  right: 0;
-  height: 60px;
+  z-index: 1000;
   background: #ffffff;
-  border-bottom: 1px solid #e0dce5;
-  box-shadow: 0 1px 2px rgba(43, 34, 51, 0.04);
-  z-index: 100;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 .header-content {
   max-width: 1440px;
+  height: 100%;
   margin: 0 auto;
   padding: 0 20px;
-  height: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
 .header-title {
-  display: flex;
-  align-items: center;
-}
-
-.header-title h1 {
+  margin: 0;
   font-size: 20px;
   font-weight: 600;
-  color: #2b2233;
-  margin: 0;
 }
 
-.header-nav {
+.header-title a {
+  color: #2b2233;
+  text-decoration: none;
+}
+
+.header-title a:hover {
+  color: #584d66;
+}
+
+.header-auth {
   display: flex;
   align-items: center;
-  gap: 16px;
+}
+
+.auth-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.avatar-button {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.avatar-button:hover {
+  opacity: 0.8;
+}
+
+.user-email {
+  text-align: left;
+}
+
+.user-email p {
+  margin: 0;
+  font-size: 14px;
+  color: #584d66;
+  line-height: 1.3;
+}
+
+.google-icon {
+  margin-right: 8px;
 }
 
 @media (max-width: 768px) {
   .header-content {
-    padding: 0 12px;
+    padding: 0 16px;
   }
 
-  .header-title h1 {
-    font-size: 16px;
+  .user-email {
+    display: none;
   }
 }
 
 @media (max-width: 480px) {
-  .header-nav button {
-    padding: 6px 12px;
-    font-size: 14px;
+  .header-title {
+    font-size: 18px;
   }
 }

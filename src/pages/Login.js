@@ -55,11 +55,12 @@ const Login = ({firebase, auth, profile, router}) => {
         onLogout={handleLogout}
         isAuthenticated={isLoaded(auth) && !isEmpty(auth)}
         user={profile}
+        showMicroTimer={false}
       />
       <main>
         <HeroSection />
 
-        <InfoSection
+        {/* <InfoSection
           title="Innovate Together"
           description="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat."
           imageUrl="https://via.placeholder.com/600x400"
@@ -79,7 +80,7 @@ const Login = ({firebase, auth, profile, router}) => {
           description="Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo."
           imageUrl="https://via.placeholder.com/600x400"
           imageAlt="Impact visualization"
-        />
+        /> */}
       </main>
     </div>
   );

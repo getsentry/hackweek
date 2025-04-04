@@ -1,72 +1,76 @@
 .countdown-container {
-  position: relative;
-  z-index: 1;
-  padding: 20px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(8px);
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  width: 100%;
+}
+
+.countdown-text {
+  font-size: 16px;
+  font-weight: 500;
+  color: #584d66;
+  white-space: nowrap;
+  display: inline-block;
 }
 
 .countdown-timer {
   display: flex;
-  gap: 20px;
+  gap: 16px;
   justify-content: center;
-  margin: 20px 0;
-  position: relative;
 }
 
 .countdown-item {
+  background: white;
+  padding: 16px;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   text-align: center;
   min-width: 80px;
-  background: rgba(255, 255, 255, 0.9);
-  padding: 12px;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .countdown-value {
-  font-size: 48px;
+  font-size: 32px;
   font-weight: 600;
   color: #2b2233;
-  line-height: 1;
-  margin-bottom: 8px;
+  line-height: 1.2;
 }
 
 .countdown-label {
   font-size: 14px;
   color: #584d66;
-  text-transform: uppercase;
-  letter-spacing: 1px;
+  margin-top: 4px;
+}
+
+/* Micro variant */
+.micro .countdown-timer {
+  margin: 0;
+  gap: 8px;
+}
+
+.micro .countdown-item {
+  min-width: auto;
+  padding: 0;
+  background: none;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+.micro .countdown-value {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 1px;
+}
+
+.micro .countdown-label {
+  font-size: 9px;
+  letter-spacing: 0.5px;
 }
 
 @media (max-width: 768px) {
-  .countdown-timer {
-    gap: 16px;
-  }
-
-  .countdown-item {
-    min-width: 60px;
-    padding: 8px;
-  }
-
-  .countdown-value {
-    font-size: 36px;
-  }
-
-  .countdown-label {
-    font-size: 12px;
-  }
-}
-
-@media (max-width: 480px) {
   .countdown-timer {
     gap: 12px;
   }
 
   .countdown-item {
-    min-width: 50px;
-    padding: 6px;
+    min-width: 60px;
+    padding: 12px;
   }
 
   .countdown-value {
@@ -74,6 +78,29 @@
   }
 
   .countdown-label {
-    font-size: 10px;
+    font-size: 12px;
+  }
+
+  .micro .countdown-timer {
+    gap: 6px;
+  }
+}
+
+@media (max-width: 480px) {
+  .countdown-timer {
+    gap: 8px;
+  }
+
+  .countdown-item {
+    padding: 10px;
+    min-width: 50px;
+  }
+
+  .countdown-value {
+    font-size: 24px;
+  }
+
+  .countdown-label {
+    font-size: 11px;
   }
 }

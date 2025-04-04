@@ -155,7 +155,7 @@ class CountdownTimer extends Component {
         <style jsx>{`
           .countdown-timer {
             text-align: center;
-            margin-bottom: 60px;
+            margin-bottom: 24px;
             position: relative;
             z-index: 1;
           }

@@ -4,6 +4,7 @@ import confetti from 'canvas-confetti';
 
 class CountdownTimer extends Component {
   state = {
+    set: false,
     days: 0,
     hours: 0,
     minutes: 0,
@@ -38,7 +39,7 @@ class CountdownTimer extends Component {
       this.setState({pulseSeconds: true});
       setTimeout(() => this.setState({pulseSeconds: false}), 1000);
     }
-    if (newMinutes !== this.state.minutes) {
+    if (this.state.set && newMinutes !== this.state.minutes) {
       this.setState({pulseMinutes: true});
       setTimeout(() => this.setState({pulseMinutes: false}), 1000);
       // Fire confetti when minutes change
@@ -55,64 +56,9 @@ class CountdownTimer extends Component {
         zIndex: -1,
       });
     }
-    if (newHours !== this.state.hours) {
-      this.setState({pulseHours: true});
-      setTimeout(() => this.setState({pulseHours: false}), 1000);
-      // More intense confetti for hours
-      const end = Date.now() + 500;
-      const colors = ['#6c5fc7', '#584ac0', '#4a3da1', '#e0dce5'];
-
-      (function frame() {
-        confetti({
-          particleCount: 150,
-          spread: 90,
-          origin: {x: 0.5, y: 0.45},
-          colors: colors,
-          ticks: 200,
-          startVelocity: 45,
-          gravity: 0.7,
-          shapes: ['circle', 'square'],
-          scalar: 1,
-          zIndex: -1,
-        });
-
-        if (Date.now() < end) {
-          requestAnimationFrame(frame);
-        }
-      })();
-    }
-    if (newDays !== this.state.days) {
-      this.setState({pulseDays: true});
-      setTimeout(() => this.setState({pulseDays: false}), 1000);
-      // Most intense confetti for days
-      const end = Date.now() + 1000;
-      const colors = ['#6c5fc7', '#584ac0', '#4a3da1', '#e0dce5'];
-
-      (function frame() {
-        confetti({
-          particleCount: 200,
-          angle: 60,
-          spread: 100,
-          origin: {x: 0.3, y: 0.45},
-          colors: colors,
-          zIndex: -1,
-        });
-        confetti({
-          particleCount: 200,
-          angle: 120,
-          spread: 100,
-          origin: {x: 0.7, y: 0.45},
-          colors: colors,
-          zIndex: -1,
-        });
-
-        if (Date.now() < end) {
-          requestAnimationFrame(frame);
-        }
-      })();
-    }
 
     this.setState({
+      set: true,
       days: newDays,
       hours: newHours,
       minutes: newMinutes,
@@ -180,7 +126,9 @@ class CountdownTimer extends Component {
             border-radius: 6px;
             width: 160px;
             border: 1px solid #e0dce5;
-            box-shadow: 0 1px 2px rgba(43, 34, 51, 0.04), 0 3px 0 0 #e0dce5;
+            box-shadow:
+              0 1px 2px rgba(43, 34, 51, 0.04),
+              0 3px 0 0 #e0dce5;
           }
 
           .countdown-segment::after {

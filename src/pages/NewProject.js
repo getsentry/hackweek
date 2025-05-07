@@ -57,7 +57,7 @@ class NewProject extends Component {
         needHelp: this.state.needHelp || false,
         needHelpComments: this.state.needHelpComments || '',
         isIdea: this.state.isIdea || false,
-        group: this.state.group?.value ?? '',
+        ...(this.state.group && {group: this.state.group.value}),
         year: currentYear,
         ts: Date.now(),
         creator: auth.uid,

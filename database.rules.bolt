@@ -57,12 +57,7 @@ type Project {
     group: GroupRef | Null,
 
     validate() {
-        (prior(this.members) == null || prior(this.members[auth.uid]) != null || isAdmin())
-        &&
-        (
-            (this.isIdea == true && (this.group == "" || this.group == null)) ||
-            (this.isIdea != true && this.group != "" && this.group != null && this.parent().parent().parent().groups[this.group] != null)
-        )
+        prior(this.members) == null || prior(this.members[auth.uid]) != null || isAdmin()
     }
 }
 

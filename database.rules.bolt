@@ -56,7 +56,14 @@ type Project {
     year: String,
     group: GroupRef | Null,
 
-    validate() { prior(this.members) == null || prior(this.members[auth.uid]) != null || isAdmin() }
+    validate() {
+        (prior(this.members) == null || prior(this.members[auth.uid]) != null || isAdmin())
+        &&
+        (
+            (this.isIdea == true && (this.group == "" || this.group == null)) ||
+            (this.isIdea != true && this.group != "" && this.group != null && this.parent().parent().parent().groups[this.group] != null)
+        )
+    }
 }
 
 type ProjectRef extends String {

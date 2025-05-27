@@ -32,10 +32,10 @@
   margin: 0;
   font-size: 20px;
   font-weight: 600;
+  color: var(--color-gray100);
 }
 
 .header-title a {
-  color: #584d66;
   text-decoration: none;
 }
 

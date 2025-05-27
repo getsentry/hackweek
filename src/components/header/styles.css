@@ -5,13 +5,17 @@
   width: 100%;
   background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(8px);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+.header-title-logo-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .header-content {
   max-width: 1440px;
   margin: 0 auto;
-  padding: 16px 24px;
+  padding: 2em 0 0 0;
   display: flex;
   align-items: center;
   justify-content: space-between;

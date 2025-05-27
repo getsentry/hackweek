@@ -5,21 +5,23 @@ import Button from '../Button';
 import GoogleIcon from '../GoogleIcon';
 import Avatar from '../Avatar';
 import MicroCountdownTimer from '../MicroCountdownTimer';
+import logoSentry from '../../assets/logos/logo-sentry-symbol.svg';
 import './styles.css';
 
 const Header = ({onLogin, onLogout, isAuthenticated, user, showMicroTimer = true}) => {
   return (
     <header className="app-header">
       <div className="header-content">
-        <h1 className="header-title">
-          <Link to="/">#HACKWEEK</Link>
-        </h1>
+        <div className="header-title-logo-container">
+          <img src={logoSentry} alt="Sentry Logo" className="header-logo" />
+          <h1 className="header-title">
+            <Link to="/">#HACKWEEK</Link>
+          </h1>
+        </div>
         {showMicroTimer && (
-          <>
-            <div className="header-countdown">
-              <MicroCountdownTimer />
-            </div>
-          </>
+          <div className="header-countdown">
+            <MicroCountdownTimer />
+          </div>
         )}
 
         <div className="header-auth">
@@ -31,7 +33,7 @@ const Header = ({onLogin, onLogout, isAuthenticated, user, showMicroTimer = true
           ) : (
             <div className="auth-info">
               <div className="avatar-container">
-                <button onClick={onLogout} className="avatar-button">
+                <button onClick={onLogout} className="avatar-button" type="button">
                   <Avatar user={user} />
                 </button>
               </div>

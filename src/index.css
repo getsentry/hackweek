@@ -1,11 +1,22 @@
 @import url('https://fonts.googleapis.com/css?family=Rubik:400,500');
 
+:root {
+  --color-gray100: #1d1127;
+  --color-gray300: #71637e;
+  --color-gray400: #dad7e5;
+  --color-blurple: #7553ff;
+  --color-green: #92dd00;
+  --color-pink: #ff70bc;
+  --color-yellow: #fdb81b;
+}
+
 body {
   font-size: 16px;
   font-family: 'Rubik', sans-serif;
   -webkit-font-smoothing: antialiased;
   padding: 0;
   margin: 0;
+  text-transform: lowercase;
 }
 
 a {
@@ -17,6 +28,7 @@ a:hover {
   color: #000;
 }
 
+/* Typography */
 strong,
 h1,
 h2,
@@ -25,6 +37,48 @@ h4,
 h5,
 h6 {
   font-weight: 500;
+}
+
+h1 {
+  font-weight: 700;
+}
+h2,
+h3 {
+  font-weight: 600;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Rubik', sans-serif;
+  letter-spacing: -0.64%;
+  line-height: 120%;
+}
+
+h1 {
+  font-size: 2.25em; /* 36px */
+}
+h2 {
+  font-size: 1.75em; /* 28px */
+}
+h3 {
+  font-size: 1.25em; /* 20px */
+}
+h4,
+h5,
+h6 {
+  font-size: 1em; /* 16px */
+}
+
+p {
+  font-family: 'Rubik', sans-serif;
+  font-weight: 400;
+  font-size: 1em; /* 16px */
+  line-height: 180%;
+  letter-spacing: -0.64%;
 }
 
 dl,
@@ -41,28 +95,6 @@ table,
 form,
 blockquote {
   margin: 0 0 20px 0;
-}
-
-ul,
-ol {
-  padding-left: 20px;
-}
-
-li {
-  margin-bottom: 5px;
-}
-
-pre {
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
-  word-wrap: break-word;
-}
-
-dl dt {
-  font-weight: 500;
-}
-dl dd {
-  margin-bottom: 10px;
 }
 
 .btn {
@@ -111,7 +143,7 @@ dl dd {
 }
 
 .media-loading {
-  width: 50x;
+  width: 50px;
   height: 50px;
   display: inline-block;
 }
@@ -138,4 +170,12 @@ dl dd {
   display: block;
   font-style: normal;
   margin-bottom: 20px;
+}
+
+.squiggle-line {
+  border: none;
+  height: 20px;
+  background-image: url('data:image/svg+xml;utf8,<svg width="100" height="20" xmlns="http://www.w3.org/2000/svg"><path d="M0 10 Q 25 0, 50 10 T 100 10" stroke="black" fill="transparent" stroke-width="2"/></svg>');
+  background-repeat: repeat-x;
+  background-size: 100px 20px;
 }

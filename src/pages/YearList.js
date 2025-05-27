@@ -106,6 +106,7 @@ class ProjectList extends Component {
       <Layout>
         <div>
           <h2>The Archives</h2>
+          <hr class="squiggle-line" />
         </div>
         {this.renderBody()}
       </Layout>

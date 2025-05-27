@@ -441,7 +441,7 @@ class ProjectList extends Component {
               Add Project
             </Link>
           )}
-          <h2>Projects for {this.props.params.year || currentYear}</h2>
+          <h1>Projects for{this.props.params.year || currentYear}</h1>
         </div>
         <div className="filter-groups">
           <span>Filter groups:</span>

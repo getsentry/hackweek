@@ -14,6 +14,7 @@ import Avatar from '../components/Avatar';
 import Layout from '../components/Layout';
 import {slugify} from '../utils';
 import Select from 'react-select/lib/Select';
+import PageHeader from '../components/PageHeader';
 
 function getAuthUserVotes(uid, voteList) {
   return Object.values(voteList || {}).filter((vote) => vote.creator === uid);
@@ -441,9 +442,9 @@ class ProjectList extends Component {
               Add Project
             </Link>
           )}
-          <h1>Projects for{this.props.params.year || currentYear}</h1>
+          <PageHeader title="Projects For " currentYear={currentYear} />
         </div>
-        <div className="filter-groups">
+        {/* <div className="filter-groups">
           <span>Filter groups:</span>
           <Select
             value={this.state.groupFilter}
@@ -452,7 +453,7 @@ class ProjectList extends Component {
             onChange={this.onChangeGroupFilter}
             required
           />
-        </div>
+        </div> */}
         {currentYear !== (this.props.params.year || currentYear) && (
           <div className="alert alert-block alert-info">
             You're viewing an archive of Hackweek projects for {this.props.params.year}{' '}

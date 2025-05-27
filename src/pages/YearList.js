@@ -12,6 +12,7 @@ import {mapObject, orderedPopulatedDataToJS} from '../helpers';
 import Avatar from '../components/Avatar';
 import Layout from '../components/Layout';
 import {slugify} from '../utils';
+import PageHeader from '../components/PageHeader';
 
 class ProjectList extends Component {
   static propTypes = {
@@ -104,10 +105,7 @@ class ProjectList extends Component {
   render() {
     return (
       <Layout>
-        <div>
-          <h2>The Archives</h2>
-          <hr class="squiggle-line" />
-        </div>
+        <PageHeader title="The Archives" />
         {this.renderBody()}
       </Layout>
     );

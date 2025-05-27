@@ -70,7 +70,7 @@ h3 {
 h4,
 h5,
 h6 {
-  font-size: 1em; /* 16px */
+  font-size: 0.875em; /* 14px */
 }
 
 p {
@@ -97,6 +97,18 @@ blockquote {
   margin: 0 0 20px 0;
 }
 
+dt {
+  font-weight: 600;
+  color: var(--color-gray100);
+  margin-bottom: 2px;
+  font-size: 1.25em;
+}
+dd {
+  font-weight: 400;
+  color: var(--color-gray100);
+  margin-bottom: 1em;
+  font-size: 1.25em;
+}
 .btn {
   border-width: 2px;
 }

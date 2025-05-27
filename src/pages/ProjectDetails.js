@@ -15,6 +15,7 @@ import {mapObject, orderedPopulatedDataToJS} from '../helpers';
 import Avatar from '../components/Avatar';
 import Layout from '../components/Layout';
 import MediaObject from '../components/MediaObject';
+import PageHeader from '../components/PageHeader';
 
 function getVoteKey(uid, awardCategoryKey) {
   return `${uid}:${awardCategoryKey}`;
@@ -238,11 +239,12 @@ class ProjectDetails extends Component {
                 </button>
               </div>
             )}
-            <h2>{project.name}</h2>
+
+            <PageHeader title={project.name} />
           </div>
           <div className="row">
             <div className="col-md-8">
-              <h3>Summary</h3>
+              <h2>Summary</h2>
               <div
                 className="Project-summary"
                 dangerouslySetInnerHTML={{
@@ -276,7 +278,7 @@ class ProjectDetails extends Component {
                 </div>
               ) : (
                 <React.Fragment>
-                  <h3>Team</h3>
+                  <h2>Team</h2>
                   {project.needHelp && (
                     <div className="alert alert-block alert-info">
                       {project.needHelpComments ? (
@@ -355,7 +357,6 @@ class ProjectDetails extends Component {
               )}
 
               <div className="Project-meta" key="meta">
-                <h3>Meta</h3>
                 <dl>
                   {creator && [
                     <dt key="dt-creator">Created By</dt>,

@@ -161,7 +161,7 @@ dd {
 }
 .btn-set {
   display: flex;
-  width: 100%;
+
   gap: 8px;
   justify-content: flex-end;
 }

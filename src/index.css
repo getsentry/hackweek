@@ -146,14 +146,25 @@ dd {
   background-color: #e03e2f;
   color: #fff;
 }
-
+.Project-Details-header {
+  display: flex;
+  gap: 1em;
+}
 .btn-set .btn {
   margin-left: 5px;
+  margin-right: 10px;
+  display: flex;
+  gap: 10px;
 }
 .btn-set .btn:first-child {
   margin-left: 0;
 }
-
+.btn-set {
+  display: flex;
+  width: 100%;
+  gap: 8px;
+  justify-content: flex-end;
+}
 .media-loading {
   width: 50px;
   height: 50px;

@@ -7,6 +7,7 @@ import {connect} from 'react-redux';
 import {compose} from 'redux';
 import {firebaseConnect, isLoaded, pathToJS} from 'react-redux-firebase';
 import Select from 'react-select';
+import Button from '../components/Button';
 
 import './ProjectList.css';
 
@@ -230,13 +231,15 @@ class ProjectDetails extends Component {
                   to={`/years/${params.year || currentYear}/projects/${
                     params.projectKey
                   }/edit`}
-                  className="btn btn-sm btn-default"
+                  className="btn-set-btn"
                 >
-                  Edit Project
+                  <Button priority="default" size="sm">
+                    Edit Project
+                  </Button>
                 </Link>
-                <button onClick={this.onDelete} className="btn btn-sm btn-danger">
+                <Button onClick={this.onDelete} priority="danger" size="sm" type="button">
                   Delete Project
-                </button>
+                </Button>
               </div>
             )}
 

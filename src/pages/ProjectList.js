@@ -15,6 +15,7 @@ import Layout from '../components/Layout';
 import {slugify} from '../utils';
 import Select from 'react-select/lib/Select';
 import PageHeader from '../components/PageHeader';
+import Button from '../components/Button';
 
 function getAuthUserVotes(uid, voteList) {
   return Object.values(voteList || {}).filter((vote) => vote.creator === uid);
@@ -434,12 +435,10 @@ class ProjectList extends Component {
       <Layout>
         <div>
           {!year.submissionsClosed && (
-            <Link
-              to="/new-project"
-              className="btn btn-sm btn-primary"
-              style={{float: 'right'}}
-            >
-              Add Project
+            <Link to="/new-project" style={{float: 'right'}}>
+              <Button priority="primary" size="sm">
+                Add Project
+              </Button>
             </Link>
           )}
           <PageHeader title="Projects For " currentYear={currentYear} />

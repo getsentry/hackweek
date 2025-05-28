@@ -2,18 +2,16 @@ import React from 'react';
 import {Link} from 'react-router';
 import PropTypes from 'prop-types';
 import {slugify} from '../utils';
+import year2022 from '../assets/images/banner/year-2022.png';
+import year2023 from '../assets/images/banner/year-2023.png';
+import year2024 from '../assets/images/banner/year-2024.png';
 
-// function YearMetrics({members, projectCount}) {
-//   if (!members.length && !projectCount) return null;
-//   return (
-//     <div className="Year-section">
-//       <p>
-//         {members.length} participant{members.length !== 1 ? 's' : ''}, {projectCount}{' '}
-//         project{projectCount !== 1 ? 's' : ''}
-//       </p>
-//     </div>
-//   );
-// }
+const yearImages = {
+  2022: year2022,
+  2023: year2023,
+  2024: year2024,
+  // add more as need
+};
 
 function YearAwardList({awards, awardCategories, projects, year}) {
   if (!awards.length) return null;
@@ -62,6 +60,7 @@ export default function YearListItem({year, yearData, userList}) {
   return (
     <li className="Year">
       <div className="Year-metrics">
+        {yearImages[year] && <img src={yearImages[year]} alt={year} />}
         <Link to={`/years/${year}/projects`} className="Year-metrics-link">
           <h2>{year}</h2> <span className="glyphicon glyphicon-circle-arrow-right" />
         </Link>

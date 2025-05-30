@@ -57,7 +57,7 @@ class Layout extends Component {
     const {auth, profile, children} = this.props;
 
     return (
-      <div>
+      <div className="app-layout">
         <Header
           onLogin={this.handleLogin}
           onLogout={this.handleLogout}

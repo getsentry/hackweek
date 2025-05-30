@@ -287,39 +287,42 @@ class ProjectList extends Component {
 
     return (
       <div>
-        <ul className="tabs">
-          <li style={{fontWeight: showProjects ? 'bold' : null}}>
-            <Link
-              to={{
-                pathname: this.props.location.pathname,
-                query: {
-                  show: 'projects',
-                },
-              }}
-            >
-              Projects ({projectsLFH.length + otherProjects.length})
-            </Link>
-          </li>
-          <li style={{fontWeight: showIdeas ? 'bold' : null}}>
-            <Link
-              to={{
-                pathname: this.props.location.pathname,
-                query: {
-                  show: 'ideas',
-                },
-              }}
-            >
-              Ideas ({projectIdeas.length})
-            </Link>
-          </li>
-        </ul>
+        {/* <div className="col-md-3 col-md-offset-1">
+          <ul className="tabs">
+            <li style={{fontWeight: showProjects ? 'bold' : null}}>
+              <Link
+                to={{
+                  pathname: this.props.location.pathname,
+                  query: {
+                    show: 'projects',
+                  },
+                }}
+              >
+                Projects ({projectsLFH.length + otherProjects.length})
+              </Link>
+            </li>
+            <li style={{fontWeight: showIdeas ? 'bold' : null}}>
+              <Link
+                to={{
+                  pathname: this.props.location.pathname,
+                  query: {
+                    show: 'ideas',
+                  },
+                }}
+              >
+                Ideas ({projectIdeas.length})
+              </Link>
+            </li>
+          </ul>
+        </div> */}
+
         {showIdeas && projectIdeas.length && (
-          <div>
-            <h3>Project Ideas</h3>
+          <div className="col-md-8">
+            {/* <h3>Project Ideas</h3>
             <p>
               Need an idea? Take a look at these submissions. Claim one by using the [Edit
               Project] action.
-            </p>
+            </p> */}
             <ul className="list-group Project-List">
               {projectIdeas.map((project) => {
                 return (
@@ -341,7 +344,7 @@ class ProjectList extends Component {
           </div>
         )}
         {showProjects && !!projectsLFH.length && (
-          <div>
+          <div className="col-md-8">
             <h3>Looking for Help</h3>
             <ul className="list-group Project-List">
               {projectsLFH.map((project) => {
@@ -364,7 +367,7 @@ class ProjectList extends Component {
           </div>
         )}
         {showProjects && !!otherProjects.length && (
-          <div>
+          <div className="col-md-8">
             {!!projectsLFH.length && <h3>Other Projects</h3>}
             <ul className="list-group Project-List">
               {otherProjects.map((project) => {
@@ -386,6 +389,34 @@ class ProjectList extends Component {
             </ul>
           </div>
         )}
+        <div className="col-md-3 col-md-offset-1">
+          <ul className="tabs">
+            <li style={{fontWeight: showProjects ? 'bold' : null}}>
+              <Link
+                to={{
+                  pathname: this.props.location.pathname,
+                  query: {
+                    show: 'projects',
+                  },
+                }}
+              >
+                Projects ({projectsLFH.length + otherProjects.length})
+              </Link>
+            </li>
+            <li style={{fontWeight: showIdeas ? 'bold' : null}}>
+              <Link
+                to={{
+                  pathname: this.props.location.pathname,
+                  query: {
+                    show: 'ideas',
+                  },
+                }}
+              >
+                Ideas ({projectIdeas.length})
+              </Link>
+            </li>
+          </ul>
+        </div>
       </div>
     );
   }

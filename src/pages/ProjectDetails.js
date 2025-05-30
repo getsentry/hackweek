@@ -237,7 +237,7 @@ class ProjectDetails extends Component {
                     Edit Project
                   </Button>
                 </Link>
-                
+
                 <Button onClick={this.onDelete} priority="danger" size="sm" type="button">
                   Delete Project
                 </Button>

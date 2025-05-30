@@ -6,16 +6,16 @@ import './styles.css';
 
 const FooterSection = ({currentYear, profile}) => (
   <footer className="app-footer">
-    <hr class="squiggle-line" />
+    <hr className="squiggle-line" />
     <div className="footer-content">
       <div className="footer-title-logo-container">
         <img src={logoSentryFull} alt="Sentry Logo" className="footer-logo" />
       </div>
-      <span className="footer-links">
+      <nav className="footer-links" aria-label="Footer navigation">
         <Link to="/projects">This Year ({currentYear})</Link>
         <Link to="/years">The Archives</Link>
         {profile?.admin && <Link to="/admin">Admin</Link>}
-      </span>
+      </nav>
     </div>
   </footer>
 );

@@ -49,6 +49,7 @@ const Button = ({
           cursor: pointer;
           transition: all 0.1s ease;
           font-family: inherit;
+          text-transform: lowercase;
         }
 
         .custom-button:disabled {

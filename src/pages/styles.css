@@ -1,21 +1,30 @@
-body {
+body,
+html,
+#root {
+  height: 100%;
   margin: 0;
   padding: 0;
   background: #ffffff;
-  min-height: 100vh;
   color: #2b2233;
 }
 
-.landing-page {
+.app-layout {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
 }
 
 main {
-  flex: 1;
+  /* flex: 1; */
   width: 100%;
   padding-top: 24px;
+}
+
+/* Optional: If you have a landing page with special layout */
+.landing-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Loading indicator styles */

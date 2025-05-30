@@ -14,6 +14,8 @@ import Avatar from '../components/Avatar';
 import Layout from '../components/Layout';
 import {slugify} from '../utils';
 import Select from 'react-select/lib/Select';
+import PageHeader from '../components/PageHeader';
+import Button from '../components/Button';
 
 function getAuthUserVotes(uid, voteList) {
   return Object.values(voteList || {}).filter((vote) => vote.creator === uid);
@@ -285,39 +287,42 @@ class ProjectList extends Component {
 
     return (
       <div>
-        <ul className="tabs">
-          <li style={{fontWeight: showProjects ? 'bold' : null}}>
-            <Link
-              to={{
-                pathname: this.props.location.pathname,
-                query: {
-                  show: 'projects',
-                },
-              }}
-            >
-              Projects ({projectsLFH.length + otherProjects.length})
-            </Link>
-          </li>
-          <li style={{fontWeight: showIdeas ? 'bold' : null}}>
-            <Link
-              to={{
-                pathname: this.props.location.pathname,
-                query: {
-                  show: 'ideas',
-                },
-              }}
-            >
-              Ideas ({projectIdeas.length})
-            </Link>
-          </li>
-        </ul>
+        {/* <div className="col-md-3 col-md-offset-1">
+          <ul className="tabs">
+            <li style={{fontWeight: showProjects ? 'bold' : null}}>
+              <Link
+                to={{
+                  pathname: this.props.location.pathname,
+                  query: {
+                    show: 'projects',
+                  },
+                }}
+              >
+                Projects ({projectsLFH.length + otherProjects.length})
+              </Link>
+            </li>
+            <li style={{fontWeight: showIdeas ? 'bold' : null}}>
+              <Link
+                to={{
+                  pathname: this.props.location.pathname,
+                  query: {
+                    show: 'ideas',
+                  },
+                }}
+              >
+                Ideas ({projectIdeas.length})
+              </Link>
+            </li>
+          </ul>
+        </div> */}
+
         {showIdeas && projectIdeas.length && (
-          <div>
-            <h3>Project Ideas</h3>
+          <div className="col-md-8">
+            {/* <h3>Project Ideas</h3>
             <p>
               Need an idea? Take a look at these submissions. Claim one by using the [Edit
               Project] action.
-            </p>
+            </p> */}
             <ul className="list-group Project-List">
               {projectIdeas.map((project) => {
                 return (
@@ -339,7 +344,7 @@ class ProjectList extends Component {
           </div>
         )}
         {showProjects && !!projectsLFH.length && (
-          <div>
+          <div className="col-md-8">
             <h3>Looking for Help</h3>
             <ul className="list-group Project-List">
               {projectsLFH.map((project) => {
@@ -362,7 +367,7 @@ class ProjectList extends Component {
           </div>
         )}
         {showProjects && !!otherProjects.length && (
-          <div>
+          <div className="col-md-8">
             {!!projectsLFH.length && <h3>Other Projects</h3>}
             <ul className="list-group Project-List">
               {otherProjects.map((project) => {
@@ -384,6 +389,34 @@ class ProjectList extends Component {
             </ul>
           </div>
         )}
+        <div className="col-md-3 col-md-offset-1">
+          <ul className="tabs">
+            <li style={{fontWeight: showProjects ? 'bold' : null}}>
+              <Link
+                to={{
+                  pathname: this.props.location.pathname,
+                  query: {
+                    show: 'projects',
+                  },
+                }}
+              >
+                Projects ({projectsLFH.length + otherProjects.length})
+              </Link>
+            </li>
+            <li style={{fontWeight: showIdeas ? 'bold' : null}}>
+              <Link
+                to={{
+                  pathname: this.props.location.pathname,
+                  query: {
+                    show: 'ideas',
+                  },
+                }}
+              >
+                Ideas ({projectIdeas.length})
+              </Link>
+            </li>
+          </ul>
+        </div>
       </div>
     );
   }
@@ -433,17 +466,15 @@ class ProjectList extends Component {
       <Layout>
         <div>
           {!year.submissionsClosed && (
-            <Link
-              to="/new-project"
-              className="btn btn-sm btn-primary"
-              style={{float: 'right'}}
-            >
-              Add Project
+            <Link to="/new-project" style={{float: 'right'}}>
+              <Button priority="primary" size="sm">
+                Add Project
+              </Button>
             </Link>
           )}
-          <h2>Projects for {this.props.params.year || currentYear}</h2>
+          <PageHeader title="Projects For " currentYear={currentYear} />
         </div>
-        <div className="filter-groups">
+        {/* <div className="filter-groups">
           <span>Filter groups:</span>
           <Select
             value={this.state.groupFilter}
@@ -452,7 +483,7 @@ class ProjectList extends Component {
             onChange={this.onChangeGroupFilter}
             required
           />
-        </div>
+        </div> */}
         {currentYear !== (this.props.params.year || currentYear) && (
           <div className="alert alert-block alert-info">
             You're viewing an archive of Hackweek projects for {this.props.params.year}{' '}

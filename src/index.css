@@ -1,11 +1,22 @@
 @import url('https://fonts.googleapis.com/css?family=Rubik:400,500');
 
+:root {
+  --color-gray100: #1d1127;
+  --color-gray300: #71637e;
+  --color-gray400: #dad7e5;
+  --color-blurple: #7553ff;
+  --color-green: #92dd00;
+  --color-pink: #ff70bc;
+  --color-yellow: #fdb81b;
+}
+
 body {
   font-size: 16px;
   font-family: 'Rubik', sans-serif;
   -webkit-font-smoothing: antialiased;
   padding: 0;
   margin: 0;
+  text-transform: lowercase;
 }
 
 a {
@@ -17,6 +28,7 @@ a:hover {
   color: #000;
 }
 
+/* Typography */
 strong,
 h1,
 h2,
@@ -25,6 +37,48 @@ h4,
 h5,
 h6 {
   font-weight: 500;
+}
+
+h1 {
+  font-weight: 700;
+}
+h2,
+h3 {
+  font-weight: 600;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Rubik', sans-serif;
+  letter-spacing: -0.64%;
+  line-height: 120%;
+}
+
+h1 {
+  font-size: 2.25em; /* 36px */
+}
+h2 {
+  font-size: 1.75em; /* 28px */
+}
+h3 {
+  font-size: 1.25em; /* 20px */
+}
+h4,
+h5,
+h6 {
+  font-size: 0.875em; /* 14px */
+}
+
+p {
+  font-family: 'Rubik', sans-serif;
+  font-weight: 400;
+  font-size: 1em; /* 16px */
+  line-height: 180%;
+  letter-spacing: -0.64%;
 }
 
 dl,
@@ -43,28 +97,18 @@ blockquote {
   margin: 0 0 20px 0;
 }
 
-ul,
-ol {
-  padding-left: 20px;
+dt {
+  font-weight: 600;
+  color: var(--color-gray100);
+  margin-bottom: 2px;
+  font-size: 1.25em;
 }
-
-li {
-  margin-bottom: 5px;
+dd {
+  font-weight: 400;
+  color: var(--color-gray100);
+  margin-bottom: 1em;
+  font-size: 1.25em;
 }
-
-pre {
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
-  word-wrap: break-word;
-}
-
-dl dt {
-  font-weight: 500;
-}
-dl dd {
-  margin-bottom: 10px;
-}
-
 .btn {
   border-width: 2px;
 }
@@ -102,16 +146,27 @@ dl dd {
   background-color: #e03e2f;
   color: #fff;
 }
-
+.Project-Details-header {
+  display: flex;
+  gap: 1em;
+}
 .btn-set .btn {
   margin-left: 5px;
+  margin-right: 10px;
+  display: flex;
+  gap: 10px;
 }
 .btn-set .btn:first-child {
   margin-left: 0;
 }
+.btn-set {
+  display: flex;
 
+  gap: 8px;
+  justify-content: flex-end;
+}
 .media-loading {
-  width: 50x;
+  width: 50px;
   height: 50px;
   display: inline-block;
 }
@@ -138,4 +193,12 @@ dl dd {
   display: block;
   font-style: normal;
   margin-bottom: 20px;
+}
+
+.squiggle-line {
+  border: none;
+  height: 20px;
+  color: var(--color-blurple);
+  background-image: url('./assets/svgs/divider-squiggle.svg');
+  background-repeat: repeat-x;
 }

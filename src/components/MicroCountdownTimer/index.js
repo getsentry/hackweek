@@ -28,7 +28,7 @@ const MicroCountdownTimer = () => {
     return () => clearInterval(timer);
   }, []);
 
-  return <span className="micro-countdown">{timeLeft.days} days away</span>;
+  return <h3 className="micro-countdown">{timeLeft.days} days away</h3>;
 };
 
 export default MicroCountdownTimer;

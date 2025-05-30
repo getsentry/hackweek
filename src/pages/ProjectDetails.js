@@ -7,6 +7,7 @@ import {connect} from 'react-redux';
 import {compose} from 'redux';
 import {firebaseConnect, isLoaded, pathToJS} from 'react-redux-firebase';
 import Select from 'react-select';
+import Button from '../components/Button';
 
 import './ProjectList.css';
 
@@ -15,6 +16,7 @@ import {mapObject, orderedPopulatedDataToJS} from '../helpers';
 import Avatar from '../components/Avatar';
 import Layout from '../components/Layout';
 import MediaObject from '../components/MediaObject';
+import PageHeader from '../components/PageHeader';
 
 function getVoteKey(uid, awardCategoryKey) {
   return `${uid}:${awardCategoryKey}`;
@@ -229,20 +231,24 @@ class ProjectDetails extends Component {
                   to={`/years/${params.year || currentYear}/projects/${
                     params.projectKey
                   }/edit`}
-                  className="btn btn-sm btn-default"
+                  className="btn-set-btn"
                 >
-                  Edit Project
+                  <Button priority="default" size="sm">
+                    Edit Project
+                  </Button>
                 </Link>
-                <button onClick={this.onDelete} className="btn btn-sm btn-danger">
+
+                <Button onClick={this.onDelete} priority="danger" size="sm" type="button">
                   Delete Project
-                </button>
+                </Button>
               </div>
             )}
-            <h2>{project.name}</h2>
+
+            <PageHeader title={project.name} />
           </div>
           <div className="row">
             <div className="col-md-8">
-              <h3>Summary</h3>
+              <h2>Summary</h2>
               <div
                 className="Project-summary"
                 dangerouslySetInnerHTML={{
@@ -276,7 +282,7 @@ class ProjectDetails extends Component {
                 </div>
               ) : (
                 <React.Fragment>
-                  <h3>Team</h3>
+                  <h2>Team</h2>
                   {project.needHelp && (
                     <div className="alert alert-block alert-info">
                       {project.needHelpComments ? (
@@ -355,7 +361,6 @@ class ProjectDetails extends Component {
               )}
 
               <div className="Project-meta" key="meta">
-                <h3>Meta</h3>
                 <dl>
                   {creator && [
                     <dt key="dt-creator">Created By</dt>,

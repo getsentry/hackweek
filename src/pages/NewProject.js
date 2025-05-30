@@ -12,6 +12,8 @@ import {currentYear} from '../config';
 import Layout from '../components/Layout';
 import {mapObject, orderedPopulatedDataToJS} from '../helpers';
 import {slugify} from '../utils';
+import Button from '../components/Button';
+import PageHeader from '../components/PageHeader';
 
 class NewProject extends Component {
   static propTypes = {
@@ -123,7 +125,7 @@ class NewProject extends Component {
 
     return (
       <Layout>
-        <h2>Add a New Project</h2>
+        <PageHeader title="Add a New Project" />
         <form onSubmit={this.onSubmit} className="form New-Project-Form">
           <div className="form-group">
             <label>Project Name</label>
@@ -217,8 +219,17 @@ class NewProject extends Component {
               )}
             </React.Fragment>
           )}
-          <div className="btn-set" style={{textAlign: 'right'}}>
-            <button className="btn btn-primary">Save Changes</button>
+          <div className="btn-set">
+            <Button
+              priority="default"
+              type="button"
+              onClick={() => this.context.router.push('/projects')}
+            >
+              nevermind
+            </Button>
+            <Button priority="primary" type="submit">
+              create project
+            </Button>
           </div>
         </form>
       </Layout>

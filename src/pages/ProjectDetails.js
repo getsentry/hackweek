@@ -249,6 +249,10 @@ class ProjectDetails extends Component {
           <div className="row">
             <div className="col-md-8">
               <h2>Summary</h2>
+              <video
+                src="https://drive.google.com/file/d/1JpX_JdIaDvPIL-glHRbbY6Ba4I--Wx5k/preview"
+                controls
+              />
               <div
                 className="Project-summary"
                 dangerouslySetInnerHTML={{

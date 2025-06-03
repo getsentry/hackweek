@@ -1,7 +1,9 @@
+/* Project List Container */
 .Project-List {
   margin-bottom: 20px;
 }
 
+/* Filter Groups Bar */
 .filter-groups {
   display: flex;
   justify-content: space-between;
@@ -16,56 +18,76 @@
   min-width: 150px;
 }
 
+/* New Project Form (currently commented out) */
 .New-Project-Form {
   /* border: 3px solid #000; */
   /* border-radius: 4px; */
   /* padding: 20px 20px 20px; */
 }
 
+/* Project List Item Styles */
 .Project {
+  display: flex;
+  flex-direction: column;
   text-align: left;
+  background: white;
+  margin-bottom: 3rem;
+  padding: 0;
+  transition: box-shadow 0.2s;
+  border-bottom: 1px solid var(--color-gray400);
 }
 
+/* Float right for awards, votes, and claim button */
 .Project-award,
-.Project-vote {
+.Project-vote,
+.Project-idea-claim {
   float: right;
 }
+
 .Project-vote {
   font-style: italic;
 }
+
 .Project-award {
   margin-left: 1em;
 }
 
+/* Project Summary Section */
+.Project-summary,
+.Project-idea-summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .Project-summary {
   border: 0;
   background: none;
   padding: 0;
   margin-bottom: 20px;
 }
-
 .Project-summary a {
   text-decoration: underline;
 }
 
+/* Award List Styles */
 .Project-award-list {
   list-style: none;
   padding-left: 0;
 }
-
 .Project-award-list li {
   font-size: 1.2em;
 }
-
 .Project-award-list li .glyphicon {
   font-size: 0.8em;
 }
 
+/* Member List Styles */
 .Project-member-list {
   list-style: none;
   padding-left: 0;
 }
 
+/* Avatar Styles for Members and Meta */
 .Project-meta .avatar,
 .Project-member-list .avatar {
   float: left;
@@ -74,11 +96,9 @@
   height: 18px;
   border-radius: 2px;
 }
-
 .Project-member-list-condensed {
   font-size: 0.8em;
 }
-
 .Project-member-list-condensed .Project-member {
   display: inline-block;
   margin-right: 10px;
@@ -89,6 +109,7 @@
   height: 16px;
 }
 
+/* Group Badge Styles */
 .Project-group-badge {
   background: black;
   color: white;
@@ -97,34 +118,30 @@
   padding: 2px 6px;
   font-size: 1rem;
   font-weight: bold;
-  margin-top: 0.5rem;
+  margin: 1.5rem 0;
   text-transform: uppercase;
 }
-
-/* Viendetta badge */
+/* Special Group Badge Colors */
 .Project-group-badge.-O1sPFU0PwMmtCUJjQ78 {
   background: #ee871b;
 }
-
-/* Canadalada badge */
 .Project-group-badge.-O1sPEcGDurB79pjG0Gf {
   background: #f644a6;
 }
-
-/* San Attle badge */
 .Project-group-badge.-O1sPGaicIe7NPWOYgml {
   background: #7bae01;
 }
 
+/* Project Meta Info */
 .Project-meta {
   font-size: 0.8em;
   margin-bottom: 20px;
 }
 
+/* Project Media Section */
 .Project-media {
   margin-bottom: 20px;
 }
-
 .Project-media .Project-media-item {
   text-align: center;
   vertical-align: middle;
@@ -133,7 +150,6 @@
   margin-right: 5px;
   margin-bottom: 5px;
   padding: 2px;
-  border: 1px solid #000;
 }
 .Project-media .Project-media-item a {
   display: block;
@@ -152,17 +168,72 @@
   padding: 5px;
   width: 100%;
   height: 100%;
-  border: 1px solid #eee;
+  /* border: 1px solid #eee; */
 }
 
-.Project-idea-summary {
-  font-size: 0.9em;
-  margin-right: 120px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+/* Project Row Flex Layout */
+.Project-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 2rem;
+}
+.Project-main {
+  flex: 1 1 0%;
+  min-width: 0;
+}
+.Project-actions {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+.Project-main h3 {
+  margin-bottom: 0;
 }
 
-.Project-idea-claim {
-  float: right;
+/* Main container for tabs and project list side by side */
+.Project-list-container {
+  display: flex;
+  align-items: flex-start;
+  gap: 2rem;
+  width: 100%;
+}
+
+/* Main content grows to fill space */
+.Project-list-section {
+  flex: 1 1 0%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* Sidebar stays at its content width */
+.Project-list-tabs {
+  flex: 0 0 auto;
+  min-width: 180px;
+  max-width: 250px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Tabs sidebar styles */
+.tabs {
+  min-width: 180px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.tabs li {
+  font-size: 1.1em;
+  cursor: pointer;
+}
+
+.Project-list-section-header h2 {
+  margin-bottom: 0.25em;
 }

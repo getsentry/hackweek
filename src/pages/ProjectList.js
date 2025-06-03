@@ -74,55 +74,63 @@ class ProjectListItem extends Component {
       }));
 
     return (
-      <li className="list-group-item Project clearfix">
-        {(project.isIdea || projectMembers.length === 0) && !submissionsClosed && (
-          <div className="Project-idea-claim">
-            <Link
-              to={`/years/${project.year}/projects/${project.key}/edit?claim`}
-              className="btn btn-xs btn-default"
-            >
-              Claim Project
+      <li className="item-list Project">
+        <div className="Project-row">
+          {/* Left: Name and summary/members */}
+          <div className="Project-main">
+            {/* Project Name */}
+            <Link to={link}>
+              <h3>{project.name}</h3>
             </Link>
-          </div>
-        )}
-        {!!awards.length && (
-          <div className="Project-award">
-            {awards.map((a) => a.name).join(', ')}{' '}
-            <span
-              className="glyphicon glyphicon-star"
-              title={awards.map((a) => a.name).join(', ')}
-            />
-          </div>
-        )}
-        <Link to={link}>
-          <strong>{project.name}</strong>
-        </Link>
-        {project.isIdea || projectMembers.length === 0 ? (
-          <div className="Project-idea-summary">{summarize(project.summary)}</div>
-        ) : (
-          <React.Fragment>
-            {project.needHelp && !submissionsClosed && (
-              <div className="badge">looking for help</div>
+            {/* Project Summary or Members/Badges */}
+            {project.isIdea || projectMembers.length === 0 ? (
+              <p className="Project-idea-summary">{summarize(project.summary)}</p>
+            ) : (
+              <React.Fragment>
+                {project.needHelp && !submissionsClosed && (
+                  <div className="badge">looking for help</div>
+                )}
+                <div className="Project-member-list-condensed">
+                  {projectMembers.length ? (
+                    projectMembers.map((member) => (
+                      <div className="Project-member" key={member.email}>
+                        <Avatar user={member} />
+                        <span className="Project-member-name">{member.displayName}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <em>up for grabs</em>
+                  )}
+                </div>
+                {group.id && (
+                  <div className={`Project-group-badge ${group.id}`}>{group.name}</div>
+                )}
+              </React.Fragment>
             )}
-            <div className="Project-member-list-condensed">
-              {projectMembers.length ? (
-                projectMembers.map((member) => {
-                  return (
-                    <div className="Project-member" key={member.email}>
-                      <Avatar user={member} />
-                      <span className="Project-member-name">{member.displayName}</span>
-                    </div>
-                  );
-                })
-              ) : (
-                <em>up for grabs</em>
-              )}
-            </div>
-            {group.id && (
-              <div className={`Project-group-badge ${group.id}`}>{group.name}</div>
+          </div>
+          {/* Right: Claim button and awards */}
+          <div className="Project-actions">
+            {(project.isIdea || projectMembers.length === 0) && !submissionsClosed && (
+              <div className="Project-idea-claim">
+                <Link
+                  to={`/years/${project.year}/projects/${project.key}/edit?claim`}
+                  className="btn btn-xs btn-default"
+                >
+                  Claim Project
+                </Link>
+              </div>
             )}
-          </React.Fragment>
-        )}
+            {!!awards.length && (
+              <div className="Project-award">
+                {awards.map((a) => a.name).join(', ')}{' '}
+                <span
+                  className="glyphicon glyphicon-star"
+                  title={awards.map((a) => a.name).join(', ')}
+                />
+              </div>
+            )}
+          </div>
+        </div>
       </li>
     );
   }
@@ -205,6 +213,7 @@ class ProjectList extends Component {
             </ul>
           </div>
         )}
+        {/* WINNING PROJECTS DETAILS */}
         {!!projects.length && (
           <div>
             {!!winningProjects.length && <h3>All Projects</h3>}
@@ -286,44 +295,17 @@ class ProjectList extends Component {
     let awardCategoryOptions = getAwardCategories(awardCategoryList);
 
     return (
-      <div>
-        {/* <div className="col-md-3 col-md-offset-1">
-          <ul className="tabs">
-            <li style={{fontWeight: showProjects ? 'bold' : null}}>
-              <Link
-                to={{
-                  pathname: this.props.location.pathname,
-                  query: {
-                    show: 'projects',
-                  },
-                }}
-              >
-                Projects ({projectsLFH.length + otherProjects.length})
-              </Link>
-            </li>
-            <li style={{fontWeight: showIdeas ? 'bold' : null}}>
-              <Link
-                to={{
-                  pathname: this.props.location.pathname,
-                  query: {
-                    show: 'ideas',
-                  },
-                }}
-              >
-                Ideas ({projectIdeas.length})
-              </Link>
-            </li>
-          </ul>
-        </div> */}
-
+      <div className="Project-list-container">
         {showIdeas && projectIdeas.length && (
-          <div className="col-md-8">
-            {/* <h3>Project Ideas</h3>
-            <p>
-              Need an idea? Take a look at these submissions. Claim one by using the [Edit
-              Project] action.
-            </p> */}
-            <ul className="list-group Project-List">
+          <div className="Project-list-section">
+            {/* <div className="Project-list-section-header">
+              <h2>Project Ideas</h2>
+              <p>
+                Need an idea? Take a look at these submissions. Claim one with the button
+                to make it a project.
+              </p>
+            </div> */}
+            <ul className="Project-List Project">
               {projectIdeas.map((project) => {
                 return (
                   <ProjectListItem
@@ -344,7 +326,7 @@ class ProjectList extends Component {
           </div>
         )}
         {showProjects && !!projectsLFH.length && (
-          <div className="col-md-8">
+          <div className="Project-list-section">
             <h3>Looking for Help</h3>
             <ul className="list-group Project-List">
               {projectsLFH.map((project) => {
@@ -367,8 +349,15 @@ class ProjectList extends Component {
           </div>
         )}
         {showProjects && !!otherProjects.length && (
-          <div className="col-md-8">
+          <div className="Project-list-section">
             {!!projectsLFH.length && <h3>Other Projects</h3>}
+            {/* <div className="Project-list-section-header">
+              <h2>Current projects</h2>
+              <p>
+                list of current projects that are ready to roll. wanna help someone? give
+                them a message
+              </p>
+            </div> */}
             <ul className="list-group Project-List">
               {otherProjects.map((project) => {
                 return (
@@ -389,7 +378,7 @@ class ProjectList extends Component {
             </ul>
           </div>
         )}
-        <div className="col-md-3 col-md-offset-1">
+        <div className="Project-list-tabs">
           <ul className="tabs">
             <li style={{fontWeight: showProjects ? 'bold' : null}}>
               <Link

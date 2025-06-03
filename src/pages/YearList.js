@@ -45,10 +45,25 @@ class ProjectList extends Component {
   }
 
   render() {
+    const {yearList} = this.props;
+    const years = yearList ? Object.keys(yearList).sort((a, b) => b - a) : [];
     return (
       <Layout>
-        <PageHeader title="The Archives" />
-        {this.renderBody()}
+        <div>
+          <PageHeader title="Hackweek Archives" />
+          <div className="Layout-horizontal-container">
+            <div className="Layout-main-section">{this.renderBody()}</div>
+            <div className="Layout-sidebar">
+              <ul className="tabs">
+                {years.map((year) => (
+                  <li key={year}>
+                    <Link to={`/years/${year}/projects`}>{year}</Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
       </Layout>
     );
   }

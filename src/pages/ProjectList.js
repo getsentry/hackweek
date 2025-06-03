@@ -114,9 +114,11 @@ class ProjectListItem extends Component {
               <div className="Project-idea-claim">
                 <Link
                   to={`/years/${project.year}/projects/${project.key}/edit?claim`}
-                  className="btn btn-xs btn-default"
+                  className="btn-set-btn"
                 >
-                  Claim Project
+                  <Button priority="default" size="xs">
+                    Claim Project
+                  </Button>
                 </Link>
               </div>
             )}
@@ -351,13 +353,6 @@ class ProjectList extends Component {
         {showProjects && !!otherProjects.length && (
           <div className="Project-list-section">
             {!!projectsLFH.length && <h3>Other Projects</h3>}
-            {/* <div className="Project-list-section-header">
-              <h2>Current projects</h2>
-              <p>
-                list of current projects that are ready to roll. wanna help someone? give
-                them a message
-              </p>
-            </div> */}
             <ul className="list-group Project-List">
               {otherProjects.map((project) => {
                 return (
@@ -453,53 +448,11 @@ class ProjectList extends Component {
 
     return (
       <Layout>
-        <div>
-          {!year.submissionsClosed && (
-            <Link to="/new-project" style={{float: 'right'}}>
-              <Button priority="primary" size="sm">
-                Add Project
-              </Button>
-            </Link>
-          )}
-          <PageHeader title="Projects For " currentYear={currentYear} />
-        </div>
-        {/* <div className="filter-groups">
-          <span>Filter groups:</span>
-          <Select
-            value={this.state.groupFilter}
-            multi={false}
-            options={groupOptions}
-            onChange={this.onChangeGroupFilter}
-            required
-          />
-        </div> */}
-        {currentYear !== (this.props.params.year || currentYear) && (
-          <div className="alert alert-block alert-info">
-            You're viewing an archive of Hackweek projects for {this.props.params.year}{' '}
-            &mdash; <Link to="/projects">Fast forward to {currentYear}</Link>
-          </div>
-        )}
-        {year.votingEnabled && (
-          <div className="alert alert-block alert-info">
-            Voting is currently enabled! Visit a project to cast your vote.
-            <br />
-            {votes.length > 0 && (
-              <>
-                Your votes:
-                <ul style={{marginTop: 4}}>
-                  {votes.map((v) => (
-                    <li key={v.project.key}>
-                      <strong>{v.award.name}</strong> -
-                      <Link to={`/projects/${v.project.key}`} style={{marginLeft: 4}}>
-                        {v.project.name}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-          </div>
-        )}
+        <PageHeader
+          title="Projects For"
+          currentYear={currentYear}
+          showAddProjectButton={!year.submissionsClosed}
+        />
         {this.renderBody(year)}
       </Layout>
     );

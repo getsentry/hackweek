@@ -225,26 +225,14 @@ class ProjectDetails extends Component {
       <Layout>
         <div className="Project-Details">
           <div>
-            {canEdit && (
-              <div className="btn-set" style={{float: 'right'}}>
-                <Link
-                  to={`/years/${params.year || currentYear}/projects/${
-                    params.projectKey
-                  }/edit`}
-                  className="btn-set-btn"
-                >
-                  <Button priority="default" size="sm">
-                    Edit Project
-                  </Button>
-                </Link>
-
-                <Button onClick={this.onDelete} priority="danger" size="sm" type="button">
-                  Delete Project
-                </Button>
-              </div>
-            )}
-
-            <PageHeader title={project.name} />
+            <PageHeader
+              title={project.name}
+              canEdit={canEdit}
+              onDelete={this.onDelete}
+              editLink={`/years/${params.year || currentYear}/projects/${
+                params.projectKey
+              }/edit`}
+            />
           </div>
           <div className="row">
             <div className="col-md-8">

@@ -13,7 +13,7 @@ import {mapObject, orderedPopulatedDataToJS} from '../helpers';
 import Avatar from '../components/Avatar';
 import Layout from '../components/Layout';
 import {slugify} from '../utils';
-import Select from 'react-select/lib/Select';
+import Select from 'react-select';
 import PageHeader from '../components/PageHeader';
 import Button from '../components/Button';
 

@@ -23,7 +23,7 @@ const PageHeader = ({
       {showAddProjectButton && (
         <Link to="/new-project">
           <Button priority="primary" size="sm">
-            Add Project
+            Add something
           </Button>
         </Link>
       )}

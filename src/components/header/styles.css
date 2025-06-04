@@ -30,9 +30,6 @@
 
 .header-title {
   margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--color-gray100);
 }
 
 .header-title a {
@@ -68,6 +65,7 @@
 
 .avatar-button {
   background: none;
+  size: 4px;
   border: none;
   padding: 0;
   cursor: pointer;

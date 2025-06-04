@@ -116,7 +116,7 @@ class ProjectListItem extends Component {
                   to={`/years/${project.year}/projects/${project.key}/edit?claim`}
                   className="btn-set-btn"
                 >
-                  <Button priority="default" size="xs">
+                  <Button priority="secondary" size="xs">
                     Claim Project
                   </Button>
                 </Link>
@@ -283,30 +283,35 @@ class ProjectList extends Component {
       else otherProjects.push(p);
     });
 
-    let showProjects = this.props.location.query.show !== 'ideas';
-    let showIdeas = this.props.location.query.show === 'ideas';
-
-    if (!projects.length)
-      return (
-        <div className="alert alert-block alert-info">
-          Oops! No projects have been created yet for this year!
-        </div>
-      );
+    const showProjects = this.props.location.query.show !== 'ideas';
+    const showIdeas = this.props.location.query.show === 'ideas';
+    const hasAnyProjects = projectsLFH.length > 0 || otherProjects.length > 0;
+    const hasAnyIdeas = projectIdeas.length > 0;
 
     let userVotes = year ? getAuthUserVotes(auth.uid, year.votes) : [];
     let awardCategoryOptions = getAwardCategories(awardCategoryList);
 
+    let emptyState = null;
+    if (showProjects && !hasAnyProjects) {
+      emptyState = (
+        <div className="alert alert-block alert-info">
+          Oops! No projects have been created yet for this year!
+        </div>
+      );
+    }
+    if (showIdeas && !hasAnyIdeas) {
+      emptyState = (
+        <div className="alert alert-block alert-info">
+          Oops! No project ideas have been submitted yet for this year!
+        </div>
+      );
+    }
+
     return (
       <div className="Project-list-container">
-        {showIdeas && projectIdeas.length && (
+        {emptyState}
+        {showIdeas && projectIdeas.length > 0 && (
           <div className="Project-list-section">
-            {/* <div className="Project-list-section-header">
-              <h2>Project Ideas</h2>
-              <p>
-                Need an idea? Take a look at these submissions. Claim one with the button
-                to make it a project.
-              </p>
-            </div> */}
             <ul className="Project-List Project">
               {projectIdeas.map((project) => {
                 return (
@@ -327,7 +332,7 @@ class ProjectList extends Component {
             </ul>
           </div>
         )}
-        {showProjects && !!projectsLFH.length && (
+        {showProjects && projectsLFH.length > 0 && (
           <div className="Project-list-section">
             <h3>Looking for Help</h3>
             <ul className="list-group Project-List">
@@ -350,7 +355,7 @@ class ProjectList extends Component {
             </ul>
           </div>
         )}
-        {showProjects && !!otherProjects.length && (
+        {showProjects && otherProjects.length > 0 && (
           <div className="Project-list-section">
             {!!projectsLFH.length && <h3>Other Projects</h3>}
             <ul className="list-group Project-List">
@@ -449,7 +454,7 @@ class ProjectList extends Component {
     return (
       <Layout>
         <PageHeader
-          title="Projects For"
+          title="Hackweek"
           currentYear={currentYear}
           showAddProjectButton={!year.submissionsClosed}
         />

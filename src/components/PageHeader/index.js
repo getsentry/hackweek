@@ -31,7 +31,7 @@ const PageHeader = ({
         <>
           {editLink && (
             <Link to={editLink} className="btn-set-btn">
-              <Button priority="default" size="sm">
+              <Button priority="secondary" size="sm">
                 Edit Project
               </Button>
             </Link>

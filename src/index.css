@@ -5,9 +5,12 @@
   --color-gray300: #71637e;
   --color-gray400: #dad7e5;
   --color-blurple: #7553ff;
+  --color-dk-blurple: #4e2a9a;
   --color-green: #92dd00;
   --color-pink: #ff70bc;
   --color-yellow: #fdb81b;
+  --color-white: #ffffff;
+  --color-black: #000000;
 }
 
 body {
@@ -177,6 +180,7 @@ dd {
 }
 
 .alert {
+  width: 100%;
   font-size: 0.9em;
   border: 0;
 }

@@ -14,9 +14,9 @@ const Header = ({onLogin, onLogout, isAuthenticated, user, showMicroTimer = true
       <div className="header-content">
         <div className="header-title-logo-container">
           <img src={logoSentry} alt="Sentry Logo" className="header-logo" />
-          <h1 className="header-title">
+          <h3 className="header-title">
             <Link to="/">#HACKWEEK</Link>
-          </h1>
+          </h3>
         </div>
         {showMicroTimer && (
           <div className="header-countdown">
@@ -26,24 +26,15 @@ const Header = ({onLogin, onLogout, isAuthenticated, user, showMicroTimer = true
 
         <div className="header-auth">
           {!isAuthenticated ? (
-            <Button onClick={onLogin} size="sm">
+            <Button onClick={onLogin} priority="secondary" size="sm">
               <GoogleIcon className="google-icon" />
               Sign in with Google
             </Button>
           ) : (
-            <div className="auth-info">
-              <div className="avatar-container">
-                <button onClick={onLogout} className="avatar-button" type="button">
-                  <Avatar user={user} />
-                </button>
-              </div>
-              <div className="user-email">
-                <p>
-                  Logged in as
-                  <br />
-                  {user?.email}
-                </p>
-              </div>
+            <div className="avatar-container">
+              <Button onClick={onLogout} priority="tertiary" size="xs" type="button">
+                logged in as {user?.email}
+              </Button>
             </div>
           )}
         </div>

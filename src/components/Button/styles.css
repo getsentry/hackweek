@@ -5,7 +5,7 @@
   justify-content: center;
   font-weight: 600;
   border: 2px solid;
-  border-radius: 6px;
+  border-radius: 10px;
   cursor: pointer;
   transition: all 0.1s ease;
   font-family: inherit;
@@ -29,7 +29,7 @@
 }
 
 .custom-button-xs {
-  padding: 6px 12px;
+  padding: 4px 12px;
   font-size: 12px;
 }
 

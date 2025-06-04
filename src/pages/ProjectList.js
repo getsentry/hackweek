@@ -79,34 +79,27 @@ class ProjectListItem extends Component {
           {/* Left: Name and summary/members */}
           <div className="Project-main">
             {/* Project Name */}
+            {project.needHelp && !submissionsClosed && (
+              <div className="badge">looking for help</div>
+            )}
+            {group.id && (
+              <div className={`Project-group-badge ${group.id}`}>{group.name}</div>
+            )}
             <Link to={link}>
               <h3>{project.name}</h3>
             </Link>
             {/* Project Summary or Members/Badges */}
-            {project.isIdea || projectMembers.length === 0 ? (
-              <p className="Project-idea-summary">{summarize(project.summary)}</p>
-            ) : (
-              <React.Fragment>
-                {project.needHelp && !submissionsClosed && (
-                  <div className="badge">looking for help</div>
-                )}
-                <div className="Project-member-list-condensed">
-                  {projectMembers.length ? (
-                    projectMembers.map((member) => (
-                      <div className="Project-member" key={member.email}>
-                        <Avatar user={member} />
-                        <span className="Project-member-name">{member.displayName}</span>
-                      </div>
-                    ))
-                  ) : (
-                    <em>up for grabs</em>
-                  )}
-                </div>
-                {group.id && (
-                  <div className={`Project-group-badge ${group.id}`}>{group.name}</div>
-                )}
-              </React.Fragment>
-            )}
+            <p className="Project-idea-summary">{summarize(project.summary)}</p>
+
+            <div className="Project-member-list-condensed">
+              {projectMembers.length > 0 &&
+                projectMembers.map((member) => (
+                  <div className="Project-member" key={member.email}>
+                    <Avatar user={member} />
+                    <span className="Project-member-name">{member.displayName}</span>
+                  </div>
+                ))}
+            </div>
           </div>
           {/* Right: Claim button and awards */}
           <div className="Project-actions">
@@ -283,8 +276,9 @@ class ProjectList extends Component {
       else otherProjects.push(p);
     });
 
-    const showProjects = this.props.location.query.show !== 'ideas';
-    const showIdeas = this.props.location.query.show === 'ideas';
+    const showParam = this.props.location.query.show;
+    const showIdeas = !showParam || showParam === 'ideas';
+    const showProjects = showParam === 'projects';
     const hasAnyProjects = projectsLFH.length > 0 || otherProjects.length > 0;
     const hasAnyIdeas = projectIdeas.length > 0;
 
@@ -332,66 +326,28 @@ class ProjectList extends Component {
             </ul>
           </div>
         )}
-        {showProjects && projectsLFH.length > 0 && (
+        {showProjects && projectsLFH.length + otherProjects.length > 0 && (
           <div className="Project-list-section">
-            <h3>Looking for Help</h3>
-            <ul className="list-group Project-List">
-              {projectsLFH.map((project) => {
-                return (
-                  <ProjectListItem
-                    key={project.key}
-                    auth={auth}
-                    userVote={userVotes.filter((v) => v.project === project.key)}
-                    firebase={firebase}
-                    project={project}
-                    awardCategoryOptions={awardCategoryOptions}
-                    awardList={awardList}
-                    userList={userList}
-                    group={{id: project.group, ...groupsList[project.group]}}
-                    submissionsClosed={submissionsClosed}
-                  />
-                );
-              })}
-            </ul>
-          </div>
-        )}
-        {showProjects && otherProjects.length > 0 && (
-          <div className="Project-list-section">
-            {!!projectsLFH.length && <h3>Other Projects</h3>}
-            <ul className="list-group Project-List">
-              {otherProjects.map((project) => {
-                return (
-                  <ProjectListItem
-                    key={project.key}
-                    auth={auth}
-                    userVote={userVotes.filter((v) => v.project === project.key)}
-                    firebase={firebase}
-                    project={project}
-                    awardCategoryOptions={awardCategoryOptions}
-                    awardList={awardList}
-                    userList={userList}
-                    group={{id: project.group, ...groupsList[project.group]}}
-                    submissionsClosed={submissionsClosed}
-                  />
-                );
-              })}
+            <ul className="Project-List Project">
+              {[...projectsLFH, ...otherProjects].map((project) => (
+                <ProjectListItem
+                  key={project.key}
+                  auth={auth}
+                  userVote={userVotes.filter((v) => v.project === project.key)}
+                  firebase={firebase}
+                  project={project}
+                  awardCategoryOptions={awardCategoryOptions}
+                  awardList={awardList}
+                  userList={userList}
+                  group={{id: project.group, ...groupsList[project.group]}}
+                  submissionsClosed={submissionsClosed}
+                />
+              ))}
             </ul>
           </div>
         )}
         <div className="Project-list-tabs">
           <ul className="tabs">
-            <li style={{fontWeight: showProjects ? 'bold' : null}}>
-              <Link
-                to={{
-                  pathname: this.props.location.pathname,
-                  query: {
-                    show: 'projects',
-                  },
-                }}
-              >
-                Projects ({projectsLFH.length + otherProjects.length})
-              </Link>
-            </li>
             <li style={{fontWeight: showIdeas ? 'bold' : null}}>
               <Link
                 to={{
@@ -401,7 +357,39 @@ class ProjectList extends Component {
                   },
                 }}
               >
-                Ideas ({projectIdeas.length})
+                Ideas{' '}
+                <span
+                  className={
+                    showIdeas
+                      ? 'Project-list-count-active'
+                      : 'Project-list-count-inactive'
+                  }
+                >
+                  {projectIdeas.length === 0 ? '0' : projectIdeas.length}
+                </span>
+              </Link>
+            </li>
+            <li style={{fontWeight: showProjects ? 'bold' : null}}>
+              <Link
+                to={{
+                  pathname: this.props.location.pathname,
+                  query: {
+                    show: 'projects',
+                  },
+                }}
+              >
+                Projects{' '}
+                <span
+                  className={
+                    showProjects
+                      ? 'Project-list-count-active'
+                      : 'Project-list-count-inactive'
+                  }
+                >
+                  {projectsLFH.length + otherProjects.length === 0
+                    ? '0'
+                    : projectsLFH.length + otherProjects.length}
+                </span>
               </Link>
             </li>
           </ul>

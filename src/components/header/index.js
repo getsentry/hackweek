@@ -26,7 +26,7 @@ const Header = ({onLogin, onLogout, isAuthenticated, user, showMicroTimer = true
 
         <div className="header-auth">
           {!isAuthenticated ? (
-            <Button onClick={onLogin} priority="secondary" size="sm">
+            <Button onClick={onLogin} priority="secondary" size="xs">
               <GoogleIcon className="google-icon" />
               Sign in with Google
             </Button>

@@ -236,10 +236,10 @@ class ProjectDetails extends Component {
           </div>
           <div className="row">
             <div className="col-md-8">
-              <video
+              {/* <video
                 src="https://drive.google.com/file/d/1JpX_JdIaDvPIL-glHRbbY6Ba4I--Wx5k/preview"
                 controls
-              />
+              /> */}
               <h2>Summary</h2>
               <div
                 className="Project-details-summary"

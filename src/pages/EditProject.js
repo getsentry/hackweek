@@ -49,7 +49,9 @@ class EditProject extends Component {
         loaded: true,
         name: project.name,
         summary: project.summary,
-        group: project.group,
+        group: project.group
+          ? {value: project.group, label: groupsList[project.group]?.name}
+          : null,
         repository: project.repository,
         needHelp: project.needHelp || false,
         needHelpComments: project.needHelpComments || '',
@@ -89,7 +91,7 @@ class EditProject extends Component {
     firebase
       .update(`/years/${params.year || currentYear}/projects/${params.projectKey}`, {
         name: this.state.name,
-        group: this.state.group,
+        group: this.state.group ? this.state.group.value : '',
         summary: this.state.summary,
         repository: this.state.repository || '',
         isIdea: this.state.isIdea,
@@ -217,7 +219,7 @@ class EditProject extends Component {
   };
 
   onChangeGroup = (group) => {
-    this.setState({group: group.value});
+    this.setState({group});
   };
 
   render() {
@@ -261,7 +263,6 @@ class EditProject extends Component {
               multi={false}
               options={groupOptions}
               onChange={this.onChangeGroup}
-              required
             />
           </div>
           <div className="form-group">
@@ -399,7 +400,7 @@ class EditProject extends Component {
             >
               nevermind
             </Button>
-            <Button size="sm" kind="primary" disabled={this.state.saving}>
+            <Button size="sm" kind="primary" type="submit" disabled={this.state.saving}>
               {isClaim ? 'Claim project' : 'Save Changes'}
             </Button>
           </div>

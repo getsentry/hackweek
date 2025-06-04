@@ -236,19 +236,19 @@ class ProjectDetails extends Component {
           </div>
           <div className="row">
             <div className="col-md-8">
-              <h2>Summary</h2>
               <video
                 src="https://drive.google.com/file/d/1JpX_JdIaDvPIL-glHRbbY6Ba4I--Wx5k/preview"
                 controls
               />
+              <h2>Summary</h2>
               <div
-                className="Project-summary"
+                className="Project-details-summary"
                 dangerouslySetInnerHTML={{
                   __html: marked(project.summary),
                 }}
               />
               {project.repository && (
-                <div className="Project-summary">
+                <div className="Project-details-summary">
                   <h3>Repository</h3>
                   <div>{project.repository}</div>
                 </div>

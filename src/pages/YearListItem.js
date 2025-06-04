@@ -59,10 +59,10 @@ export default function YearListItem({year, yearData, userList}) {
 
   return (
     <li className="Year">
+      {yearImages[year] && <img src={yearImages[year]} alt={year} />}
       <div className="Year-metrics">
-        {yearImages[year] && <img src={yearImages[year]} alt={year} />}
         <Link to={`/years/${year}/projects`} className="Year-metrics-link">
-          <h2>{year}</h2> <span className="glyphicon glyphicon-circle-arrow-right" />
+          <h2>{year}</h2>
         </Link>
         <p className="Year-metrics-text">
           {members.length} participant{members.length !== 1 ? 's' : ''}, {projectCount}{' '}
@@ -75,7 +75,6 @@ export default function YearListItem({year, yearData, userList}) {
         projects={projects}
         year={year}
       />
-      <hr className="squiggle-line" />
     </li>
   );
 }

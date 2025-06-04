@@ -187,7 +187,7 @@ class NewProject extends Component {
                   onChange={this.onChangeTeam}
                 />
               </div>
-              <h3>Looking for Help?</h3>
+
               <div className="form-group">
                 <div className="checkbox">
                   <label>
@@ -221,13 +221,14 @@ class NewProject extends Component {
           )}
           <div className="btn-set">
             <Button
-              priority="default"
+              priority="tertiary"
+              size="sm"
               type="button"
               onClick={() => this.context.router.push('/projects')}
             >
               nevermind
             </Button>
-            <Button priority="primary" type="submit">
+            <Button priority="primary" size="sm" type="submit">
               create project
             </Button>
           </div>

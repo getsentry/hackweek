@@ -42,5 +42,6 @@
   display: flex;
   flex-direction: row;
   align-items: flex-start;
+  max-width: 69%;
   gap: 0.5em;
 }

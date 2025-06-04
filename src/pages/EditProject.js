@@ -15,7 +15,8 @@ import Layout from '../components/Layout';
 import {mapObject, orderedPopulatedDataToJS} from '../helpers';
 import MediaObject from '../components/MediaObject';
 import {humanizeBytes} from '../utils';
-
+import Button from '../components/Button';
+import PageHeader from '../components/PageHeader';
 class EditProject extends Component {
   static propTypes = {
     auth: PropTypes.object,
@@ -234,9 +235,12 @@ class EditProject extends Component {
       label: group.name,
     }));
 
+    const isClaim = 'claim' in (this.props.location?.query || {});
+
     return (
       <Layout>
-        <h2>Edit Project</h2>
+        <PageHeader title={isClaim ? 'Claim project' : 'Edit'} />
+        {/* <h2>{isClaim ? 'Claim Project' : 'Edit Project'}</h2> */}
         <form onSubmit={this.onSubmit} className="form New-Project-Form">
           <div className="form-group">
             <label>Project Name</label>
@@ -387,16 +391,17 @@ class EditProject extends Component {
           )}
 
           <div className="btn-set" style={{textAlign: 'right'}}>
-            <Link
-              to={this.getProjectUrl()}
-              className="btn btn-default"
-              disabled={this.state.saving}
+            <Button
+              priority="tertiary"
+              type="button"
+              size="sm"
+              onClick={() => this.context.router.goBack()}
             >
-              Cancel
-            </Link>
-            <button className="btn btn-primary" disabled={this.state.saving}>
-              Save Changes
-            </button>
+              nevermind
+            </Button>
+            <Button size="sm" kind="primary" disabled={this.state.saving}>
+              {isClaim ? 'Claim project' : 'Save Changes'}
+            </Button>
           </div>
         </form>
       </Layout>

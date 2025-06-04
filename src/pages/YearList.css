@@ -6,9 +6,12 @@
 .Year {
   text-align: left;
   list-style: none;
-  margin-bottom: 2rem;
+  margin-bottom: 2.5rem;
 }
 
+.Year img {
+  margin-bottom: 1.5rem;
+}
 .Year-metrics {
   font-weight: bold;
   display: flex;
@@ -17,7 +20,6 @@
   justify-content: center;
   gap: 0.5em;
   width: 100%;
-  margin-bottom: 0.5em;
 }
 .Year-metrics-link {
   display: flex;

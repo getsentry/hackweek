@@ -174,6 +174,24 @@ dd {
   display: inline-block;
 }
 
+.form-group .checkbox {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.form-group .checkbox input[type='checkbox'] {
+  width: 24px;
+  margin: 0;
+  position: static;
+  accent-color: var(--color-blurple);
+}
+
+.form-group .checkbox label {
+  margin: 0;
+  padding: 0;
+}
+
 .form-group .checkbox,
 .form-group .radio {
   margin: 0;
@@ -296,3 +314,32 @@ input {
 .react-select__menu {
   background-color: var(--color-gray100);
 } */
+
+.MultiValue {
+  background-color: transparent;
+}
+
+.MultiValueContainer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background-color: var(--color-blurple);
+  padding: 4px 8px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.MultiValueLabel {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: white;
+}
+
+.MultiValueRemove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+}

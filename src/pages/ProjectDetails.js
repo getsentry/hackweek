@@ -80,7 +80,7 @@ class ProjectVote extends Component {
           <Select
             name="category"
             value={this.state.userVote}
-            multi={false}
+            isMulti={false}
             options={awardCategoryOptions}
             disabled={this.props.disabled}
             onChange={this.onChangeVote}

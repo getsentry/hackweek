@@ -17,6 +17,11 @@ import MediaObject from '../components/MediaObject';
 import {humanizeBytes} from '../utils';
 import Button from '../components/Button';
 import PageHeader from '../components/PageHeader';
+import {
+  MultiValueContainer,
+  MultiValueLabel,
+  MultiValueRemove,
+} from '../components/SelectComponents';
 class EditProject extends Component {
   static propTypes = {
     auth: PropTypes.object,
@@ -256,16 +261,6 @@ class EditProject extends Component {
             />
           </div>
           <div className="form-group">
-            <label>Group</label>
-            <Select
-              name="group"
-              value={this.state.group}
-              multi={false}
-              options={groupOptions}
-              onChange={this.onChangeGroup}
-            />
-          </div>
-          <div className="form-group">
             <label>Summary</label>
             <textarea
               className="form-control"
@@ -290,15 +285,16 @@ class EditProject extends Component {
           )}
           <div className="form-group">
             <div className="checkbox">
-              <label>
-                <input
-                  type="checkbox"
-                  name="isIdea"
-                  checked={this.state.isIdea}
-                  onChange={(e) => {
-                    this.setState({isIdea: e.target.checked});
-                  }}
-                />{' '}
+              <input
+                type="checkbox"
+                id="isIdea"
+                name="isIdea"
+                checked={this.state.isIdea}
+                onChange={(e) => {
+                  this.setState({isIdea: e.target.checked});
+                }}
+              />
+              <label htmlFor="isIdea">
                 This project is just being shared as an idea.
               </label>
             </div>
@@ -306,30 +302,40 @@ class EditProject extends Component {
           {!this.state.isIdea && (
             <React.Fragment>
               <div className="form-group">
+                <label>Group</label>
+                <Select
+                  name="group"
+                  value={this.state.group}
+                  isMulti={false}
+                  options={groupOptions}
+                  onChange={this.onChangeGroup}
+                />
+              </div>
+              <div className="form-group">
                 <label>Team</label>
                 <Select
                   name="team"
                   value={this.state.team}
-                  multi={true}
+                  isMulti={true}
                   options={teamOptions}
                   onChange={this.onChangeTeam}
+                  components={{MultiValueLabel, MultiValueContainer, MultiValueRemove}}
                 />
               </div>
 
               <h3>Looking for Help?</h3>
               <div className="form-group">
                 <div className="checkbox">
-                  <label>
-                    <input
-                      type="checkbox"
-                      name="needHelp"
-                      checked={this.state.needHelp}
-                      onChange={(e) => {
-                        this.setState({needHelp: e.target.checked});
-                      }}
-                    />{' '}
-                    I'm looking for help on this project!
-                  </label>
+                  <input
+                    type="checkbox"
+                    id="needHelp"
+                    name="needHelp"
+                    checked={this.state.needHelp}
+                    onChange={(e) => {
+                      this.setState({needHelp: e.target.checked});
+                    }}
+                  />
+                  <label htmlFor="needHelp">I'm looking for help on this project!</label>
                 </div>
               </div>
               {this.state.needHelp && (

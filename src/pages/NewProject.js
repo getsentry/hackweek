@@ -14,6 +14,11 @@ import {mapObject, orderedPopulatedDataToJS} from '../helpers';
 import {slugify} from '../utils';
 import Button from '../components/Button';
 import PageHeader from '../components/PageHeader';
+import {
+  MultiValueContainer,
+  MultiValueLabel,
+  MultiValueRemove,
+} from '../components/SelectComponents';
 
 const customStyles = {
   control: (provided, state) => ({
@@ -169,24 +174,13 @@ class NewProject extends Component {
           <div className="form-group">
             <label>Project Name</label>
             <input
+              className="form-control"
               type="text"
               name="name"
               placeholder="my cool project"
               value={this.state.name}
               onChange={this.onChangeField}
               required
-            />
-          </div>
-          <div className="form-group">
-            <label>Group</label>
-            <Select
-              styles={customStyles}
-              name="group"
-              value={this.state.group}
-              multi={false}
-              options={groupOptions}
-              onChange={this.onChangeGroup}
-              required={!this.state.isIdea}
             />
           </div>
           <div className="form-group">
@@ -202,15 +196,16 @@ class NewProject extends Component {
           </div>
           <div className="form-group">
             <div className="checkbox">
-              <label>
-                <input
-                  type="checkbox"
-                  name="isIdea"
-                  checked={this.state.isIdea}
-                  onChange={(e) => {
-                    this.setState({isIdea: e.target.checked});
-                  }}
-                />{' '}
+              <input
+                type="checkbox"
+                id="isIdea"
+                name="isIdea"
+                checked={this.state.isIdea}
+                onChange={(e) => {
+                  this.setState({isIdea: e.target.checked});
+                }}
+              />
+              <label htmlFor="isIdea">
                 This project is just being shared as an idea.
               </label>
             </div>
@@ -218,29 +213,40 @@ class NewProject extends Component {
           {!this.state.isIdea && (
             <React.Fragment>
               <div className="form-group">
+                <label>Group</label>
+                <Select
+                  styles={customStyles}
+                  name="group"
+                  value={this.state.group}
+                  isMulti={false}
+                  options={groupOptions}
+                  onChange={this.onChangeGroup}
+                  required={!this.state.isIdea}
+                />
+              </div>
+              <div className="form-group">
                 <label>Team</label>
                 <Select
                   name="team"
                   value={this.state.team}
-                  multi={true}
+                  isMulti={true}
                   options={teamOptions}
                   onChange={this.onChangeTeam}
+                  components={{MultiValueLabel, MultiValueContainer, MultiValueRemove}}
                 />
               </div>
-
               <div className="form-group">
                 <div className="checkbox">
-                  <label>
-                    <input
-                      type="checkbox"
-                      name="needHelp"
-                      checked={this.state.needHelp}
-                      onChange={(e) => {
-                        this.setState({needHelp: e.target.checked});
-                      }}
-                    />{' '}
-                    I'm looking for help on this project!
-                  </label>
+                  <input
+                    type="checkbox"
+                    id="needHelp"
+                    name="needHelp"
+                    checked={this.state.needHelp}
+                    onChange={(e) => {
+                      this.setState({needHelp: e.target.checked});
+                    }}
+                  />
+                  <label htmlFor="needHelp">I'm looking for help on this project!</label>
                 </div>
               </div>
               {this.state.needHelp && (

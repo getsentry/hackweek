@@ -91,7 +91,7 @@ class AwardRow extends Component {
             <Select
               name="category"
               value={this.state.awardCategory}
-              multi={false}
+              isMulti={false}
               options={awardCategoryOptions}
               onChange={this.onChangeAwardCategory}
             />
@@ -100,7 +100,7 @@ class AwardRow extends Component {
             <Select
               name="project"
               value={this.state.project}
-              multi={false}
+              isMulti={false}
               options={projectOptions}
               onChange={this.onChangeProject}
             />

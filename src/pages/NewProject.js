@@ -12,6 +12,52 @@ import {currentYear} from '../config';
 import Layout from '../components/Layout';
 import {mapObject, orderedPopulatedDataToJS} from '../helpers';
 import {slugify} from '../utils';
+import Button from '../components/Button';
+import PageHeader from '../components/PageHeader';
+import {
+  MultiValueContainer,
+  MultiValueLabel,
+  MultiValueRemove,
+} from '../components/SelectComponents';
+
+const customStyles = {
+  control: (provided, state) => ({
+    ...provided,
+    borderColor: state.isFocused ? 'var(--color-blurple)' : 'var(--color-gray400)',
+    boxShadow: state.isFocused ? '0 0 0 2px var(--color-blurple)' : 'none',
+    minHeight: '40px',
+    borderRadius: '0.5em',
+    fontSize: '14px',
+    margin: '0px 0px',
+    padding: '0px 0px',
+    transition: 'border-color 0.2s, box-shadow 0.2s',
+    '&:hover': {
+      borderColor: 'var(--color-blurple)',
+    },
+  }),
+  option: (provided, state) => ({
+    ...provided,
+    backgroundColor: state.isSelected
+      ? 'var(--color-blurple)'
+      : state.isFocused
+      ? 'var(--color-gray400)'
+      : 'white',
+    color: state.isSelected ? 'white' : 'var(--color-gray100)',
+    cursor: 'pointer',
+    '&:active': {
+      backgroundColor: 'var(--color-dk-blurple)',
+      color: 'white',
+    },
+  }),
+  singleValue: (provided) => ({
+    ...provided,
+    color: 'blue',
+  }),
+  input: (provided) => ({
+    ...provided,
+    color: 'green',
+  }),
+};
 
 class NewProject extends Component {
   static propTypes = {
@@ -123,7 +169,7 @@ class NewProject extends Component {
 
     return (
       <Layout>
-        <h2>Add a New Project</h2>
+        <PageHeader title="Add a New Project" />
         <form onSubmit={this.onSubmit} className="form New-Project-Form">
           <div className="form-group">
             <label>Project Name</label>
@@ -131,20 +177,10 @@ class NewProject extends Component {
               className="form-control"
               type="text"
               name="name"
+              placeholder="my cool project"
               value={this.state.name}
               onChange={this.onChangeField}
               required
-            />
-          </div>
-          <div className="form-group">
-            <label>Group</label>
-            <Select
-              name="group"
-              value={this.state.group}
-              multi={false}
-              options={groupOptions}
-              onChange={this.onChangeGroup}
-              required={!this.state.isIdea}
             />
           </div>
           <div className="form-group">
@@ -160,15 +196,16 @@ class NewProject extends Component {
           </div>
           <div className="form-group">
             <div className="checkbox">
-              <label>
-                <input
-                  type="checkbox"
-                  name="isIdea"
-                  checked={this.state.isIdea}
-                  onChange={(e) => {
-                    this.setState({isIdea: e.target.checked});
-                  }}
-                />{' '}
+              <input
+                type="checkbox"
+                id="isIdea"
+                name="isIdea"
+                checked={this.state.isIdea}
+                onChange={(e) => {
+                  this.setState({isIdea: e.target.checked});
+                }}
+              />
+              <label htmlFor="isIdea">
                 This project is just being shared as an idea.
               </label>
             </div>
@@ -176,29 +213,40 @@ class NewProject extends Component {
           {!this.state.isIdea && (
             <React.Fragment>
               <div className="form-group">
+                <label>Group</label>
+                <Select
+                  styles={customStyles}
+                  name="group"
+                  value={this.state.group}
+                  isMulti={false}
+                  options={groupOptions}
+                  onChange={this.onChangeGroup}
+                  required={!this.state.isIdea}
+                />
+              </div>
+              <div className="form-group">
                 <label>Team</label>
                 <Select
                   name="team"
                   value={this.state.team}
-                  multi={true}
+                  isMulti={true}
                   options={teamOptions}
                   onChange={this.onChangeTeam}
+                  components={{MultiValueLabel, MultiValueContainer, MultiValueRemove}}
                 />
               </div>
-              <h3>Looking for Help?</h3>
               <div className="form-group">
                 <div className="checkbox">
-                  <label>
-                    <input
-                      type="checkbox"
-                      name="needHelp"
-                      checked={this.state.needHelp}
-                      onChange={(e) => {
-                        this.setState({needHelp: e.target.checked});
-                      }}
-                    />{' '}
-                    I'm looking for help on this project!
-                  </label>
+                  <input
+                    type="checkbox"
+                    id="needHelp"
+                    name="needHelp"
+                    checked={this.state.needHelp}
+                    onChange={(e) => {
+                      this.setState({needHelp: e.target.checked});
+                    }}
+                  />
+                  <label htmlFor="needHelp">I'm looking for help on this project!</label>
                 </div>
               </div>
               {this.state.needHelp && (
@@ -217,8 +265,18 @@ class NewProject extends Component {
               )}
             </React.Fragment>
           )}
-          <div className="btn-set" style={{textAlign: 'right'}}>
-            <button className="btn btn-primary">Save Changes</button>
+          <div className="btn-set">
+            <Button
+              priority="tertiary"
+              size="sm"
+              type="button"
+              onClick={() => this.context.router.push('/projects')}
+            >
+              nevermind
+            </Button>
+            <Button priority="primary" size="sm" type="submit">
+              create project
+            </Button>
           </div>
         </form>
       </Layout>

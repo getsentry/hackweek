@@ -1,66 +1,71 @@
-.Year-List {
-  margin-bottom: 20px;
+.Year-list {
+  margin-bottom: 2rem;
+  padding: 0;
 }
 
 .Year {
   text-align: left;
   list-style: none;
-  margin-bottom: 20px;
-  opacity: 0.6;
+  margin-bottom: 2.5rem;
 }
 
-.Year:hover {
-  opacity: 1;
+.Year img {
+  margin-bottom: 1.5rem;
 }
-
-.Year-name {
-  margin-bottom: 5px;
-  font-size: 1.2em;
+.Year-metrics {
   font-weight: bold;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.5em;
+  width: 100%;
 }
-
-.Year-name a:hover {
+.Year-metrics-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  color: inherit;
   text-decoration: none;
 }
-
-.Year-name a .glyphicon {
-  font-size: 0.8em;
+.Year-metrics-link:hover {
+  text-decoration: underline;
+}
+.Year-metrics-link h2 {
+  margin: 0 auto;
+}
+.Year-metrics-link .glyphicon {
+  font-size: 1.5em;
   margin-left: 5px;
   font-weight: normal;
+  color: var(--color-blurple);
+}
+.Year-metrics-text {
+  font-weight: 800;
+  margin-bottom: 0.5em;
 }
 
-.Year-member-list {
-  display: block;
-  list-style: none;
-  padding-left: 0;
-}
-
-.Year-member-list li {
-  display: inline-block;
-  margin-left: -3px;
-  border-left: 1px solid #fff;
-}
-
-.Year-member-list li:first-child {
-  margin: 0;
-  border-left: 0;
-}
-
-.Year-member .avatar {
-  width: 18px;
-  height: 18px;
-  border-radius: 2px;
+.Year-section {
+  margin-bottom: 0.5em;
 }
 
 .Year-award-list {
-  display: block;
   list-style: none;
   padding-left: 0;
-  font-size: 0.8em;
+  font-size: 0.95em;
+  margin: 0;
 }
-
+.Year-award-list-title {
+  color: var(--color-gray300);
+  margin-bottom: 0.5em;
+}
+.Year-award-list-item {
+  margin-bottom: 0.5em;
+  list-style: disc;
+  margin-left: 1em;
+}
 .Year-award-list a {
   font-weight: normal;
-  display: inline;
   text-decoration: underline;
 }

@@ -7,6 +7,7 @@ import {compose} from 'redux';
 import {firebaseConnect, isLoaded, pathToJS} from 'react-redux-firebase';
 
 import Layout from '../components/Layout';
+import PageHeader from '../components/PageHeader';
 import {mapObject, orderedPopulatedDataToJS} from '../helpers';
 
 class Admin extends Component {
@@ -26,10 +27,10 @@ class Admin extends Component {
 
     return (
       <Layout>
-        <h2>Admin</h2>
+        <PageHeader title="admin" />
         {mapObject(yearList)
           .sort((a, b) => b.key - a.key)
-          .map(year => (
+          .map((year) => (
             <li key={year.key}>
               <Link to={`/admin/years/${year.key}`}>{year.key}</Link>
             </li>

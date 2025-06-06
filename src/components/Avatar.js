@@ -10,7 +10,7 @@ export default class Avatar extends Component {
   };
 
   static defaultProps = {
-    size: 32,
+    size: 16,
   };
 
   render() {

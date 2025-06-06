@@ -1,0 +1,47 @@
+.page-header-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  border-bottom: 20px solid transparent;
+  padding-bottom: 1em;
+  border-image: url('../../assets/svgs/divider-squiggle.svg') 20 repeat;
+}
+
+.page-header-title {
+  font-family: 'Rubik', sans-serif;
+  font-weight: 700;
+  font-size: 2em;
+  color: var(--color-gray100, #1d1127);
+  margin-bottom: 0.25em;
+}
+
+.page-header-line {
+  border: none;
+  height: 20px;
+  background-image: url('../../assets/svgs/divider-squiggle.svg');
+  background-repeat: repeat-x;
+  background-size: auto 100%;
+  background-position: center;
+  margin: 24px 0;
+}
+
+.page-header-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+}
+
+.page-header-action {
+  display: flex;
+  flex-direction: row;
+  gap: 0.5em;
+}
+
+.page-header-title-container {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  max-width: 69%;
+  gap: 0.5em;
+}

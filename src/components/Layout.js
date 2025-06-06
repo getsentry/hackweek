@@ -6,6 +6,7 @@ import {compose} from 'redux';
 import {firebaseConnect, isEmpty, isLoaded, pathToJS} from 'react-redux-firebase';
 import * as Sentry from '@sentry/react';
 import Header from './header';
+import FooterSection from './FooterSection';
 
 import {currentYear} from '../config';
 import Avatar from './Avatar';
@@ -64,11 +65,7 @@ class Layout extends Component {
           user={profile}
         />
         <main>{children}</main>
-        <div className="App-footer">
-          <Link to="/projects">This Year ({currentYear})</Link>
-          <Link to="/years">The Archives</Link>
-          {profile && profile.admin && <Link to="/admin">Admin</Link>}
-        </div>
+        <FooterSection currentYear={currentYear} profile={profile} />
       </div>
     );
   }

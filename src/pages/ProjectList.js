@@ -13,7 +13,9 @@ import {mapObject, orderedPopulatedDataToJS} from '../helpers';
 import Avatar from '../components/Avatar';
 import Layout from '../components/Layout';
 import {slugify} from '../utils';
-import Select from 'react-select/lib/Select';
+import Select from 'react-select';
+import PageHeader from '../components/PageHeader';
+import Button from '../components/Button';
 
 function getAuthUserVotes(uid, voteList) {
   return Object.values(voteList || {}).filter((vote) => vote.creator === uid);
@@ -52,11 +54,11 @@ class ProjectListItem extends Component {
         ? `/projects/${project.key}/${slugify(project.name)}`
         : `/years/${project.year}/projects/${project.key}/${slugify(project.name)}`;
 
-    let projectMembers = Object.keys(project.members || {})
-      .map((memberKey) => {
-        return userList[memberKey];
-      })
-      .filter((member) => member !== null);
+    let projectMembers = userList
+      ? Object.keys(project.members || {})
+          .map((memberKey) => userList[memberKey])
+          .filter((member) => member != null)
+      : [];
     projectMembers.sort((a, b) => ('' + a.displayName).localeCompare(b.displayName));
 
     // hide project if its not executed on
@@ -72,55 +74,58 @@ class ProjectListItem extends Component {
       }));
 
     return (
-      <li className="list-group-item Project clearfix">
-        {(project.isIdea || projectMembers.length === 0) && !submissionsClosed && (
-          <div className="Project-idea-claim">
-            <Link
-              to={`/years/${project.year}/projects/${project.key}/edit?claim`}
-              className="btn btn-xs btn-default"
-            >
-              Claim Project
-            </Link>
-          </div>
-        )}
-        {!!awards.length && (
-          <div className="Project-award">
-            {awards.map((a) => a.name).join(', ')}{' '}
-            <span
-              className="glyphicon glyphicon-star"
-              title={awards.map((a) => a.name).join(', ')}
-            />
-          </div>
-        )}
-        <Link to={link}>
-          <strong>{project.name}</strong>
-        </Link>
-        {project.isIdea || projectMembers.length === 0 ? (
-          <div className="Project-idea-summary">{summarize(project.summary)}</div>
-        ) : (
-          <React.Fragment>
+      <li className="item-list Project">
+        <div className="Project-row">
+          {/* Left: Name and summary/members */}
+          <div className="Project-main">
+            {/* Project Name */}
             {project.needHelp && !submissionsClosed && (
               <div className="badge">looking for help</div>
             )}
-            <div className="Project-member-list-condensed">
-              {projectMembers.length ? (
-                projectMembers.map((member) => {
-                  return (
-                    <div className="Project-member" key={member.email}>
-                      <Avatar user={member} />
-                      <span className="Project-member-name">{member.displayName}</span>
-                    </div>
-                  );
-                })
-              ) : (
-                <em>up for grabs</em>
-              )}
-            </div>
             {group.id && (
               <div className={`Project-group-badge ${group.id}`}>{group.name}</div>
             )}
-          </React.Fragment>
-        )}
+            <Link to={link}>
+              <h3>{project.name}</h3>
+            </Link>
+            {/* Project Summary or Members/Badges */}
+            <p className="Project-idea-summary">{summarize(project.summary)}</p>
+
+            <div className="Project-member-list-condensed">
+              {projectMembers.length > 0 &&
+                projectMembers.map((member) => (
+                  <div className="Project-member" key={member.email}>
+                    <Avatar user={member} />
+                    <span className="Project-member-name">{member.displayName}</span>
+                  </div>
+                ))}
+            </div>
+          </div>
+          {/* Right: Claim button and awards */}
+          <div className="Project-actions">
+            {(project.isIdea || projectMembers.length === 0) && !submissionsClosed && (
+              <div className="Project-idea-claim">
+                <Link
+                  to={`/years/${project.year}/projects/${project.key}/edit?claim`}
+                  className="btn-set-btn"
+                >
+                  <Button priority="secondary" size="xs">
+                    Claim Project
+                  </Button>
+                </Link>
+              </div>
+            )}
+            {!!awards.length && (
+              <div className="Project-award">
+                {awards.map((a) => a.name).join(', ')}{' '}
+                <span
+                  className="glyphicon glyphicon-star"
+                  title={awards.map((a) => a.name).join(', ')}
+                />
+              </div>
+            )}
+          </div>
+        </div>
       </li>
     );
   }
@@ -203,6 +208,7 @@ class ProjectList extends Component {
             </ul>
           </div>
         )}
+        {/* WINNING PROJECTS DETAILS */}
         {!!projects.length && (
           <div>
             {!!winningProjects.length && <h3>All Projects</h3>}
@@ -270,55 +276,37 @@ class ProjectList extends Component {
       else otherProjects.push(p);
     });
 
-    let showProjects = this.props.location.query.show !== 'ideas';
-    let showIdeas = this.props.location.query.show === 'ideas';
-
-    if (!projects.length)
-      return (
-        <div className="alert alert-block alert-info">
-          Oops! No projects have been created yet for this year!
-        </div>
-      );
+    const showParam = this.props.location.query.show;
+    const showIdeas = !showParam || showParam === 'ideas';
+    const showProjects = showParam === 'projects';
+    const hasAnyProjects = projectsLFH.length > 0 || otherProjects.length > 0;
+    const hasAnyIdeas = projectIdeas.length > 0;
 
     let userVotes = year ? getAuthUserVotes(auth.uid, year.votes) : [];
     let awardCategoryOptions = getAwardCategories(awardCategoryList);
 
+    let emptyState = null;
+    if (showProjects && !hasAnyProjects) {
+      emptyState = (
+        <div className="alert alert-block alert-info">
+          Oops! No projects have been created yet for this year!
+        </div>
+      );
+    }
+    if (showIdeas && !hasAnyIdeas) {
+      emptyState = (
+        <div className="alert alert-block alert-info">
+          Oops! No project ideas have been submitted yet for this year!
+        </div>
+      );
+    }
+
     return (
-      <div>
-        <ul className="tabs">
-          <li style={{fontWeight: showProjects ? 'bold' : null}}>
-            <Link
-              to={{
-                pathname: this.props.location.pathname,
-                query: {
-                  show: 'projects',
-                },
-              }}
-            >
-              Projects ({projectsLFH.length + otherProjects.length})
-            </Link>
-          </li>
-          <li style={{fontWeight: showIdeas ? 'bold' : null}}>
-            <Link
-              to={{
-                pathname: this.props.location.pathname,
-                query: {
-                  show: 'ideas',
-                },
-              }}
-            >
-              Ideas ({projectIdeas.length})
-            </Link>
-          </li>
-        </ul>
-        {showIdeas && projectIdeas.length && (
-          <div>
-            <h3>Project Ideas</h3>
-            <p>
-              Need an idea? Take a look at these submissions. Claim one by using the [Edit
-              Project] action.
-            </p>
-            <ul className="list-group Project-List">
+      <div className="Project-list-container">
+        {emptyState}
+        {showIdeas && projectIdeas.length > 0 && (
+          <div className="Project-list-section">
+            <ul className="Project-List Project">
               {projectIdeas.map((project) => {
                 return (
                   <ProjectListItem
@@ -338,52 +326,74 @@ class ProjectList extends Component {
             </ul>
           </div>
         )}
-        {showProjects && !!projectsLFH.length && (
-          <div>
-            <h3>Looking for Help</h3>
-            <ul className="list-group Project-List">
-              {projectsLFH.map((project) => {
-                return (
-                  <ProjectListItem
-                    key={project.key}
-                    auth={auth}
-                    userVote={userVotes.filter((v) => v.project === project.key)}
-                    firebase={firebase}
-                    project={project}
-                    awardCategoryOptions={awardCategoryOptions}
-                    awardList={awardList}
-                    userList={userList}
-                    group={{id: project.group, ...groupsList[project.group]}}
-                    submissionsClosed={submissionsClosed}
-                  />
-                );
-              })}
+        {showProjects && projectsLFH.length + otherProjects.length > 0 && (
+          <div className="Project-list-section">
+            <ul className="Project-List Project">
+              {[...projectsLFH, ...otherProjects].map((project) => (
+                <ProjectListItem
+                  key={project.key}
+                  auth={auth}
+                  userVote={userVotes.filter((v) => v.project === project.key)}
+                  firebase={firebase}
+                  project={project}
+                  awardCategoryOptions={awardCategoryOptions}
+                  awardList={awardList}
+                  userList={userList}
+                  group={{id: project.group, ...groupsList[project.group]}}
+                  submissionsClosed={submissionsClosed}
+                />
+              ))}
             </ul>
           </div>
         )}
-        {showProjects && !!otherProjects.length && (
-          <div>
-            {!!projectsLFH.length && <h3>Other Projects</h3>}
-            <ul className="list-group Project-List">
-              {otherProjects.map((project) => {
-                return (
-                  <ProjectListItem
-                    key={project.key}
-                    auth={auth}
-                    userVote={userVotes.filter((v) => v.project === project.key)}
-                    firebase={firebase}
-                    project={project}
-                    awardCategoryOptions={awardCategoryOptions}
-                    awardList={awardList}
-                    userList={userList}
-                    group={{id: project.group, ...groupsList[project.group]}}
-                    submissionsClosed={submissionsClosed}
-                  />
-                );
-              })}
-            </ul>
-          </div>
-        )}
+        <div className="Project-list-tabs">
+          <ul className="tabs">
+            <li style={{fontWeight: showIdeas ? 'bold' : null}}>
+              <Link
+                to={{
+                  pathname: this.props.location.pathname,
+                  query: {
+                    show: 'ideas',
+                  },
+                }}
+              >
+                Ideas{' '}
+                <span
+                  className={
+                    showIdeas
+                      ? 'Project-list-count-active'
+                      : 'Project-list-count-inactive'
+                  }
+                >
+                  {projectIdeas.length === 0 ? '0' : projectIdeas.length}
+                </span>
+              </Link>
+            </li>
+            <li style={{fontWeight: showProjects ? 'bold' : null}}>
+              <Link
+                to={{
+                  pathname: this.props.location.pathname,
+                  query: {
+                    show: 'projects',
+                  },
+                }}
+              >
+                Projects{' '}
+                <span
+                  className={
+                    showProjects
+                      ? 'Project-list-count-active'
+                      : 'Project-list-count-inactive'
+                  }
+                >
+                  {projectsLFH.length + otherProjects.length === 0
+                    ? '0'
+                    : projectsLFH.length + otherProjects.length}
+                </span>
+              </Link>
+            </li>
+          </ul>
+        </div>
       </div>
     );
   }
@@ -431,55 +441,11 @@ class ProjectList extends Component {
 
     return (
       <Layout>
-        <div>
-          {!year.submissionsClosed && (
-            <Link
-              to="/new-project"
-              className="btn btn-sm btn-primary"
-              style={{float: 'right'}}
-            >
-              Add Project
-            </Link>
-          )}
-          <h2>Projects for {this.props.params.year || currentYear}</h2>
-        </div>
-        <div className="filter-groups">
-          <span>Filter groups:</span>
-          <Select
-            value={this.state.groupFilter}
-            multi={false}
-            options={groupOptions}
-            onChange={this.onChangeGroupFilter}
-            required
-          />
-        </div>
-        {currentYear !== (this.props.params.year || currentYear) && (
-          <div className="alert alert-block alert-info">
-            You're viewing an archive of Hackweek projects for {this.props.params.year}{' '}
-            &mdash; <Link to="/projects">Fast forward to {currentYear}</Link>
-          </div>
-        )}
-        {year.votingEnabled && (
-          <div className="alert alert-block alert-info">
-            Voting is currently enabled! Visit a project to cast your vote.
-            <br />
-            {votes.length > 0 && (
-              <>
-                Your votes:
-                <ul style={{marginTop: 4}}>
-                  {votes.map((v) => (
-                    <li key={v.project.key}>
-                      <strong>{v.award.name}</strong> -
-                      <Link to={`/projects/${v.project.key}`} style={{marginLeft: 4}}>
-                        {v.project.name}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
-          </div>
-        )}
+        <PageHeader
+          title="Hackweek"
+          currentYear={currentYear}
+          showAddProjectButton={!year.submissionsClosed}
+        />
         {this.renderBody(year)}
       </Layout>
     );

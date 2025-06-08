@@ -12,6 +12,14 @@ import {currentYear} from '../config';
 import Layout from '../components/Layout';
 import {mapObject, orderedPopulatedDataToJS} from '../helpers';
 import {slugify} from '../utils';
+import Button from '../components/Button';
+import PageHeader from '../components/PageHeader';
+import {
+  MultiValueContainer,
+  MultiValueLabel,
+  MultiValueRemove,
+  customStyles,
+} from '../components/SelectComponents';
 
 class NewProject extends Component {
   static propTypes = {
@@ -123,7 +131,7 @@ class NewProject extends Component {
 
     return (
       <Layout>
-        <h2>Add a New Project</h2>
+        <PageHeader title="Add a New Project" />
         <form onSubmit={this.onSubmit} className="form New-Project-Form">
           <div className="form-group">
             <label>Project Name</label>
@@ -131,20 +139,10 @@ class NewProject extends Component {
               className="form-control"
               type="text"
               name="name"
+              placeholder="my cool project"
               value={this.state.name}
               onChange={this.onChangeField}
               required
-            />
-          </div>
-          <div className="form-group">
-            <label>Group</label>
-            <Select
-              name="group"
-              value={this.state.group}
-              multi={false}
-              options={groupOptions}
-              onChange={this.onChangeGroup}
-              required={!this.state.isIdea}
             />
           </div>
           <div className="form-group">
@@ -160,15 +158,16 @@ class NewProject extends Component {
           </div>
           <div className="form-group">
             <div className="checkbox">
-              <label>
-                <input
-                  type="checkbox"
-                  name="isIdea"
-                  checked={this.state.isIdea}
-                  onChange={(e) => {
-                    this.setState({isIdea: e.target.checked});
-                  }}
-                />{' '}
+              <input
+                type="checkbox"
+                id="isIdea"
+                name="isIdea"
+                checked={this.state.isIdea}
+                onChange={(e) => {
+                  this.setState({isIdea: e.target.checked});
+                }}
+              />
+              <label htmlFor="isIdea">
                 This project is just being shared as an idea.
               </label>
             </div>
@@ -176,29 +175,41 @@ class NewProject extends Component {
           {!this.state.isIdea && (
             <React.Fragment>
               <div className="form-group">
-                <label>Team</label>
+                <label>Group</label>
                 <Select
-                  name="team"
-                  value={this.state.team}
-                  multi={true}
-                  options={teamOptions}
-                  onChange={this.onChangeTeam}
+                  styles={customStyles}
+                  name="group"
+                  value={this.state.group}
+                  isMulti={false}
+                  options={groupOptions}
+                  onChange={this.onChangeGroup}
+                  required={!this.state.isIdea}
                 />
               </div>
-              <h3>Looking for Help?</h3>
+              <div className="form-group">
+                <label>Team</label>
+                <Select
+                  styles={customStyles}
+                  name="team"
+                  value={this.state.team}
+                  isMulti={true}
+                  options={teamOptions}
+                  onChange={this.onChangeTeam}
+                  components={{MultiValueLabel, MultiValueContainer, MultiValueRemove}}
+                />
+              </div>
               <div className="form-group">
                 <div className="checkbox">
-                  <label>
-                    <input
-                      type="checkbox"
-                      name="needHelp"
-                      checked={this.state.needHelp}
-                      onChange={(e) => {
-                        this.setState({needHelp: e.target.checked});
-                      }}
-                    />{' '}
-                    I'm looking for help on this project!
-                  </label>
+                  <input
+                    type="checkbox"
+                    id="needHelp"
+                    name="needHelp"
+                    checked={this.state.needHelp}
+                    onChange={(e) => {
+                      this.setState({needHelp: e.target.checked});
+                    }}
+                  />
+                  <label htmlFor="needHelp">I'm looking for help on this project!</label>
                 </div>
               </div>
               {this.state.needHelp && (
@@ -217,8 +228,18 @@ class NewProject extends Component {
               )}
             </React.Fragment>
           )}
-          <div className="btn-set" style={{textAlign: 'right'}}>
-            <button className="btn btn-primary">Save Changes</button>
+          <div className="btn-set">
+            <Button
+              priority="tertiary"
+              size="sm"
+              type="button"
+              onClick={() => this.context.router.push('/projects')}
+            >
+              nevermind
+            </Button>
+            <Button priority="primary" size="sm" type="submit">
+              create project
+            </Button>
           </div>
         </form>
       </Layout>

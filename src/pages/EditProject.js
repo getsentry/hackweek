@@ -15,7 +15,14 @@ import Layout from '../components/Layout';
 import {mapObject, orderedPopulatedDataToJS} from '../helpers';
 import MediaObject from '../components/MediaObject';
 import {humanizeBytes} from '../utils';
-
+import Button from '../components/Button';
+import PageHeader from '../components/PageHeader';
+import {
+  MultiValueContainer,
+  MultiValueLabel,
+  MultiValueRemove,
+  customStyles,
+} from '../components/SelectComponents';
 class EditProject extends Component {
   static propTypes = {
     auth: PropTypes.object,
@@ -48,7 +55,9 @@ class EditProject extends Component {
         loaded: true,
         name: project.name,
         summary: project.summary,
-        group: project.group,
+        group: project.group
+          ? {value: project.group, label: groupsList[project.group]?.name}
+          : null,
         repository: project.repository,
         needHelp: project.needHelp || false,
         needHelpComments: project.needHelpComments || '',
@@ -88,7 +97,7 @@ class EditProject extends Component {
     firebase
       .update(`/years/${params.year || currentYear}/projects/${params.projectKey}`, {
         name: this.state.name,
-        group: this.state.group,
+        group: this.state.group ? this.state.group.value : '',
         summary: this.state.summary,
         repository: this.state.repository || '',
         isIdea: this.state.isIdea,
@@ -216,7 +225,7 @@ class EditProject extends Component {
   };
 
   onChangeGroup = (group) => {
-    this.setState({group: group.value});
+    this.setState({group});
   };
 
   render() {
@@ -234,9 +243,12 @@ class EditProject extends Component {
       label: group.name,
     }));
 
+    const isClaim = 'claim' in (this.props.location?.query || {});
+
     return (
       <Layout>
-        <h2>Edit Project</h2>
+        <PageHeader title={isClaim ? 'Claim project' : 'Edit'} />
+        {/* <h2>{isClaim ? 'Claim Project' : 'Edit Project'}</h2> */}
         <form onSubmit={this.onSubmit} className="form New-Project-Form">
           <div className="form-group">
             <label>Project Name</label>
@@ -246,17 +258,6 @@ class EditProject extends Component {
               name="name"
               value={this.state.name}
               onChange={this.onChangeField}
-              required
-            />
-          </div>
-          <div className="form-group">
-            <label>Group</label>
-            <Select
-              name="group"
-              value={this.state.group}
-              multi={false}
-              options={groupOptions}
-              onChange={this.onChangeGroup}
               required
             />
           </div>
@@ -285,15 +286,16 @@ class EditProject extends Component {
           )}
           <div className="form-group">
             <div className="checkbox">
-              <label>
-                <input
-                  type="checkbox"
-                  name="isIdea"
-                  checked={this.state.isIdea}
-                  onChange={(e) => {
-                    this.setState({isIdea: e.target.checked});
-                  }}
-                />{' '}
+              <input
+                type="checkbox"
+                id="isIdea"
+                name="isIdea"
+                checked={this.state.isIdea}
+                onChange={(e) => {
+                  this.setState({isIdea: e.target.checked});
+                }}
+              />
+              <label htmlFor="isIdea">
                 This project is just being shared as an idea.
               </label>
             </div>
@@ -301,30 +303,42 @@ class EditProject extends Component {
           {!this.state.isIdea && (
             <React.Fragment>
               <div className="form-group">
+                <label>Group</label>
+                <Select
+                  styles={customStyles}
+                  name="group"
+                  value={this.state.group}
+                  isMulti={false}
+                  options={groupOptions}
+                  onChange={this.onChangeGroup}
+                />
+              </div>
+              <div className="form-group">
                 <label>Team</label>
                 <Select
+                  styles={customStyles}
                   name="team"
                   value={this.state.team}
-                  multi={true}
+                  isMulti={true}
                   options={teamOptions}
                   onChange={this.onChangeTeam}
+                  components={{MultiValueLabel, MultiValueContainer, MultiValueRemove}}
                 />
               </div>
 
               <h3>Looking for Help?</h3>
               <div className="form-group">
                 <div className="checkbox">
-                  <label>
-                    <input
-                      type="checkbox"
-                      name="needHelp"
-                      checked={this.state.needHelp}
-                      onChange={(e) => {
-                        this.setState({needHelp: e.target.checked});
-                      }}
-                    />{' '}
-                    I'm looking for help on this project!
-                  </label>
+                  <input
+                    type="checkbox"
+                    id="needHelp"
+                    name="needHelp"
+                    checked={this.state.needHelp}
+                    onChange={(e) => {
+                      this.setState({needHelp: e.target.checked});
+                    }}
+                  />
+                  <label htmlFor="needHelp">I'm looking for help on this project!</label>
                 </div>
               </div>
               {this.state.needHelp && (
@@ -387,16 +401,17 @@ class EditProject extends Component {
           )}
 
           <div className="btn-set" style={{textAlign: 'right'}}>
-            <Link
-              to={this.getProjectUrl()}
-              className="btn btn-default"
-              disabled={this.state.saving}
+            <Button
+              priority="tertiary"
+              type="button"
+              size="sm"
+              onClick={() => this.context.router.goBack()}
             >
-              Cancel
-            </Link>
-            <button className="btn btn-primary" disabled={this.state.saving}>
-              Save Changes
-            </button>
+              nevermind
+            </Button>
+            <Button size="sm" kind="primary" type="submit" disabled={this.state.saving}>
+              {isClaim ? 'Claim project' : 'Save Changes'}
+            </Button>
           </div>
         </form>
       </Layout>

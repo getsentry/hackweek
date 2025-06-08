@@ -6,6 +6,7 @@ import {compose} from 'redux';
 import {firebaseConnect, isLoaded, pathToJS} from 'react-redux-firebase';
 import Select from 'react-select';
 
+import {customStyles} from '../components/SelectComponents';
 import {mapObject, orderedPopulatedDataToJS} from '../helpers';
 
 class AwardRow extends Component {
@@ -16,6 +17,7 @@ class AwardRow extends Component {
     projectList: PropTypes.object.isRequired,
     awardCategoryList: PropTypes.object.isRequired,
     year: PropTypes.string.isRequired,
+    usedAwardCategories: PropTypes.array,
   };
 
   static contextTypes = {
@@ -24,12 +26,79 @@ class AwardRow extends Component {
 
   constructor(props, ...args) {
     super(props, ...args);
+
+    // Build options for hydration
+    const projectOptions = mapObject(props.projectList)
+      .sort((a, b) => ('' + a.name).localeCompare(b.name))
+      .map((project) => ({
+        value: project.key,
+        label: project.name,
+      }));
+
+    const awardCategoryOptions = mapObject(props.awardCategoryList)
+      .sort((a, b) => ('' + a.name).localeCompare(b.name))
+      .map((awardCategory) => ({
+        value: awardCategory.key,
+        label: awardCategory.name,
+      }));
+
+    let project = props.award?.project;
+    if (project && typeof project === 'string') {
+      project = projectOptions.find((opt) => opt.value === project) || null;
+    }
+
+    let awardCategory = props.award?.awardCategory;
+    if (awardCategory && typeof awardCategory === 'string') {
+      awardCategory =
+        awardCategoryOptions.find((opt) => opt.value === awardCategory) || null;
+    }
+
     this.state = {
-      name: '',
-      project: null,
-      awardCategory: null,
+      name: props.award?.name || '',
+      project,
+      awardCategory,
       ...(props.award || {}),
     };
+  }
+
+  componentDidUpdate(prevProps) {
+    // Only hydrate if the award or the lists have changed
+    if (
+      prevProps.award !== this.props.award ||
+      prevProps.projectList !== this.props.projectList ||
+      prevProps.awardCategoryList !== this.props.awardCategoryList
+    ) {
+      const projectOptions = mapObject(this.props.projectList)
+        .sort((a, b) => ('' + a.name).localeCompare(b.name))
+        .map((project) => ({
+          value: project.key,
+          label: project.name,
+        }));
+
+      const awardCategoryOptions = mapObject(this.props.awardCategoryList)
+        .sort((a, b) => ('' + a.name).localeCompare(b.name))
+        .map((awardCategory) => ({
+          value: awardCategory.key,
+          label: awardCategory.name,
+        }));
+
+      let project = this.props.award?.project;
+      if (project && typeof project === 'string') {
+        project = projectOptions.find((opt) => opt.value === project) || null;
+      }
+
+      let awardCategory = this.props.award?.awardCategory;
+      if (awardCategory && typeof awardCategory === 'string') {
+        awardCategory =
+          awardCategoryOptions.find((opt) => opt.value === awardCategory) || null;
+      }
+
+      this.setState({
+        name: this.props.award?.name || '',
+        project,
+        awardCategory,
+      });
+    }
   }
 
   onChangeField = (e) => {
@@ -39,11 +108,11 @@ class AwardRow extends Component {
   };
 
   onChangeProject = (choice) => {
-    this.setState({project: choice.value});
+    this.setState({project: choice});
   };
 
   onChangeAwardCategory = (choice) => {
-    this.setState({awardCategory: choice.value});
+    this.setState({awardCategory: choice});
   };
 
   hasChanges() {
@@ -59,12 +128,12 @@ class AwardRow extends Component {
 
   onSuccess = () => {
     if (!this.props.award) {
-      this.setState({name: '', project: null});
+      this.setState({name: '', project: null, awardCategory: null});
     }
   };
 
   render() {
-    let {award, projectList, awardCategoryList} = this.props;
+    let {award, projectList, awardCategoryList, usedAwardCategories = []} = this.props;
     let projectOptions = mapObject(projectList)
       .sort((a, b) => ('' + a.name).localeCompare(b.name))
       .map((project) => ({
@@ -79,6 +148,30 @@ class AwardRow extends Component {
         label: awardCategory.name,
       }));
 
+    // Hydrate project and awardCategory for Selects
+    const selectedProject =
+      typeof this.state.project === 'string'
+        ? projectOptions.find((opt) => opt.value === this.state.project) || null
+        : this.state.project;
+
+    const selectedAwardCategory =
+      typeof this.state.awardCategory === 'string'
+        ? awardCategoryOptions.find((opt) => opt.value === this.state.awardCategory) ||
+          null
+        : this.state.awardCategory;
+
+    // Filter awardCategoryOptions to only allow unused categories or the current selection
+    const currentAwardCategoryValue =
+      typeof this.state.awardCategory === 'string'
+        ? this.state.awardCategory
+        : this.state.awardCategory?.value;
+
+    const filteredAwardCategoryOptions = awardCategoryOptions.filter(
+      (opt) =>
+        !usedAwardCategories.includes(opt.value) ||
+        opt.value === currentAwardCategoryValue
+    );
+
     return (
       <form
         onSubmit={(e) =>
@@ -89,25 +182,25 @@ class AwardRow extends Component {
         <div className="row">
           <div className="col-sm-5">
             <Select
+              styles={customStyles}
               name="category"
-              value={this.state.awardCategory}
-              multi={false}
-              options={awardCategoryOptions}
+              value={selectedAwardCategory}
+              options={filteredAwardCategoryOptions}
               onChange={this.onChangeAwardCategory}
             />
           </div>
           <div className="col-sm-5">
             <Select
+              styles={customStyles}
               name="project"
-              value={this.state.project}
-              multi={false}
+              value={selectedProject}
               options={projectOptions}
               onChange={this.onChangeProject}
             />
           </div>
           <div className="col-sm-2">
             <button
-              className="btn btn-primary"
+              className="btn btn-primary btn-lg"
               disabled={!this.hasChanges()}
               onClick={() => this.props.onSave(this.state, this.onSuccess)}
             >
@@ -115,7 +208,7 @@ class AwardRow extends Component {
             </button>
             {!!award && (
               <button
-                className="btn btn-danger"
+                className="btn btn-danger btn-lg"
                 style={{marginLeft: 5}}
                 onClick={() => this.props.onDelete(this.state)}
               >
@@ -159,16 +252,19 @@ class ManageAwards extends Component {
       firebase
         .update(`/years/${year}/awards/${award.key}`, {
           name: award.name,
-          project: award.project || null,
-          awardCategory: award.awardCategory || null,
+          project: award.project?.value || null,
+          awardCategory: award.awardCategory?.value || null,
         })
-        .then(onSuccess);
+        .then(onSuccess)
+        .catch((error) => {
+          console.error(error);
+        });
     } else {
       firebase
         .push(`/years/${year}/awards`, {
           name: award.name,
-          project: award.project || null,
-          awardCategory: award.awardCategory || null,
+          project: award.project?.value || null,
+          awardCategory: award.awardCategory?.value || null,
           ts: Date.now(),
           creator: auth.uid,
         })
@@ -188,27 +284,61 @@ class ManageAwards extends Component {
 
     let {year} = this.props.params;
 
-    console.dir(awardCategoryList);
+    const awards = mapObject(awardList);
+
     return (
       <div>
-        {mapObject(awardList)
+        {awards
           .sort((a, b) => ('' + a.name).localeCompare(b.name))
-          .map((award) => (
-            <AwardRow
-              key={award.key}
-              award={award}
-              onSave={this.onSave}
-              onDelete={this.onDelete}
-              projectList={projectList}
-              awardCategoryList={awardCategoryList}
-              year={year}
-            />
-          ))}
+          .map((award, idx) => {
+            // Collect used awardCategories, excluding this row's own selection
+            const usedAwardCategories = awards
+              .filter((a, i) => i !== idx)
+              .map((a) => a.awardCategory)
+              .filter(Boolean);
+
+            // Filter awardCategoryList for this row
+            const filteredAwardCategoryList = Object.fromEntries(
+              awardCategoryList
+                ? Object.entries(awardCategoryList).filter(
+                    ([key, value]) =>
+                      !usedAwardCategories.includes(value.key) ||
+                      value.key === award.awardCategory
+                  )
+                : []
+            );
+
+            return (
+              <AwardRow
+                key={award.key}
+                award={award}
+                onSave={this.onSave}
+                onDelete={this.onDelete}
+                projectList={projectList}
+                awardCategoryList={filteredAwardCategoryList}
+                year={year}
+              />
+            );
+          })}
+        {/* Blank row for new award */}
         <AwardRow
+          key="new"
           onSave={this.onSave}
           onDelete={this.onDelete}
           projectList={projectList}
-          awardCategoryList={awardCategoryList}
+          awardCategoryList={
+            awardCategoryList
+              ? Object.fromEntries(
+                  Object.entries(awardCategoryList).filter(
+                    ([key, value]) =>
+                      !awards
+                        .map((a) => a.awardCategory)
+                        .filter(Boolean)
+                        .includes(value.key)
+                  )
+                )
+              : {}
+          }
           year={year}
         />
       </div>

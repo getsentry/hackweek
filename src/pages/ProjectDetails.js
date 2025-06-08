@@ -7,6 +7,7 @@ import {connect} from 'react-redux';
 import {compose} from 'redux';
 import {firebaseConnect, isLoaded, pathToJS} from 'react-redux-firebase';
 import Select from 'react-select';
+import Button from '../components/Button';
 
 import './ProjectList.css';
 
@@ -15,6 +16,8 @@ import {mapObject, orderedPopulatedDataToJS} from '../helpers';
 import Avatar from '../components/Avatar';
 import Layout from '../components/Layout';
 import MediaObject from '../components/MediaObject';
+import PageHeader from '../components/PageHeader';
+import {customStyles} from '../components/SelectComponents';
 
 function getVoteKey(uid, awardCategoryKey) {
   return `${uid}:${awardCategoryKey}`;
@@ -76,9 +79,10 @@ class ProjectVote extends Component {
         <h3>Vote</h3>
         <div>
           <Select
+            styles={customStyles}
             name="category"
             value={this.state.userVote}
-            multi={false}
+            isMulti={false}
             options={awardCategoryOptions}
             disabled={this.props.disabled}
             onChange={this.onChangeVote}
@@ -223,34 +227,30 @@ class ProjectDetails extends Component {
       <Layout>
         <div className="Project-Details">
           <div>
-            {canEdit && (
-              <div className="btn-set" style={{float: 'right'}}>
-                <Link
-                  to={`/years/${params.year || currentYear}/projects/${
-                    params.projectKey
-                  }/edit`}
-                  className="btn btn-sm btn-default"
-                >
-                  Edit Project
-                </Link>
-                <button onClick={this.onDelete} className="btn btn-sm btn-danger">
-                  Delete Project
-                </button>
-              </div>
-            )}
-            <h2>{project.name}</h2>
+            <PageHeader
+              title={project.name}
+              canEdit={canEdit}
+              onDelete={this.onDelete}
+              editLink={`/years/${params.year || currentYear}/projects/${
+                params.projectKey
+              }/edit`}
+            />
           </div>
           <div className="row">
             <div className="col-md-8">
-              <h3>Summary</h3>
+              {/* <video
+                src="https://drive.google.com/file/d/1JpX_JdIaDvPIL-glHRbbY6Ba4I--Wx5k/preview"
+                controls
+              /> */}
+              <h2>Summary</h2>
               <div
-                className="Project-summary"
+                className="Project-details-summary"
                 dangerouslySetInnerHTML={{
                   __html: marked(project.summary),
                 }}
               />
               {project.repository && (
-                <div className="Project-summary">
+                <div className="Project-details-summary">
                   <h3>Repository</h3>
                   <div>{project.repository}</div>
                 </div>
@@ -276,7 +276,7 @@ class ProjectDetails extends Component {
                 </div>
               ) : (
                 <React.Fragment>
-                  <h3>Team</h3>
+                  <h2>Team</h2>
                   {project.needHelp && (
                     <div className="alert alert-block alert-info">
                       {project.needHelpComments ? (
@@ -355,7 +355,6 @@ class ProjectDetails extends Component {
               )}
 
               <div className="Project-meta" key="meta">
-                <h3>Meta</h3>
                 <dl>
                   {creator && [
                     <dt key="dt-creator">Created By</dt>,

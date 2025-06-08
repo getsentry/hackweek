@@ -9,9 +9,11 @@ import {firebaseConnect, isLoaded} from 'react-redux-firebase';
 import './YearList.css';
 
 import {mapObject, orderedPopulatedDataToJS} from '../helpers';
-import Avatar from '../components/Avatar';
+
 import Layout from '../components/Layout';
 import {slugify} from '../utils';
+import PageHeader from '../components/PageHeader';
+import YearListItem from './YearListItem';
 
 class ProjectList extends Component {
   static propTypes = {
@@ -29,85 +31,39 @@ class ProjectList extends Component {
         <ul className="list-group Year-list">
           {Object.keys(yearList)
             .sort((a, b) => b - a)
-            .map((year) => {
-              let projects = yearList[year].projects || {};
-              let awardCategories = yearList[year].awardCategories || {};
-              let awardList = mapObject(yearList[year].awards || {});
-              let allMembers = new Set();
-              Object.values(projects).forEach((project) => {
-                Object.keys(project.members || {}).forEach((memberKey) => {
-                  allMembers.add(memberKey);
-                });
-              });
-              allMembers = Array.from(allMembers);
-              return (
-                <li key={year} className="Year">
-                  <div className="Year-name">
-                    <Link to={`/years/${year}/projects`}>
-                      {year} <span className="glyphicon glyphicon-circle-arrow-right" />
-                    </Link>
-                  </div>
-                  {!!allMembers.length && (
-                    <div className="Year-section">
-                      <ul className="Year-member-list">
-                        {allMembers
-                          .map((k) => userList[k])
-                          .filter((m) => m !== null)
-                          .sort((a, b) =>
-                            ('' + a.displayName).localeCompare(b.displayName)
-                          )
-                          .map((member) => {
-                            return (
-                              <li key={member.email} title={member.displayName}>
-                                <Avatar user={member} />
-                              </li>
-                            );
-                          })}
-                      </ul>
-                    </div>
-                  )}
-                  {!!awardList.length && (
-                    <div className="Year-section">
-                      <ul className="Year-award-list">
-                        {awardList
-                          .map((award) => {
-                            return [award, awardCategories[award.awardCategory]];
-                          })
-                          .sort((a, b) => ('' + a[1].name).localeCompare(b[1].name))
-                          .filter(([award]) => award.project && projects[award.project])
-                          .map(([award, awardCategory]) => {
-                            let project = projects[award.project];
-                            return (
-                              <li key={awardCategory.name}>
-                                <em>{awardCategory.name}</em> &mdash;{' '}
-                                <Link
-                                  to={`/years/${year}/projects/${award.project}/${slugify(
-                                    project.name
-                                  )}`}
-                                >
-                                  {project.name}
-                                </Link>
-                              </li>
-                            );
-                          })}
-                      </ul>
-                    </div>
-                  )}
-                </li>
-              );
-            })}
+            .map((year) => (
+              <YearListItem
+                key={year}
+                year={year}
+                yearData={yearList[year]}
+                userList={userList}
+              />
+            ))}
         </ul>
       </div>
     );
   }
 
   render() {
+    const {yearList} = this.props;
+    const years = yearList ? Object.keys(yearList).sort((a, b) => b - a) : [];
     return (
       <Layout>
         <div>
-          <h2>The Archives</h2>
+          <PageHeader title="Hackweek Archives" />
+          <div className="Layout-horizontal-container">
+            <div className="Layout-main-section">{this.renderBody()}</div>
+            <div className="Layout-sidebar">
+              <ul className="tabs">
+                {years.map((year) => (
+                  <li key={year}>
+                    <Link to={`/years/${year}/projects`}>{year}</Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
         </div>
-        {this.renderBody()}
       </Layout>
     );
   }

@@ -1,7 +1,7 @@
 .micro-countdown {
-  font-size: 16px;
-  font-weight: 500;
-  color: #584d66;
+  font-weight: 700;
+  color: var(--color-gray100);
   white-space: nowrap;
+  margin: 0 auto;
   display: inline-block;
 }

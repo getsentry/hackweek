@@ -54,11 +54,11 @@ class ProjectListItem extends Component {
         ? `/projects/${project.key}/${slugify(project.name)}`
         : `/years/${project.year}/projects/${project.key}/${slugify(project.name)}`;
 
-    let projectMembers = Object.keys(project.members || {})
-      .map((memberKey) => {
-        return userList[memberKey];
-      })
-      .filter((member) => member !== null);
+    let projectMembers = userList
+      ? Object.keys(project.members || {})
+          .map((memberKey) => userList[memberKey])
+          .filter((member) => member != null)
+      : [];
     projectMembers.sort((a, b) => ('' + a.displayName).localeCompare(b.displayName));
 
     // hide project if its not executed on

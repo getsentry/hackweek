@@ -21,6 +21,7 @@ import {
   MultiValueContainer,
   MultiValueLabel,
   MultiValueRemove,
+  customStyles,
 } from '../components/SelectComponents';
 class EditProject extends Component {
   static propTypes = {
@@ -304,6 +305,7 @@ class EditProject extends Component {
               <div className="form-group">
                 <label>Group</label>
                 <Select
+                  styles={customStyles}
                   name="group"
                   value={this.state.group}
                   isMulti={false}
@@ -314,6 +316,7 @@ class EditProject extends Component {
               <div className="form-group">
                 <label>Team</label>
                 <Select
+                  styles={customStyles}
                   name="team"
                   value={this.state.team}
                   isMulti={true}

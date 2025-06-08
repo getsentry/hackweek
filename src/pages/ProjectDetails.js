@@ -17,6 +17,7 @@ import Avatar from '../components/Avatar';
 import Layout from '../components/Layout';
 import MediaObject from '../components/MediaObject';
 import PageHeader from '../components/PageHeader';
+import {customStyles} from '../components/SelectComponents';
 
 function getVoteKey(uid, awardCategoryKey) {
   return `${uid}:${awardCategoryKey}`;
@@ -78,6 +79,7 @@ class ProjectVote extends Component {
         <h3>Vote</h3>
         <div>
           <Select
+            styles={customStyles}
             name="category"
             value={this.state.userVote}
             isMulti={false}

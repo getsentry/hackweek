@@ -1,5 +1,43 @@
 import {components} from 'react-select';
 
+export const customStyles = {
+  control: (provided, state) => ({
+    ...provided,
+    borderColor: state.isFocused ? 'var(--color-blurple)' : 'var(--color-gray400)',
+    boxShadow: state.isFocused ? '0 0 0 2px var(--color-blurple)' : 'none',
+    minHeight: '40px',
+    borderRadius: '0.5em',
+    fontSize: '14px',
+    margin: '0px 0px',
+    padding: '0px 0px',
+    transition: 'border-color 0.2s, box-shadow 0.2s',
+    '&:hover': {
+      borderColor: 'var(--color-blurple)',
+    },
+  }),
+  option: (provided, state) => ({
+    ...provided,
+    backgroundColor: state.isSelected
+      ? 'var(--color-blurple)'
+      : state.isFocused
+      ? 'var(--color-gray400)'
+      : 'white',
+    color: state.isSelected ? 'white' : 'var(--color-gray100)',
+    cursor: 'pointer',
+    '&:active': {
+      backgroundColor: 'var(--color-dk-blurple)',
+      color: 'white',
+    },
+  }),
+  singleValue: (provided) => ({
+    ...provided,
+    color: 'blue',
+  }),
+  input: (provided) => ({
+    ...provided,
+    color: 'green',
+  }),
+};
 export function MultiValueContainer({children, ...props}) {
   return (
     <components.MultiValueContainer className="HEY" {...props}>

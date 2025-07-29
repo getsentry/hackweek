@@ -1,7 +1,7 @@
-import React from 'react';
 import * as Router from 'react-router';
 import {render} from 'react-dom';
 import {Provider} from 'react-redux';
+import {useScroll} from 'react-router-scroll';
 
 import configureStore from './store';
 
@@ -39,7 +39,11 @@ const store = configureStore(initialState);
 
 render(
   <Provider store={store}>
-    <Router.Router history={Router.browserHistory} routes={routes} />
+    <Router.Router
+      history={Router.browserHistory}
+      routes={routes}
+      render={Router.applyRouterMiddleware(useScroll())}
+    />
   </Provider>,
   document.getElementById('root')
 );

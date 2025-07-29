@@ -235,7 +235,7 @@ class ProjectDetails extends Component {
               }/edit`}
             />
           </div>
-          <div>
+          <div style={{display: 'flex'}}>
             <div className="col-md-8">
               {project.videoUrl &&
                 project.videoUrl.match(

@@ -422,14 +422,6 @@ class ProjectList extends Component {
       year.submissionsClosed = true;
     }
 
-    const groupOptions = mapObject(
-      Object.assign({'': {name: 'No group'}}, this.props.groupsList),
-      (group, groupKey) => ({
-        value: groupKey,
-        label: group.name,
-      })
-    );
-
     let votes = [];
     if (this.props.auth && this.props.awardCategoryList && this.props.projectList) {
       let userVotes = year ? getAuthUserVotes(this.props.auth.uid, year.votes) : [];

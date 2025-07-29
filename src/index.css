@@ -153,6 +153,9 @@ dd {
   display: flex;
   gap: 1em;
 }
+.Project-Details .row {
+  max-width: 100%;
+}
 .btn-set .btn {
   margin-left: 5px;
   margin-right: 10px;
@@ -267,6 +270,10 @@ body,
   height: 100%;
   margin: 0;
   padding: 0;
+}
+
+body {
+  padding-inline: 12px;
 }
 
 .app-layout {

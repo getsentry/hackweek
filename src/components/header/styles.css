@@ -63,6 +63,20 @@
   align-items: center;
 }
 
+.avatar-container-email {
+  font-weight: normal;
+}
+
+.avatar-container-logout {
+  font-weight: normal;
+  display: none;
+}
+
+.avatar-container-image {
+  max-width: 42px;
+  max-height: 42px;
+}
+
 .avatar-button {
   background: none;
   size: 4px;
@@ -108,5 +122,15 @@
   .header-title-container span,
   .header-countdown {
     display: none;
+  }
+}
+
+@media (max-width: 580px) {
+  .avatar-container-email {
+    display: none;
+  }
+
+  .avatar-container-logout {
+    display: inline;
   }
 }

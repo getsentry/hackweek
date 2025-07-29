@@ -33,7 +33,9 @@ const Header = ({onLogin, onLogout, isAuthenticated, user, showMicroTimer = true
           ) : (
             <div className="avatar-container">
               <Button onClick={onLogout} priority="tertiary" size="xs" type="button">
-                logged in as {user?.email}
+                <span className="avatar-container-email">{user?.email}</span>
+                <span className="avatar-container-logout">logout</span>
+                <img src={user?.avatarUrl} className="avatar-container-image" />
               </Button>
             </div>
           )}

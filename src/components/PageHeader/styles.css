@@ -45,3 +45,15 @@
   max-width: 69%;
   gap: 0.5em;
 }
+
+@media only screen and (max-width: 1024px) {
+  .page-header-container {
+    flex-direction: column;
+    align-items: flex-start;
+    row-gap: 12px;
+  }
+
+  .page-header-title-container {
+    max-width: 100%;
+  }
+}

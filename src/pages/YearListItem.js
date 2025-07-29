@@ -29,6 +29,7 @@ function YearAwardList({awards, awardCategories, projects, year}) {
               <li className="Year-award-list-item" key={awardCategory.name}>
                 <em>{awardCategory.name}</em> &mdash;{' '}
                 <Link
+                  className="no-forced-lowercase"
                   to={`/years/${year}/projects/${award.project}/${slugify(project.name)}`}
                 >
                   {project.name}

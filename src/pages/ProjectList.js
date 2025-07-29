@@ -86,10 +86,12 @@ class ProjectListItem extends Component {
               <div className={`Project-group-badge ${group.id}`}>{group.name}</div>
             )}
             <Link to={link}>
-              <h3>{project.name}</h3>
+              <h3 className="no-forced-lowercase">{project.name}</h3>
             </Link>
             {/* Project Summary or Members/Badges */}
-            <p className="Project-idea-summary">{summarize(project.summary)}</p>
+            <p className="Project-idea-summary no-forced-lowercase">
+              {summarize(project.summary)}
+            </p>
 
             <div className="Project-member-list-condensed">
               {projectMembers.length > 0 &&

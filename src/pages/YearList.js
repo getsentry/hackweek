@@ -1,4 +1,4 @@
-import React, {Component} from 'react';
+import {Component} from 'react';
 import {Link} from 'react-router';
 import PropTypes from 'prop-types';
 
@@ -8,10 +8,9 @@ import {firebaseConnect, isLoaded} from 'react-redux-firebase';
 
 import './YearList.css';
 
-import {mapObject, orderedPopulatedDataToJS} from '../helpers';
+import {orderedPopulatedDataToJS} from '../helpers';
 
 import Layout from '../components/Layout';
-import {slugify} from '../utils';
 import PageHeader from '../components/PageHeader';
 import YearListItem from './YearListItem';
 

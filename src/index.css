@@ -299,7 +299,9 @@ input {
   border: 1px solid #ccc;
   border-radius: 0.5em;
   /* box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075); */
-  transition: border-color ease-in-out 0.15s, box-shadow ease-in-out 0.15s;
+  transition:
+    border-color ease-in-out 0.15s,
+    box-shadow ease-in-out 0.15s;
 }
 
 /* .react-select__control {
@@ -342,4 +344,8 @@ input {
   justify-content: center;
   color: white;
   font-weight: bold;
+}
+
+.no-forced-lowercase {
+  text-transform: none;
 }

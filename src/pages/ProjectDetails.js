@@ -249,7 +249,7 @@ class ProjectDetails extends Component {
                 )}
               <h2>Summary</h2>
               <div
-                className="Project-details-summary"
+                className="Project-details-summary no-forced-lowercase"
                 dangerouslySetInnerHTML={{
                   __html: marked(project.summary),
                 }}
@@ -290,6 +290,7 @@ class ProjectDetails extends Component {
                             <strong>This project is looking for help!</strong>
                           </header>
                           <span
+                            className="no-forced-lowercase"
                             dangerouslySetInnerHTML={{
                               __html: marked(project.needHelpComments),
                             }}

@@ -1,5 +1,4 @@
 import React, {Component} from 'react';
-import {Link} from 'react-router';
 import PropTypes from 'prop-types';
 import Dropzone from 'react-dropzone';
 import {connect} from 'react-redux';
@@ -55,6 +54,7 @@ class EditProject extends Component {
         loaded: true,
         name: project.name,
         summary: project.summary,
+        videoUrl: project.videoUrl,
         group: project.group
           ? {value: project.group, label: groupsList[project.group]?.name}
           : null,
@@ -101,6 +101,7 @@ class EditProject extends Component {
         summary: this.state.summary,
         repository: this.state.repository || '',
         isIdea: this.state.isIdea,
+        videoUrl: this.state.videoUrl,
         needHelp: !this.state.isIdea && this.state.needHelp,
         needHelpComments: this.state.needHelpComments,
       })
@@ -280,6 +281,18 @@ class EditProject extends Component {
                 type="text"
                 name="repository"
                 value={this.state.repository}
+                onChange={this.onChangeField}
+              />
+            </div>
+          )}
+          {!this.state.isIdea && (
+            <div className="form-group">
+              <label>Video URL</label>
+              <input
+                className="form-control"
+                type="text"
+                name="videoUrl"
+                value={this.state.videoUrl}
                 onChange={this.onChangeField}
               />
             </div>

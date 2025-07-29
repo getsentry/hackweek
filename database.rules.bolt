@@ -55,6 +55,7 @@ type Project {
     needHelpComments: String | Null,
     year: String,
     group: GroupRef | Null,
+    videoUrl: String | Null,
 
     validate() {
         prior(this.members) == null || prior(this.members[auth.uid]) != null || isAdmin()

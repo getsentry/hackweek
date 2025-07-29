@@ -7,7 +7,6 @@ import {connect} from 'react-redux';
 import {compose} from 'redux';
 import {firebaseConnect, isLoaded, pathToJS} from 'react-redux-firebase';
 import Select from 'react-select';
-import Button from '../components/Button';
 
 import './ProjectList.css';
 
@@ -238,10 +237,16 @@ class ProjectDetails extends Component {
           </div>
           <div className="row">
             <div className="col-md-8">
-              {/* <video
-                src="https://drive.google.com/file/d/1JpX_JdIaDvPIL-glHRbbY6Ba4I--Wx5k/preview"
-                controls
-              /> */}
+              {project.videoUrl &&
+                project.videoUrl.match(
+                  /https:\/\/drive\.google\.com\/file\/d\/(.*)\/[a-z]*.*/
+                )[1] && (
+                  <iframe
+                    src={`https://drive.google.com/file/d/${project.videoUrl.match(/https:\/\/drive\.google\.com\/file\/d\/(.*)\/[a-z]*.*/)[1]}/preview`}
+                    allow="autoplay"
+                    style={{width: '100%', aspectRatio: '16/9'}}
+                  ></iframe>
+                )}
               <h2>Summary</h2>
               <div
                 className="Project-details-summary"

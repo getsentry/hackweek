@@ -270,9 +270,14 @@ dd {
     flex-direction: column;
   }
 
+  .Layout-sidebar {
+    max-width: 100%;
+  }
+
   .Layout-sidebar .tabs {
     flex-direction: row;
     column-gap: 18px;
+    flex-wrap: wrap;
   }
 }
 

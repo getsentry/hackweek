@@ -25,7 +25,7 @@ function getVoteKey(uid, awardCategoryKey) {
 function Awards({awards, awardCategories}) {
   return awards && awards.length ? (
     <div className="Project-meta" key="awards">
-      <h3>Awards</h3>
+      <span className="Project-meta-title">Awards</span>
       <ul className="Project-award-list">
         {awards.map((award) => (
           <li key={award.key}>
@@ -344,7 +344,7 @@ class ProjectDetails extends Component {
                 </div>
               )}
             </div>
-            <div className="col-md-3 col-md-offset-1">
+            <div className="col-md-offset-1">
               {year.votingEnabled ? (
                 <ProjectVote
                   key={this.state.userVote && this.state.userVote.awardCategory}

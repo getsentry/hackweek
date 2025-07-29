@@ -138,6 +138,11 @@
   margin-bottom: 20px;
 }
 
+.Project-meta-title {
+  font-weight: 600;
+  font-size: 1.25em;
+}
+
 /* Project Media Section */
 .Project-media {
   margin-bottom: 20px;

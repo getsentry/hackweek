@@ -373,3 +373,7 @@ input {
 .no-forced-lowercase {
   text-transform: none;
 }
+
+.Project-details-summary {
+  overflow: hidden;
+}

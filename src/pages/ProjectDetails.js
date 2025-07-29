@@ -235,8 +235,8 @@ class ProjectDetails extends Component {
               }/edit`}
             />
           </div>
-          <div style={{display: 'flex'}}>
-            <div className="col-md-8">
+          <div className="Project-Details-Content">
+            <div className="">
               {project.videoUrl &&
                 project.videoUrl.match(
                   /https:\/\/drive\.google\.com\/file\/d\/(.*)\/[a-z]*.*/
@@ -344,7 +344,7 @@ class ProjectDetails extends Component {
                 </div>
               )}
             </div>
-            <div className="col-md-offset-1">
+            <div className="Project-Details-Sidebar">
               {year.votingEnabled ? (
                 <ProjectVote
                   key={this.state.userVote && this.state.userVote.awardCategory}

@@ -153,6 +153,22 @@ dd {
   display: flex;
   gap: 1em;
 }
+.Project-Details {
+  overflow: hidden;
+  width: 100%;
+}
+.Project-Details-Content {
+  display: flex;
+  column-gap: 12px;
+}
+.Project-Details-Sidebar {
+  min-width: max-content;
+}
+@media (max-width: 1024px) {
+  .Project-Details-Content {
+    flex-direction: column;
+  }
+}
 .Project-Details .col-md-8 {
   padding-left: 0px;
   padding-right: 0px;

@@ -16,7 +16,7 @@ const PageHeader = ({
 }) => (
   <div className={`page-header-container ${className}`.trim()}>
     <div className="page-header-title-container">
-      {title && <h2 className="page-header-title">{title}</h2>}
+      {title && <h2 className="page-header-title no-forced-lowercase">{title}</h2>}
       {currentYear && <h2 className="page-header-title">{currentYear}</h2>}
     </div>
     <div className="page-header-action">

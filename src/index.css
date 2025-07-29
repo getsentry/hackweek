@@ -153,8 +153,9 @@ dd {
   display: flex;
   gap: 1em;
 }
-.Project-Details .row {
-  max-width: 100%;
+.Project-Details .col-md-8 {
+  padding-left: 0px;
+  padding-right: 0px;
 }
 .btn-set .btn {
   margin-left: 5px;
@@ -262,6 +263,17 @@ dd {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+@media only screen and (max-width: 640px) {
+  .Layout-horizontal-container {
+    flex-direction: column;
+  }
+
+  .Layout-sidebar .tabs {
+    flex-direction: row;
+    column-gap: 18px;
+  }
 }
 
 html,

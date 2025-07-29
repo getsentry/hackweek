@@ -51,7 +51,6 @@ class ProjectList extends Component {
         <div>
           <PageHeader title="Hackweek Archives" />
           <div className="Layout-horizontal-container">
-            <div className="Layout-main-section">{this.renderBody()}</div>
             <div className="Layout-sidebar">
               <ul className="tabs">
                 {years.map((year) => (
@@ -61,6 +60,7 @@ class ProjectList extends Component {
                 ))}
               </ul>
             </div>
+            <div className="Layout-main-section">{this.renderBody()}</div>
           </div>
         </div>
       </Layout>

@@ -101,7 +101,7 @@ class EditProject extends Component {
         summary: this.state.summary,
         repository: this.state.repository || '',
         isIdea: this.state.isIdea,
-        videoUrl: this.state.videoUrl,
+        videoUrl: this.state.videoUrl || '',
         needHelp: !this.state.isIdea && this.state.needHelp,
         needHelpComments: this.state.needHelpComments,
       })

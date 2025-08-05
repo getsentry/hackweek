@@ -154,7 +154,6 @@ dd {
   gap: 1em;
 }
 .Project-Details {
-  overflow: hidden;
   width: 100%;
 }
 .Project-Details-Content {
@@ -162,11 +161,17 @@ dd {
   column-gap: 12px;
 }
 .Project-Details-Sidebar {
-  min-width: max-content;
+  flex: 0 0 200px; /* Fixed width of 300px on larger screens */
+  min-width: 200px;
 }
 @media (max-width: 1024px) {
   .Project-Details-Content {
     flex-direction: column;
+  }
+  .Project-Details-Sidebar {
+    flex: 1 1 auto; /* Full width on smaller screens */
+    min-width: auto;
+    width: 100%;
   }
 }
 .Project-Details .col-md-8 {
@@ -339,9 +344,7 @@ input {
   border: 1px solid #ccc;
   border-radius: 0.5em;
   /* box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.075); */
-  transition:
-    border-color ease-in-out 0.15s,
-    box-shadow ease-in-out 0.15s;
+  transition: border-color ease-in-out 0.15s, box-shadow ease-in-out 0.15s;
 }
 
 /* .react-select__control {

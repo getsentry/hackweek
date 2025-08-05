@@ -7,6 +7,7 @@ import {firebaseConnect, isEmpty, isLoaded, pathToJS} from 'react-redux-firebase
 import * as Sentry from '@sentry/react';
 import Header from './header';
 import FooterSection from './FooterSection';
+import VotesWidget from '../pages/VotesWidget';
 
 import {currentYear} from '../config';
 import Avatar from './Avatar';
@@ -57,7 +58,7 @@ class Layout extends Component {
     const {auth, profile, children} = this.props;
 
     return (
-      <div>
+      <>
         <Header
           onLogin={this.handleLogin}
           onLogout={this.handleLogout}
@@ -66,7 +67,8 @@ class Layout extends Component {
         />
         <main>{children}</main>
         <FooterSection currentYear={currentYear} profile={profile} />
-      </div>
+        <VotesWidget />
+      </>
     );
   }
 }

@@ -45,6 +45,10 @@ class ProjectVote extends Component {
     onSave: PropTypes.func,
     onDelete: PropTypes.func,
     disabled: PropTypes.bool,
+    voteList: PropTypes.object,
+    auth: PropTypes.object,
+    projectList: PropTypes.object,
+    params: PropTypes.object,
   };
 
   constructor(props, ...args) {
@@ -54,15 +58,76 @@ class ProjectVote extends Component {
     };
   }
 
+  findExistingVoteForCategory = (awardCategoryKey) => {
+    const {voteList, auth, params} = this.props;
+    const currentProjectKey = params.projectKey;
+
+    if (!voteList || !auth) {
+      return null;
+    }
+
+    const votesArray = Object.keys(voteList).map((key) => ({
+      ...voteList[key],
+      key,
+    }));
+
+    const existingVote = votesArray.find(
+      (vote) =>
+        vote.creator === auth.uid &&
+        vote.awardCategory === awardCategoryKey &&
+        vote.project !== currentProjectKey
+    );
+
+    return existingVote;
+  };
+
   onChangeVote = (choice) => {
     let awardCategory = choice ? choice.value : null;
-
     let oldAwardCategory = this.state.userVote;
+
+    if (awardCategory && awardCategory !== oldAwardCategory) {
+      const existingVote = this.findExistingVoteForCategory(awardCategory);
+
+      if (existingVote) {
+        const {projectList, awardCategoryList} = this.props;
+        const existingProject = projectList
+          ? Object.values(projectList).find(
+              (project) => project.key === existingVote.project
+            )
+          : null;
+        const categoryName = awardCategoryList
+          ? awardCategoryList.find((cat) => cat.key === awardCategory)?.name
+          : 'Unknown Category';
+
+        const projectName = existingProject?.name || 'Unknown Project';
+        const confirmMessage = `You already gave "${projectName}" the "${categoryName}" category vote. Do you want to retract that vote and move it to this project?`;
+
+        if (!window.confirm(confirmMessage)) {
+          return;
+        }
+      }
+    }
+
     this.setState({userVote: awardCategory}, () => {
-      if (awardCategory) this.props.onSave(awardCategory);
-      else this.props.onDelete(oldAwardCategory);
+      if (oldAwardCategory) {
+        this.props.onDelete(oldAwardCategory);
+      }
+
+      if (awardCategory) {
+        this.props.onSave(awardCategory);
+      }
     });
   };
+
+  onRemoveVote = () => {
+    const currentVote = this.state.userVote;
+    if (currentVote) {
+      this.setState({userVote: null}, () => {
+        this.props.onDelete(currentVote);
+      });
+    }
+  };
+
   render() {
     let {awardCategoryList} = this.props;
 
@@ -73,20 +138,47 @@ class ProjectVote extends Component {
         label: awardCategory.name,
       }));
 
+    let selectedOption = this.state.userVote
+      ? awardCategoryOptions.find((option) => option.value === this.state.userVote)
+      : null;
+
     return (
       <div className="Project-meta" key="awards">
-        <h3>Vote</h3>
-        <div>
-          <Select
-            styles={customStyles}
-            name="category"
-            value={this.state.userVote}
-            isMulti={false}
-            options={awardCategoryOptions}
-            disabled={this.props.disabled}
-            onChange={this.onChangeVote}
-          />
-        </div>
+        <dl>
+          <dt>Vote</dt>
+          <dd>
+            <Select
+              styles={customStyles}
+              name="category"
+              value={selectedOption}
+              isMulti={false}
+              options={awardCategoryOptions}
+              disabled={this.props.disabled}
+              onChange={this.onChangeVote}
+              menuAnchor="right"
+            />
+            {this.state.userVote && (
+              <button
+                type="button"
+                onClick={this.onRemoveVote}
+                disabled={this.props.disabled}
+                style={{
+                  marginTop: '8px',
+                  padding: '6px 12px',
+                  fontSize: '12px',
+                  color: '#dc3545',
+                  backgroundColor: 'transparent',
+                  border: '1px solid #dc3545',
+                  borderRadius: '4px',
+                  cursor: this.props.disabled ? 'not-allowed' : 'pointer',
+                  opacity: this.props.disabled ? 0.6 : 1,
+                }}
+              >
+                Remove vote
+              </button>
+            )}
+          </dd>
+        </dl>
       </div>
     );
   }
@@ -178,15 +270,27 @@ class ProjectDetails extends Component {
     return (this.props.project.members || {}).hasOwnProperty(this.props.auth.uid);
   }
   render() {
-    let {awardList, firebase, params, profile, project, groupsList, userList, year} =
-      this.props;
+    let {
+      awardList,
+      firebase,
+      params,
+      profile,
+      project,
+      groupsList,
+      userList,
+      year,
+      voteList,
+      projects,
+    } = this.props;
     if (
       !isLoaded(project) ||
       !isLoaded(groupsList) ||
       !isLoaded(userList) ||
       !isLoaded(awardList) ||
       !isLoaded(profile) ||
-      !isLoaded(year)
+      !isLoaded(year) ||
+      !isLoaded(voteList) ||
+      !isLoaded(projects)
     )
       return <div className="loading-indicator">Loading..</div>;
     if (project === null) return <Layout />;
@@ -242,7 +346,11 @@ class ProjectDetails extends Component {
                   /https:\/\/drive\.google\.com\/file\/d\/(.*)\/[a-z]*.*/
                 )[1] && (
                   <iframe
-                    src={`https://drive.google.com/file/d/${project.videoUrl.match(/https:\/\/drive\.google\.com\/file\/d\/(.*)\/[a-z]*.*/)[1]}/preview`}
+                    src={`https://drive.google.com/file/d/${
+                      project.videoUrl.match(
+                        /https:\/\/drive\.google\.com\/file\/d\/(.*)\/[a-z]*.*/
+                      )[1]
+                    }/preview`}
                     allow="autoplay"
                     style={{width: '100%', aspectRatio: '16/9'}}
                   ></iframe>
@@ -345,21 +453,6 @@ class ProjectDetails extends Component {
               )}
             </div>
             <div className="Project-Details-Sidebar">
-              {year.votingEnabled ? (
-                <ProjectVote
-                  key={this.state.userVote && this.state.userVote.awardCategory}
-                  awardCategoryList={awardCategories}
-                  userVote={
-                    this.state.userVote ? this.state.userVote.awardCategory : null
-                  }
-                  disabled={this.isProjectMember()}
-                  onSave={this.onSaveUserVote}
-                  onDelete={this.onDeleteUserVote}
-                />
-              ) : (
-                <Awards awards={awards} awardCategories={awardCategories} />
-              )}
-
               <div className="Project-meta" key="meta">
                 <dl>
                   {creator && [
@@ -375,6 +468,24 @@ class ProjectDetails extends Component {
                   <dd>{group?.name}</dd>
                 </dl>
               </div>
+              {year.votingEnabled ? (
+                <ProjectVote
+                  key={this.state.userVote && this.state.userVote.awardCategory}
+                  awardCategoryList={awardCategories}
+                  userVote={
+                    this.state.userVote ? this.state.userVote.awardCategory : null
+                  }
+                  disabled={this.isProjectMember()}
+                  onSave={this.onSaveUserVote}
+                  onDelete={this.onDeleteUserVote}
+                  voteList={this.props.voteList}
+                  auth={this.props.auth}
+                  projectList={this.props.projects}
+                  params={this.props.params}
+                />
+              ) : (
+                <Awards awards={awards} awardCategories={awardCategories} />
+              )}
             </div>
           </div>
         </div>
@@ -416,9 +527,20 @@ export default compose(
       storeAs: 'project',
       keyProp: 'key',
     },
+
     {
       path: `/years/${props.params.year || currentYear}`,
       storeAs: 'year',
+    },
+    {
+      path: `/years/${props.params.year || currentYear}/votes`,
+      populates: keyPopulates,
+      storeAs: 'voteList',
+    },
+    {
+      path: `/years/${props.params.year || currentYear}/projects`,
+      populates: keyPopulates,
+      storeAs: 'projects',
     },
   ]),
   connect(({firebase}) => {
@@ -431,6 +553,8 @@ export default compose(
       groupsList: orderedPopulatedDataToJS(firebase, 'groupsList'),
       userList: orderedPopulatedDataToJS(firebase, 'userList'),
       awardCategoryList: orderedPopulatedDataToJS(firebase, 'awardCategoryList'),
+      voteList: orderedPopulatedDataToJS(firebase, 'voteList', keyPopulates),
+      projects: orderedPopulatedDataToJS(firebase, 'projects', keyPopulates),
     };
   })
 )(ProjectDetails);

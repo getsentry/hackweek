@@ -37,7 +37,27 @@ export const customStyles = {
     ...provided,
     color: 'green',
   }),
+  menu: (provided, state) => {
+    const menuAnchor = state.selectProps.menuAnchor || 'left';
+    const baseStyles = {
+      ...provided,
+      minWidth: '250px',
+      width: 'max-content',
+      maxWidth: '400px',
+    };
+
+    if (menuAnchor === 'right') {
+      return {
+        ...baseStyles,
+        right: 0,
+        left: 'auto',
+      };
+    }
+
+    return baseStyles;
+  },
 };
+
 export function MultiValueContainer({children, ...props}) {
   return (
     <components.MultiValueContainer className="HEY" {...props}>

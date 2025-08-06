@@ -66,10 +66,12 @@ class VotesWidget extends Component {
       return null;
     }
 
-    const categories = Object.keys(awardCategories || {}).map((key) => ({
-      ...awardCategories[key],
-      key,
-    }));
+    const categories = Object.keys(awardCategories || {})
+      .map((key) => ({
+        ...awardCategories[key],
+        key,
+      }))
+      .sort((a, b) => ('' + a.name).localeCompare(b.name));
 
     const currentUserId = auth.uid;
     const ownVotes = Object.keys(year.votes || {})

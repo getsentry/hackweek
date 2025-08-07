@@ -44,11 +44,19 @@ class ProjectListItem extends Component {
     userList: PropTypes.object,
     group: PropTypes.object,
     submissionsClosed: PropTypes.bool,
+    isOlderYear: PropTypes.bool,
   };
 
   render() {
-    let {awardList, awardCategoryOptions, submissionsClosed, project, userList, group} =
-      this.props;
+    let {
+      awardList,
+      awardCategoryOptions,
+      submissionsClosed,
+      project,
+      userList,
+      group,
+      isOlderYear,
+    } = this.props;
     let link =
       currentYear === project.year
         ? `/projects/${project.key}/${slugify(project.name)}`
@@ -105,18 +113,20 @@ class ProjectListItem extends Component {
           </div>
           {/* Right: Claim button and awards */}
           <div className="Project-actions">
-            {(project.isIdea || projectMembers.length === 0) && !submissionsClosed && (
-              <div className="Project-idea-claim">
-                <Link
-                  to={`/years/${project.year}/projects/${project.key}/edit?claim`}
-                  className="btn-set-btn"
-                >
-                  <Button priority="secondary" size="xs">
-                    Claim Project
-                  </Button>
-                </Link>
-              </div>
-            )}
+            {(project.isIdea || projectMembers.length === 0) &&
+              !submissionsClosed &&
+              !isOlderYear && (
+                <div className="Project-idea-claim">
+                  <Link
+                    to={`/years/${project.year}/projects/${project.key}/edit?claim`}
+                    className="btn-set-btn"
+                  >
+                    <Button priority="secondary" size="xs">
+                      Claim Project
+                    </Button>
+                  </Link>
+                </div>
+              )}
             {!!awards.length && (
               <div className="Project-award">
                 {awards.map((a) => a.name).join(', ')}{' '}
@@ -216,6 +226,7 @@ class ProjectList extends Component {
                     userList={userList}
                     group={{id: project.group, ...groupsList[project.group]}}
                     submissionsClosed={false}
+                    isOlderYear={true}
                   />
                 );
               })}
@@ -240,6 +251,7 @@ class ProjectList extends Component {
                         userList={userList}
                         group={{id: project.group, ...groupsList[project.group]}}
                         submissionsClosed={true}
+                        isOlderYear={true}
                       />
                     );
                   })}
@@ -264,6 +276,7 @@ class ProjectList extends Component {
                         userList={userList}
                         group={{id: project.group, ...groupsList[project.group]}}
                         submissionsClosed={true}
+                        isOlderYear={true}
                       />
                     );
                   })}
@@ -332,6 +345,8 @@ class ProjectList extends Component {
       userList,
       groupsList,
     } = this.props;
+
+    const isOlderYear = this.props.params.year && currentYear !== this.props.params.year;
 
     if (!groupsList) {
       groupsList = {};
@@ -407,6 +422,7 @@ class ProjectList extends Component {
                     userList={userList}
                     group={{id: project.group, ...groupsList[project.group]}}
                     submissionsClosed={submissionsClosed}
+                    isOlderYear={isOlderYear}
                   />
                 );
               })}
@@ -428,6 +444,7 @@ class ProjectList extends Component {
                   userList={userList}
                   group={{id: project.group, ...groupsList[project.group]}}
                   submissionsClosed={submissionsClosed}
+                  isOlderYear={isOlderYear}
                 />
               ))}
             </ul>

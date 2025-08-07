@@ -186,13 +186,25 @@ class ProjectList extends Component {
       }
     }
 
+    // Filter logic for closed years
+    const showParam = this.props.location.query.show;
+    const showIdeas = !showParam || showParam === 'ideas';
+    const showProjects = showParam === 'projects';
+
+    // Separate projects and ideas for filtering
+    let projectIdeas = [];
+    let actualProjects = [];
+    projects.forEach((p) => {
+      if (p.isIdea) projectIdeas.push(p);
+      else actualProjects.push(p);
+    });
+
     return (
-      <div>
-        {!!winningProjects.length && (
-          <div>
-            <h3>Awards</h3>
-            <ul className="list-group Project-List">
-              {winningProjects.map((project) => {
+      <div className="Project-list-container">
+        {showIdeas && projectIdeas.length > 0 && (
+          <div className="Project-list-section">
+            <ul className="Project-List Project">
+              {projectIdeas.map((project) => {
                 return (
                   <ProjectListItem
                     key={project.key}
@@ -203,36 +215,109 @@ class ProjectList extends Component {
                     awardList={awardList}
                     userList={userList}
                     group={{id: project.group, ...groupsList[project.group]}}
-                    submissionsClosed={true}
+                    submissionsClosed={false}
                   />
                 );
               })}
             </ul>
           </div>
         )}
-        {/* WINNING PROJECTS DETAILS */}
-        {!!projects.length && (
-          <div>
-            {!!winningProjects.length && <h3>All Projects</h3>}
-            <ul className="list-group Project-List">
-              {projects.map((project) => {
-                return (
-                  <ProjectListItem
-                    key={project.key}
-                    auth={auth}
-                    firebase={firebase}
-                    project={project}
-                    awardCategoryOptions={awardCategoryOptions}
-                    awardList={awardList}
-                    userList={userList}
-                    group={{id: project.group, ...groupsList[project.group]}}
-                    submissionsClosed={true}
-                  />
-                );
-              })}
-            </ul>
+        {showProjects && (
+          <div className="Project-list-section">
+            {!!winningProjects.length && (
+              <div>
+                <h3 className="Project-section-header">Awards</h3>
+                <ul className="list-group Project-List">
+                  {winningProjects.map((project) => {
+                    return (
+                      <ProjectListItem
+                        key={project.key}
+                        auth={auth}
+                        firebase={firebase}
+                        project={project}
+                        awardCategoryOptions={awardCategoryOptions}
+                        awardList={awardList}
+                        userList={userList}
+                        group={{id: project.group, ...groupsList[project.group]}}
+                        submissionsClosed={true}
+                      />
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+            {!!actualProjects.length && (
+              <div>
+                {!!winningProjects.length && (
+                  <h3 className="Project-section-header">All Projects</h3>
+                )}
+                <ul className="list-group Project-List">
+                  {actualProjects.map((project) => {
+                    return (
+                      <ProjectListItem
+                        key={project.key}
+                        auth={auth}
+                        firebase={firebase}
+                        project={project}
+                        awardCategoryOptions={awardCategoryOptions}
+                        awardList={awardList}
+                        userList={userList}
+                        group={{id: project.group, ...groupsList[project.group]}}
+                        submissionsClosed={true}
+                      />
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
           </div>
         )}
+        <div className="Project-list-tabs">
+          <ul className="tabs">
+            <li style={{fontWeight: showIdeas ? 'bold' : null}}>
+              <Link
+                to={{
+                  pathname: this.props.location.pathname,
+                  query: {
+                    show: 'ideas',
+                  },
+                }}
+              >
+                Ideas{' '}
+                <span
+                  className={
+                    showIdeas
+                      ? 'Project-list-count-active'
+                      : 'Project-list-count-inactive'
+                  }
+                >
+                  {projectIdeas.length === 0 ? '0' : projectIdeas.length}
+                </span>
+              </Link>
+            </li>
+            <li style={{fontWeight: showProjects ? 'bold' : null}}>
+              <Link
+                to={{
+                  pathname: this.props.location.pathname,
+                  query: {
+                    show: 'projects',
+                  },
+                }}
+              >
+                Projects{' '}
+                <span
+                  className={
+                    showProjects
+                      ? 'Project-list-count-active'
+                      : 'Project-list-count-inactive'
+                  }
+                >
+                  {actualProjects.length === 0 ? '0' : actualProjects.length}
+                </span>
+              </Link>
+            </li>
+          </ul>
+        </div>
       </div>
     );
   }
@@ -437,7 +522,7 @@ class ProjectList extends Component {
       <Layout>
         <PageHeader
           title="Hackweek"
-          currentYear={currentYear}
+          currentYear={this.props.params.year || currentYear}
           showAddProjectButton={!year.submissionsClosed}
         />
         {this.renderBody(year)}

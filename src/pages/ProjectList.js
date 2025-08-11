@@ -87,12 +87,12 @@ class ProjectListItem extends Component {
           {/* Left: Name and summary/members */}
           <div className="Project-main">
             {/* Project Name */}
-            {project.needHelp && !submissionsClosed && (
-              <div className="badge">looking for help</div>
-            )}
-            {group.id && (
-              <div className={`Project-group-badge ${group.id}`}>{group.name}</div>
-            )}
+            <div className="Project-tags">
+              {group.id && <span className="Tag Tag--group">{group.name}</span>}
+              {project.needHelp && !submissionsClosed && (
+                <span className="Tag Tag--help">looking for help</span>
+              )}
+            </div>
             <Link to={link}>
               <h3 className="no-forced-lowercase">{project.name}</h3>
             </Link>

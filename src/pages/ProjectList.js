@@ -295,7 +295,15 @@ class ProjectList extends Component {
     if (this._handleResize) window.removeEventListener('resize', this._handleResize);
   }
 
-  renderControls({showIdeas, showProjects, showMyProjects, ideaCount, projectCount, myProjectsCount, viewStyle}) {
+  renderControls({
+    showIdeas,
+    showProjects,
+    showMyProjects,
+    ideaCount,
+    projectCount,
+    myProjectsCount,
+    viewStyle,
+  }) {
     const {pathname, query} = this.props.location;
     const currentShow = showIdeas
       ? 'ideas'
@@ -325,7 +333,7 @@ class ProjectList extends Component {
             className={`Control-pill ${currentShow === 'my-projects' ? 'active' : ''}`}
             to={{pathname, query: {...query, show: 'my-projects'}}}
           >
-            My Projects <span className="count">{myProjectsCount || 0}</span>
+            My Stuff <span className="count">{myProjectsCount || 0}</span>
           </Link>
         </div>
         <div className="Project-controls-right">
@@ -502,7 +510,7 @@ class ProjectList extends Component {
 
             {!!myProjects.length && (
               <div>
-                <h3 className="Project-section-header">My Projects</h3>
+                <h3 className="Project-section-header">My Stuff</h3>
                 {viewStyle === 'grid' ? (
                   <ul className="Project-grid">
                     {myProjects.map((project) => (
@@ -747,22 +755,22 @@ class ProjectList extends Component {
                 ))}
               </ul>
             ) : (
-                <ul className="Project-List Project">
-              {myProjects.map((project) => (
-                <ProjectListItem
-                  key={project.key}
-                  auth={auth}
-                  userVote={userVotes.filter((v) => v.project === project.key)}
-                  firebase={firebase}
-                  project={project}
-                  awardCategoryOptions={awardCategoryOptions}
-                  awardList={awardList}
-                  userList={userList}
-                  group={{id: project.group, ...groupsList[project.group]}}
-                  submissionsClosed={submissionsClosed}
-                  isOlderYear={isOlderYear}
-                />
-              ))}
+              <ul className="Project-List Project">
+                {myProjects.map((project) => (
+                  <ProjectListItem
+                    key={project.key}
+                    auth={auth}
+                    userVote={userVotes.filter((v) => v.project === project.key)}
+                    firebase={firebase}
+                    project={project}
+                    awardCategoryOptions={awardCategoryOptions}
+                    awardList={awardList}
+                    userList={userList}
+                    group={{id: project.group, ...groupsList[project.group]}}
+                    submissionsClosed={submissionsClosed}
+                    isOlderYear={isOlderYear}
+                  />
+                ))}
               </ul>
             )}
           </div>

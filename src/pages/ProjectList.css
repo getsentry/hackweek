@@ -432,6 +432,7 @@
   margin: 0 0 0.75rem;
   color: var(--color-gray300);
   overflow: hidden;
+  line-height: 1.25;
   flex: 1 1 auto; /* take remaining body space */
   /* Multi-line clamp that adapts to remaining height */
   display: -webkit-box;

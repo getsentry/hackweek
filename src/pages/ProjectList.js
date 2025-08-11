@@ -295,12 +295,14 @@ class ProjectList extends Component {
     if (this._handleResize) window.removeEventListener('resize', this._handleResize);
   }
 
-  renderControls({showIdeas, showProjects, ideaCount, projectCount, viewStyle}) {
+  renderControls({showIdeas, showProjects, showMyProjects, ideaCount, projectCount, myProjectsCount, viewStyle}) {
     const {pathname, query} = this.props.location;
     const currentShow = showIdeas
       ? 'ideas'
       : showProjects
       ? 'projects'
+      : showMyProjects
+      ? 'my-projects'
       : query.show || 'ideas';
     const currentView = (this.state.isWide ? viewStyle || query.view : 'list') || 'list';
 
@@ -318,6 +320,12 @@ class ProjectList extends Component {
             to={{pathname, query: {...query, show: 'projects'}}}
           >
             Projects <span className="count">{projectCount || 0}</span>
+          </Link>
+          <Link
+            className={`Control-pill ${currentShow === 'my-projects' ? 'active' : ''}`}
+            to={{pathname, query: {...query, show: 'my-projects'}}}
+          >
+            My Projects <span className="count">{myProjectsCount || 0}</span>
           </Link>
         </div>
         <div className="Project-controls-right">
@@ -358,6 +366,7 @@ class ProjectList extends Component {
     let projects = mapObject(projectList);
     let winningProjects = [];
     let otherProjects = [];
+
     projects.forEach((p) => {
       if (mapObject(awardList).find((award) => award.project === p.key)) {
         winningProjects.push(p);
@@ -382,13 +391,16 @@ class ProjectList extends Component {
     const {show: showParam, view: viewParam} = this.props.location.query;
     const showIdeas = !showParam || showParam === 'ideas';
     const showProjects = showParam === 'projects';
+    const showMyProjects = showParam === 'my-projects';
     let viewStyle = viewParam === 'grid' ? 'grid' : 'list';
     if (!this.state.isWide) viewStyle = 'list';
 
     // Separate projects and ideas for filtering
     let projectIdeas = [];
     let actualProjects = [];
+    let myProjects = [];
     projects.forEach((p) => {
+      if (Object.keys(p.members || {}).includes(auth.uid)) myProjects.push(p);
       if (p.isIdea) projectIdeas.push(p);
       else actualProjects.push(p);
     });
@@ -398,8 +410,10 @@ class ProjectList extends Component {
         {this.renderControls({
           showIdeas,
           showProjects,
+          showMyProjects,
           ideaCount: projectIdeas.length,
           projectCount: actualProjects.length,
+          myProjectsCount: myProjects.length,
           viewStyle,
         })}
 
@@ -468,6 +482,47 @@ class ProjectList extends Component {
                 ) : (
                   <ul className="list-group Project-List">
                     {winningProjects.map((project) => (
+                      <ProjectListItem
+                        key={project.key}
+                        auth={auth}
+                        firebase={firebase}
+                        project={project}
+                        awardCategoryOptions={awardCategoryOptions}
+                        awardList={awardList}
+                        userList={userList}
+                        group={{id: project.group, ...groupsList[project.group]}}
+                        submissionsClosed={true}
+                        isOlderYear={true}
+                      />
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            {!!myProjects.length && (
+              <div>
+                <h3 className="Project-section-header">My Projects</h3>
+                {viewStyle === 'grid' ? (
+                  <ul className="Project-grid">
+                    {myProjects.map((project) => (
+                      <ProjectCardItem
+                        key={project.key}
+                        auth={auth}
+                        firebase={firebase}
+                        project={project}
+                        awardCategoryOptions={awardCategoryOptions}
+                        awardList={awardList}
+                        userList={userList}
+                        group={{id: project.group, ...groupsList[project.group]}}
+                        submissionsClosed={true}
+                        isOlderYear={true}
+                      />
+                    ))}
+                  </ul>
+                ) : (
+                  <ul className="list-group Project-List">
+                    {myProjects.map((project) => (
                       <ProjectListItem
                         key={project.key}
                         auth={auth}
@@ -571,7 +626,9 @@ class ProjectList extends Component {
     let projectsLFH = [];
     let projectIdeas = [];
     let otherProjects = [];
+    let myProjects = [];
     projects.forEach((p) => {
+      if (Object.keys(p.members || {}).includes(auth.uid)) myProjects.push(p);
       if (p.isIdea) projectIdeas.push(p);
       else if (p.needHelp) projectsLFH.push(p);
       else otherProjects.push(p);
@@ -580,10 +637,12 @@ class ProjectList extends Component {
     const {show: showParam, view: viewParam} = this.props.location.query;
     const showIdeas = !showParam || showParam === 'ideas';
     const showProjects = showParam === 'projects';
+    const showMyProjects = showParam === 'my-projects';
     let viewStyle = viewParam === 'grid' ? 'grid' : 'list';
     if (!this.state.isWide) viewStyle = 'list';
     const hasAnyProjects = projectsLFH.length > 0 || otherProjects.length > 0;
     const hasAnyIdeas = projectIdeas.length > 0;
+    const hasAnyMyProjects = myProjects.length > 0;
 
     let userVotes = year ? getAuthUserVotes(auth.uid, year.votes) : [];
     let awardCategoryOptions = getAwardCategories(awardCategoryList);
@@ -603,14 +662,23 @@ class ProjectList extends Component {
         </div>
       );
     }
+    if (showMyProjects && !hasAnyMyProjects) {
+      emptyState = (
+        <div className="alert alert-block alert-info">
+          Oops! You don't have any projects yet! Create, claim or join a project!
+        </div>
+      );
+    }
 
     return (
       <div className="Project-list-container">
         {this.renderControls({
           showIdeas,
           showProjects,
+          showMyProjects,
           ideaCount: projectIdeas.length,
           projectCount: projectsLFH.length + otherProjects.length,
+          myProjectsCount: myProjects.length,
           viewStyle,
         })}
 
@@ -653,6 +721,48 @@ class ProjectList extends Component {
                     isOlderYear={isOlderYear}
                   />
                 ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {showMyProjects && myProjects.length > 0 && (
+          <div className="Project-list-section">
+            {viewStyle === 'grid' ? (
+              <ul className="Project-grid">
+                {myProjects.map((project) => (
+                  <ProjectCardItem
+                    key={project.key}
+                    auth={auth}
+                    userVote={userVotes.filter((v) => v.project === project.key)}
+                    firebase={firebase}
+                    project={project}
+                    awardCategoryOptions={awardCategoryOptions}
+                    awardList={awardList}
+                    userList={userList}
+                    group={{id: project.group, ...groupsList[project.group]}}
+                    submissionsClosed={submissionsClosed}
+                    isOlderYear={isOlderYear}
+                  />
+                ))}
+              </ul>
+            ) : (
+                <ul className="Project-List Project">
+              {myProjects.map((project) => (
+                <ProjectListItem
+                  key={project.key}
+                  auth={auth}
+                  userVote={userVotes.filter((v) => v.project === project.key)}
+                  firebase={firebase}
+                  project={project}
+                  awardCategoryOptions={awardCategoryOptions}
+                  awardList={awardList}
+                  userList={userList}
+                  group={{id: project.group, ...groupsList[project.group]}}
+                  submissionsClosed={submissionsClosed}
+                  isOlderYear={isOlderYear}
+                />
+              ))}
               </ul>
             )}
           </div>

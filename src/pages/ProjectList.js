@@ -97,14 +97,14 @@ class ProjectListItem extends Component {
               <h3 className="no-forced-lowercase">{project.name}</h3>
             </Link>
             {/* Project Summary or Members/Badges */}
-            <p className="Project-idea-summary no-forced-lowercase">
+            <p className="Project-idea-summary no-forced-lowercase clamp-3">
               {summarize(project.summary)}
             </p>
 
             <div className="Project-member-list-condensed">
               {projectMembers.length > 0 &&
                 projectMembers.map((member) => (
-                  <div className="Project-member" key={member.email}>
+                  <div className="Project-member Tag Tag--member" key={member.email}>
                     <Avatar user={member} />
                     <span className="Project-member-name">{member.displayName}</span>
                   </div>
@@ -143,6 +143,125 @@ class ProjectListItem extends Component {
   }
 }
 
+// Card-style renderer for gallery view
+class ProjectCardItem extends Component {
+  static propTypes = {
+    awardCategoryOptions: PropTypes.object,
+    awardList: PropTypes.object,
+    auth: PropTypes.object,
+    firebase: PropTypes.object,
+    project: PropTypes.object,
+    userList: PropTypes.object,
+    group: PropTypes.object,
+    submissionsClosed: PropTypes.bool,
+    isOlderYear: PropTypes.bool,
+  };
+
+  render() {
+    const {
+      awardList,
+      awardCategoryOptions,
+      submissionsClosed,
+      project,
+      userList,
+      group,
+      isOlderYear,
+    } = this.props;
+
+    const link =
+      currentYear === project.year
+        ? `/projects/${project.key}/${slugify(project.name)}`
+        : `/years/${project.year}/projects/${project.key}/${slugify(project.name)}`;
+
+    const projectMembers = userList
+      ? Object.keys(project.members || {})
+          .map((memberKey) => userList[memberKey])
+          .filter((member) => member != null)
+      : [];
+
+    const awards = mapObject(awardList)
+      .filter((award) => award.project === project.key)
+      .map((award) => ({
+        ...award,
+        name: Object.values(awardCategoryOptions).find(
+          (aco) => aco.key === award.awardCategory
+        )?.name,
+      }));
+
+    // hide project if its not executed on
+    if (submissionsClosed && project.isIdea) return null;
+
+    const hasHeaderTags = Boolean(group.id) || (project.needHelp && !submissionsClosed);
+
+    return (
+      <li className="ProjectCard">
+        {hasHeaderTags && (
+          <div className="ProjectCard-header">
+            <div className="Project-tags">
+              {group.id && <span className="Tag Tag--group">{group.name}</span>}
+              {project.needHelp && !submissionsClosed && (
+                <span className="Tag Tag--help">looking for help</span>
+              )}
+            </div>
+          </div>
+        )}
+        <div className="ProjectCard-body">
+          {awards.length > 0 && (
+            <div className="ProjectCard-awards ProjectCard-awards--top">
+              {awards.map((a) => a.name).join(', ')}{' '}
+              <span
+                className="glyphicon glyphicon-star"
+                title={awards.map((a) => a.name).join(', ')}
+              />
+            </div>
+          )}
+          <Link to={link}>
+            <h3 className="ProjectCard-title no-forced-lowercase">{project.name}</h3>
+          </Link>
+          <p className="ProjectCard-summary no-forced-lowercase">
+            {summarize(project.summary)}
+          </p>
+        </div>
+        {(() => {
+          const hasActions =
+            (project.isIdea || projectMembers.length === 0) &&
+            !submissionsClosed &&
+            !isOlderYear;
+          const hasAwards = !!awards.length;
+          const hasMembers = projectMembers.length > 0;
+          if (!hasActions && !hasMembers) return null;
+          return (
+            <div className="ProjectCard-footer">
+              {hasMembers && (
+                <div className="ProjectCard-members">
+                  {projectMembers.map((member) => (
+                    <div className="Project-member Tag Tag--member" key={member.email}>
+                      <Avatar user={member} />
+                      <span className="Project-member-name">{member.displayName}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="ProjectCard-actions">
+                {hasActions && (
+                  <Link
+                    to={`/years/${project.year}/projects/${project.key}/edit?claim`}
+                    className="btn-set-btn"
+                  >
+                    <Button priority="secondary" size="xs">
+                      Claim Project
+                    </Button>
+                  </Link>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+      </li>
+    );
+  }
+}
+
 class ProjectList extends Component {
   static propTypes = {
     auth: PropTypes.object,
@@ -157,7 +276,70 @@ class ProjectList extends Component {
 
   constructor(...args) {
     super(...args);
-    this.state = {};
+    this.state = {
+      groupFilter: null,
+      isWide: typeof window !== 'undefined' ? window.innerWidth >= 640 : true,
+    };
+  }
+
+  componentDidMount() {
+    this._handleResize = () => {
+      const isWide = window.innerWidth >= 640;
+      if (isWide !== this.state.isWide) this.setState({isWide});
+    };
+    window.addEventListener('resize', this._handleResize);
+    this._handleResize();
+  }
+
+  componentWillUnmount() {
+    if (this._handleResize) window.removeEventListener('resize', this._handleResize);
+  }
+
+  renderControls({showIdeas, showProjects, ideaCount, projectCount, viewStyle}) {
+    const {pathname, query} = this.props.location;
+    const currentShow = showIdeas
+      ? 'ideas'
+      : showProjects
+      ? 'projects'
+      : query.show || 'ideas';
+    const currentView = (this.state.isWide ? viewStyle || query.view : 'list') || 'list';
+
+    return (
+      <div className="Project-controls">
+        <div className="Project-controls-left">
+          <Link
+            className={`Control-pill ${currentShow === 'ideas' ? 'active' : ''}`}
+            to={{pathname, query: {...query, show: 'ideas'}}}
+          >
+            Ideas <span className="count">{ideaCount || 0}</span>
+          </Link>
+          <Link
+            className={`Control-pill ${currentShow === 'projects' ? 'active' : ''}`}
+            to={{pathname, query: {...query, show: 'projects'}}}
+          >
+            Projects <span className="count">{projectCount || 0}</span>
+          </Link>
+        </div>
+        <div className="Project-controls-right">
+          {this.state.isWide && (
+            <div className="ViewToggle" role="tablist" aria-label="View toggle">
+              <Link
+                className={currentView === 'list' ? 'active' : ''}
+                to={{pathname, query: {...query, view: 'list'}}}
+              >
+                List
+              </Link>
+              <Link
+                className={currentView === 'grid' ? 'active' : ''}
+                to={{pathname, query: {...query, view: 'grid'}}}
+              >
+                Grid
+              </Link>
+            </div>
+          )}
+        </div>
+      </div>
+    );
   }
 
   renderClosedYear() {
@@ -197,9 +379,11 @@ class ProjectList extends Component {
     }
 
     // Filter logic for closed years
-    const showParam = this.props.location.query.show;
+    const {show: showParam, view: viewParam} = this.props.location.query;
     const showIdeas = !showParam || showParam === 'ideas';
     const showProjects = showParam === 'projects';
+    let viewStyle = viewParam === 'grid' ? 'grid' : 'list';
+    if (!this.state.isWide) viewStyle = 'list';
 
     // Separate projects and ideas for filtering
     let projectIdeas = [];
@@ -211,11 +395,36 @@ class ProjectList extends Component {
 
     return (
       <div className="Project-list-container">
+        {this.renderControls({
+          showIdeas,
+          showProjects,
+          ideaCount: projectIdeas.length,
+          projectCount: actualProjects.length,
+          viewStyle,
+        })}
+
         {showIdeas && projectIdeas.length > 0 && (
           <div className="Project-list-section">
-            <ul className="Project-List Project">
-              {projectIdeas.map((project) => {
-                return (
+            {viewStyle === 'grid' ? (
+              <ul className="Project-grid">
+                {projectIdeas.map((project) => (
+                  <ProjectCardItem
+                    key={project.key}
+                    auth={auth}
+                    firebase={firebase}
+                    project={project}
+                    awardCategoryOptions={awardCategoryOptions}
+                    awardList={awardList}
+                    userList={userList}
+                    group={{id: project.group, ...groupsList[project.group]}}
+                    submissionsClosed={false}
+                    isOlderYear={true}
+                  />
+                ))}
+              </ul>
+            ) : (
+              <ul className="Project-List Project">
+                {projectIdeas.map((project) => (
                   <ProjectListItem
                     key={project.key}
                     auth={auth}
@@ -228,19 +437,37 @@ class ProjectList extends Component {
                     submissionsClosed={false}
                     isOlderYear={true}
                   />
-                );
-              })}
-            </ul>
+                ))}
+              </ul>
+            )}
           </div>
         )}
+
         {showProjects && (
           <div className="Project-list-section">
             {!!winningProjects.length && (
               <div>
                 <h3 className="Project-section-header">Awards</h3>
-                <ul className="list-group Project-List">
-                  {winningProjects.map((project) => {
-                    return (
+                {viewStyle === 'grid' ? (
+                  <ul className="Project-grid">
+                    {winningProjects.map((project) => (
+                      <ProjectCardItem
+                        key={project.key}
+                        auth={auth}
+                        firebase={firebase}
+                        project={project}
+                        awardCategoryOptions={awardCategoryOptions}
+                        awardList={awardList}
+                        userList={userList}
+                        group={{id: project.group, ...groupsList[project.group]}}
+                        submissionsClosed={true}
+                        isOlderYear={true}
+                      />
+                    ))}
+                  </ul>
+                ) : (
+                  <ul className="list-group Project-List">
+                    {winningProjects.map((project) => (
                       <ProjectListItem
                         key={project.key}
                         auth={auth}
@@ -253,19 +480,37 @@ class ProjectList extends Component {
                         submissionsClosed={true}
                         isOlderYear={true}
                       />
-                    );
-                  })}
-                </ul>
+                    ))}
+                  </ul>
+                )}
               </div>
             )}
+
             {!!actualProjects.length && (
               <div>
                 {!!winningProjects.length && (
                   <h3 className="Project-section-header">All Projects</h3>
                 )}
-                <ul className="list-group Project-List">
-                  {actualProjects.map((project) => {
-                    return (
+                {viewStyle === 'grid' ? (
+                  <ul className="Project-grid">
+                    {actualProjects.map((project) => (
+                      <ProjectCardItem
+                        key={project.key}
+                        auth={auth}
+                        firebase={firebase}
+                        project={project}
+                        awardCategoryOptions={awardCategoryOptions}
+                        awardList={awardList}
+                        userList={userList}
+                        group={{id: project.group, ...groupsList[project.group]}}
+                        submissionsClosed={true}
+                        isOlderYear={true}
+                      />
+                    ))}
+                  </ul>
+                ) : (
+                  <ul className="list-group Project-List">
+                    {actualProjects.map((project) => (
                       <ProjectListItem
                         key={project.key}
                         auth={auth}
@@ -278,59 +523,13 @@ class ProjectList extends Component {
                         submissionsClosed={true}
                         isOlderYear={true}
                       />
-                    );
-                  })}
-                </ul>
+                    ))}
+                  </ul>
+                )}
               </div>
             )}
           </div>
         )}
-        <div className="Project-list-tabs">
-          <ul className="tabs">
-            <li style={{fontWeight: showIdeas ? 'bold' : null}}>
-              <Link
-                to={{
-                  pathname: this.props.location.pathname,
-                  query: {
-                    show: 'ideas',
-                  },
-                }}
-              >
-                Ideas{' '}
-                <span
-                  className={
-                    showIdeas
-                      ? 'Project-list-count-active'
-                      : 'Project-list-count-inactive'
-                  }
-                >
-                  {projectIdeas.length === 0 ? '0' : projectIdeas.length}
-                </span>
-              </Link>
-            </li>
-            <li style={{fontWeight: showProjects ? 'bold' : null}}>
-              <Link
-                to={{
-                  pathname: this.props.location.pathname,
-                  query: {
-                    show: 'projects',
-                  },
-                }}
-              >
-                Projects{' '}
-                <span
-                  className={
-                    showProjects
-                      ? 'Project-list-count-active'
-                      : 'Project-list-count-inactive'
-                  }
-                >
-                  {actualProjects.length === 0 ? '0' : actualProjects.length}
-                </span>
-              </Link>
-            </li>
-          </ul>
-        </div>
       </div>
     );
   }
@@ -378,9 +577,11 @@ class ProjectList extends Component {
       else otherProjects.push(p);
     });
 
-    const showParam = this.props.location.query.show;
+    const {show: showParam, view: viewParam} = this.props.location.query;
     const showIdeas = !showParam || showParam === 'ideas';
     const showProjects = showParam === 'projects';
+    let viewStyle = viewParam === 'grid' ? 'grid' : 'list';
+    if (!this.state.isWide) viewStyle = 'list';
     const hasAnyProjects = projectsLFH.length > 0 || otherProjects.length > 0;
     const hasAnyIdeas = projectIdeas.length > 0;
 
@@ -405,12 +606,39 @@ class ProjectList extends Component {
 
     return (
       <div className="Project-list-container">
+        {this.renderControls({
+          showIdeas,
+          showProjects,
+          ideaCount: projectIdeas.length,
+          projectCount: projectsLFH.length + otherProjects.length,
+          viewStyle,
+        })}
+
         {emptyState}
+
         {showIdeas && projectIdeas.length > 0 && (
           <div className="Project-list-section">
-            <ul className="Project-List Project">
-              {projectIdeas.map((project) => {
-                return (
+            {viewStyle === 'grid' ? (
+              <ul className="Project-grid">
+                {projectIdeas.map((project) => (
+                  <ProjectCardItem
+                    key={project.key}
+                    auth={auth}
+                    userVote={userVotes.filter((v) => v.project === project.key)}
+                    firebase={firebase}
+                    project={project}
+                    awardCategoryOptions={awardCategoryOptions}
+                    awardList={awardList}
+                    userList={userList}
+                    group={{id: project.group, ...groupsList[project.group]}}
+                    submissionsClosed={submissionsClosed}
+                    isOlderYear={isOlderYear}
+                  />
+                ))}
+              </ul>
+            ) : (
+              <ul className="Project-List Project">
+                {projectIdeas.map((project) => (
                   <ProjectListItem
                     key={project.key}
                     auth={auth}
@@ -424,80 +652,53 @@ class ProjectList extends Component {
                     submissionsClosed={submissionsClosed}
                     isOlderYear={isOlderYear}
                   />
-                );
-              })}
-            </ul>
+                ))}
+              </ul>
+            )}
           </div>
         )}
+
         {showProjects && projectsLFH.length + otherProjects.length > 0 && (
           <div className="Project-list-section">
-            <ul className="Project-List Project">
-              {[...projectsLFH, ...otherProjects].map((project) => (
-                <ProjectListItem
-                  key={project.key}
-                  auth={auth}
-                  userVote={userVotes.filter((v) => v.project === project.key)}
-                  firebase={firebase}
-                  project={project}
-                  awardCategoryOptions={awardCategoryOptions}
-                  awardList={awardList}
-                  userList={userList}
-                  group={{id: project.group, ...groupsList[project.group]}}
-                  submissionsClosed={submissionsClosed}
-                  isOlderYear={isOlderYear}
-                />
-              ))}
-            </ul>
+            {viewStyle === 'grid' ? (
+              <ul className="Project-grid">
+                {[...projectsLFH, ...otherProjects].map((project) => (
+                  <ProjectCardItem
+                    key={project.key}
+                    auth={auth}
+                    userVote={userVotes.filter((v) => v.project === project.key)}
+                    firebase={firebase}
+                    project={project}
+                    awardCategoryOptions={awardCategoryOptions}
+                    awardList={awardList}
+                    userList={userList}
+                    group={{id: project.group, ...groupsList[project.group]}}
+                    submissionsClosed={submissionsClosed}
+                    isOlderYear={isOlderYear}
+                  />
+                ))}
+              </ul>
+            ) : (
+              <ul className="Project-List Project">
+                {[...projectsLFH, ...otherProjects].map((project) => (
+                  <ProjectListItem
+                    key={project.key}
+                    auth={auth}
+                    userVote={userVotes.filter((v) => v.project === project.key)}
+                    firebase={firebase}
+                    project={project}
+                    awardCategoryOptions={awardCategoryOptions}
+                    awardList={awardList}
+                    userList={userList}
+                    group={{id: project.group, ...groupsList[project.group]}}
+                    submissionsClosed={submissionsClosed}
+                    isOlderYear={isOlderYear}
+                  />
+                ))}
+              </ul>
+            )}
           </div>
         )}
-        <div className="Project-list-tabs">
-          <ul className="tabs">
-            <li style={{fontWeight: showIdeas ? 'bold' : null}}>
-              <Link
-                to={{
-                  pathname: this.props.location.pathname,
-                  query: {
-                    show: 'ideas',
-                  },
-                }}
-              >
-                Ideas{' '}
-                <span
-                  className={
-                    showIdeas
-                      ? 'Project-list-count-active'
-                      : 'Project-list-count-inactive'
-                  }
-                >
-                  {projectIdeas.length === 0 ? '0' : projectIdeas.length}
-                </span>
-              </Link>
-            </li>
-            <li style={{fontWeight: showProjects ? 'bold' : null}}>
-              <Link
-                to={{
-                  pathname: this.props.location.pathname,
-                  query: {
-                    show: 'projects',
-                  },
-                }}
-              >
-                Projects{' '}
-                <span
-                  className={
-                    showProjects
-                      ? 'Project-list-count-active'
-                      : 'Project-list-count-inactive'
-                  }
-                >
-                  {projectsLFH.length + otherProjects.length === 0
-                    ? '0'
-                    : projectsLFH.length + otherProjects.length}
-                </span>
-              </Link>
-            </li>
-          </ul>
-        </div>
       </div>
     );
   }

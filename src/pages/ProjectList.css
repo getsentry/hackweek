@@ -59,6 +59,13 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: normal;
+}
 .Project-summary {
   border: 0;
   background: none;
@@ -98,6 +105,9 @@
 }
 .Project-member-list-condensed {
   font-size: 0.8em;
+  display: flex;
+  flex-wrap: wrap;
+  row-gap: 1rem;
 }
 .Project-member-list-condensed .Project-member {
   display: inline-block;
@@ -185,6 +195,7 @@
 .Project-main {
   flex: 1 1 0%;
   min-width: 0;
+  padding-bottom: 2rem;
 }
 .Project-actions {
   flex: 0 0 auto;
@@ -197,13 +208,11 @@
   margin-bottom: 0;
 }
 
-/* Main container for tabs and project list side by side */
+/* Main container wrapping controls and sections */
 .Project-list-container {
-  display: flex;
-  align-items: flex-start;
-  gap: 2rem;
+  display: block;
   width: 100%;
-  padding: 1em 0;
+  padding: 1em 0 0;
 }
 
 /* Main content grows to fill space */
@@ -216,25 +225,12 @@
   gap: 2rem;
 }
 
-/* Sidebar stays at its content width */
+/* Deprecated sidebar styles kept for legacy pages (unused now) */
 .Project-list-tabs {
-  flex: 0 0 auto;
-  min-width: 180px;
-  max-width: 250px;
-  display: flex;
-  flex-direction: column;
+  display: none;
 }
 
 @media only screen and (max-width: 1024px) {
-  .Project-list-container {
-    flex-direction: column-reverse;
-  }
-
-  .Project-list-tabs ul {
-    flex-direction: row;
-    column-gap: 24px;
-    margin-bottom: 24px;
-  }
 }
 
 /* Tabs sidebar styles */
@@ -313,4 +309,200 @@
   mask-size: auto 100%;
   -webkit-mask: url('../assets/svgs/divider-squiggle.svg') repeat-x;
   -webkit-mask-size: auto 100%;
+}
+
+/* Horizontal Controls Bar */
+.Project-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--color-gray400);
+}
+.Project-controls-left,
+.Project-controls-right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.Control-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.7rem 0.45rem 0.9rem; /* slightly bigger with more left padding */
+  border-radius: 999px;
+  background: var(--color-gray400);
+  color: var(--color-gray300);
+  font-weight: 600;
+  font-size: 1.5rem;
+  text-decoration: none;
+}
+.Control-pill .count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  width: 1.5em;
+  height: 1.5em;
+  border-radius: 0.75em;
+  background: var(--color-gray300);
+  color: #ffffff; /* lighter text when not selected */
+}
+.Control-pill.active {
+  background: var(--color-blurple);
+  color: white;
+}
+.Control-pill.active .count {
+  background: white;
+  color: var(--color-blurple);
+}
+
+.ViewToggle {
+  display: inline-flex;
+  background: var(--color-gray400);
+  border-radius: 10px;
+  padding: 2px;
+}
+.ViewToggle a,
+.ViewToggle button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  color: var(--color-gray300);
+  font-weight: 600;
+  cursor: pointer;
+}
+.ViewToggle .active {
+  background: white;
+  color: var(--color-gray100);
+}
+
+@media (max-width: 639px) {
+  .Project-controls-right {
+    display: none;
+  }
+}
+
+/* Grid view */
+.Project-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+  align-items: stretch; /* make grid areas equal height and stretch children */
+  /* Fixed card height: adjust here to tune height */
+  grid-auto-rows: 280px;
+}
+.ProjectCard {
+  background: white;
+  border: 1px solid var(--color-gray400);
+  border-radius: 12px;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.2s ease, transform 0.05s ease;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* allow children to shrink */
+}
+.ProjectCard:hover {
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+}
+.ProjectCard-header {
+  padding: 0.75rem 1rem 0 1rem;
+}
+
+.ProjectCard-body {
+  padding: 1rem 1rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  flex: 1 1 auto; /* fill available space to push footer down */
+  min-height: 0;
+}
+.ProjectCard-title {
+  margin: 0 0 0.25rem;
+}
+.ProjectCard-summary {
+  margin: 0 0 0.75rem;
+  color: var(--color-gray300);
+  overflow: hidden;
+  flex: 1 1 auto; /* take remaining body space */
+  /* Multi-line clamp that adapts to remaining height */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 10; /* large upper bound, actual lines constrained by flex height */
+}
+.ProjectCard-members {
+  padding: 0 0 0.5rem;
+}
+.ProjectCard-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem 1rem;
+  margin-top: auto; /* pin footer to bottom of equal-height card */
+}
+.ProjectCard-members {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.ProjectCard-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.ProjectCard-awards {
+  font-size: 0.9em;
+  color: var(--color-gray300);
+}
+/* Awards at top of card body */
+.ProjectCard-awards--top {
+  padding: 0 0 0.25rem;
+  color: var(--color-gray200);
+}
+
+/* Tag chips (on-brand) */
+.Project-tags {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+.Tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  line-height: 1;
+}
+.Tag--group {
+  color: #1d1127; /* gray-100 */
+  background: #e9d8fd; /* lavender tint */
+  border: 1px solid #d2bfff;
+}
+.Tag--help {
+  color: #1d1127;
+  background: #ffd1ea; /* pink tint */
+  border: 1px solid #ffb5df;
+}
+.Tag--member {
+  color: #43324c; /* gray-200 */
+  background: #f2eef6;
+  border: 1px solid #e4deeb;
+}
+.Tag--member .avatar {
+  width: 16px;
+  height: 16px;
 }

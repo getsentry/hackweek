@@ -372,16 +372,21 @@ class ProjectList extends Component {
     let projectsLFH = [];
     let projectIdeas = [];
     let otherProjects = [];
+    let myProjects = [];
     projects.forEach((p) => {
+      if (Object.keys(p.members || {}).includes(auth.uid)) myProjects.push(p);
       if (p.isIdea) projectIdeas.push(p);
       else if (p.needHelp) projectsLFH.push(p);
       else otherProjects.push(p);
+
     });
 
     const showParam = this.props.location.query.show;
     const showIdeas = !showParam || showParam === 'ideas';
     const showProjects = showParam === 'projects';
+    const showMyProjects = showParam === 'my-projects';
     const hasAnyProjects = projectsLFH.length > 0 || otherProjects.length > 0;
+    const hasAnyMyProjects = myProjects.length > 0;
     const hasAnyIdeas = projectIdeas.length > 0;
 
     let userVotes = year ? getAuthUserVotes(auth.uid, year.votes) : [];
@@ -399,6 +404,13 @@ class ProjectList extends Component {
       emptyState = (
         <div className="alert alert-block alert-info">
           Oops! No project ideas have been submitted yet for this year!
+        </div>
+      );
+    }
+    if (showMyProjects && !hasAnyMyProjects) {
+      emptyState = (
+        <div className="alert alert-block alert-info">
+          Oops! You don't have any projects yet! Create, claim or join a project!
         </div>
       );
     }
@@ -450,6 +462,28 @@ class ProjectList extends Component {
             </ul>
           </div>
         )}
+        {showMyProjects && myProjects.length > 0 && (
+          <div className="Project-list-section">
+            <ul className="Project-List Project">
+              {myProjects.map((project) => (
+                <ProjectListItem
+                  key={project.key}
+                  auth={auth}
+                  userVote={userVotes.filter((v) => v.project === project.key)}
+                  firebase={firebase}
+                  project={project}
+                  awardCategoryOptions={awardCategoryOptions}
+                  awardList={awardList}
+                  userList={userList}
+                  group={{id: project.group, ...groupsList[project.group]}}
+                  submissionsClosed={submissionsClosed}
+                  isOlderYear={isOlderYear}
+                />
+              ))}
+            </ul>
+          </div>
+        )}
+
         <div className="Project-list-tabs">
           <ul className="tabs">
             <li style={{fontWeight: showIdeas ? 'bold' : null}}>
@@ -493,6 +527,27 @@ class ProjectList extends Component {
                   {projectsLFH.length + otherProjects.length === 0
                     ? '0'
                     : projectsLFH.length + otherProjects.length}
+                </span>
+              </Link>
+            </li>
+            <li style={{fontWeight: showMyProjects ? 'bold' : null}}>
+              <Link
+                to={{
+                  pathname: this.props.location.pathname,
+                  query: {
+                    show: 'my-projects',
+                  },
+                }}
+              >
+                My Projects{' '}
+                <span
+                  className={
+                    showMyProjects
+                      ? 'Project-list-count-active'
+                      : 'Project-list-count-inactive'
+                  }
+                >
+                  {myProjects.length === 0 ? '0' : myProjects.length}
                 </span>
               </Link>
             </li>

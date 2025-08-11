@@ -340,7 +340,7 @@ class ProjectDetails extends Component {
             />
           </div>
           <div className="Project-Details-Content">
-            <div className="">
+            <div className="Project-Details-Content-main">
               {project.videoUrl &&
                 project.videoUrl.match(
                   /https:\/\/drive\.google\.com\/file\/d\/(.*)\/[a-z]*.*/

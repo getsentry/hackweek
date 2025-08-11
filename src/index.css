@@ -160,6 +160,9 @@ dd {
   display: flex;
   column-gap: 12px;
 }
+.Project-Details-Content-main {
+  flex: 1 1 auto;
+}
 .Project-Details-Sidebar {
   flex: 0 0 200px; /* Fixed width of 300px on larger screens */
   min-width: 200px;

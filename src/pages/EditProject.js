@@ -448,7 +448,7 @@ export default compose(
       storeAs: 'project',
     },
     {
-      path: `/years/${currentYear}/groups`,
+      path: `/years/${props.params.year || currentYear}/groups`,
       queryParams: ['orderByValue=name'],
       populates: [],
       storeAs: 'groupsList',

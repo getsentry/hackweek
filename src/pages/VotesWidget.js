@@ -31,12 +31,52 @@ class VotedCheckmark extends Component {
   }
 }
 
+class InfoIcon extends Component {
+  render() {
+    return (
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
+        focusable="false"
+      >
+        <circle cx="12" cy="12" r="10" stroke="#7553FF" strokeWidth="2" fill="white" />
+        <path d="M11 10h2v7h-2z" fill="#7553FF" />
+        <circle cx="12" cy="7" r="1.5" fill="#7553FF" />
+      </svg>
+    );
+  }
+}
+
 class VotesWidget extends Component {
   static propTypes = {
     auth: PropTypes.object,
     year: PropTypes.object,
     awardCategories: PropTypes.object,
     allProjects: PropTypes.object,
+    getCategoryTooltip: PropTypes.func,
+  };
+
+  static defaultProps = {
+    getCategoryTooltip: (name) => {
+      switch (name.toLowerCase()) {
+        case 'best use of ai':
+          return 'Projects that warp and twist AI in clever ways';
+        case 'sentry af':
+          return 'The project that feels the most like "us" → quirky, sharp, and unmistakably Sentry';
+        case 'just ship it already':
+          return "The hack that's so useful or obvious you wonder why it isn't live yet";
+        case 'for the devs!':
+          return 'Built with developers in mind → tools, workflows, or features that make dev life better';
+        case 'the quiet win':
+          return 'Small but mighty improvements that make a difference without making a lot of noise';
+        default:
+          return 'Uhm... ask Manhart or Lazar...';
+      }
+    },
   };
 
   constructor(props) {
@@ -44,6 +84,7 @@ class VotesWidget extends Component {
 
     this.state = {
       open: false,
+      openTooltipFor: null,
     };
   }
 
@@ -51,8 +92,21 @@ class VotesWidget extends Component {
     this.setState({open: !this.state.open});
   }
 
+  toggleTooltipFor(categoryKey) {
+    this.setState(({openTooltipFor}) => ({
+      openTooltipFor: openTooltipFor === categoryKey ? null : categoryKey,
+    }));
+  }
+
+  onInfoKeyDown(e, categoryKey) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      this.toggleTooltipFor(categoryKey);
+    }
+  }
+
   render() {
-    const {auth, year, awardCategories, allProjects} = this.props;
+    const {auth, year, awardCategories, allProjects, getCategoryTooltip} = this.props;
 
     if (!isLoaded(auth) || !auth?.uid) {
       return null;
@@ -120,12 +174,34 @@ class VotesWidget extends Component {
           <ul className="VotesWidget-list">
             {categories.map((category) => {
               const hasVoted = votedCategoriesMap[category.key];
+              const isTooltipOpen = this.state.openTooltipFor === category.key;
               return (
                 <li key={category.key}>
                   {hasVoted ? (
                     <>
-                      <VotedCheckmark />
+                      <span className="VotesWidget-check">
+                        <VotedCheckmark />
+                      </span>
                       {category.name}
+                      <span className="VotesWidget-infoWrap">
+                        <span
+                          className="VotesWidget-info"
+                          role="button"
+                          tabIndex={0}
+                          aria-expanded={isTooltipOpen}
+                          aria-label={`About ${category.name}`}
+                          onClick={this.toggleTooltipFor.bind(this, category.key)}
+                          onKeyDown={(e) => this.onInfoKeyDown(e, category.key)}
+                        >
+                          <InfoIcon />
+                        </span>
+                        {isTooltipOpen ? (
+                          <span className="VotesWidget-tooltip">
+                            {getCategoryTooltip(category.name) ||
+                              'More info coming soon.'}
+                          </span>
+                        ) : null}
+                      </span>
                       <a href={`/projects/${hasVoted.project}`}>
                         {votedProjects[hasVoted.project]?.name || 'Unknown Project'}
                       </a>
@@ -134,6 +210,25 @@ class VotesWidget extends Component {
                     <>
                       <span className="VotesWidget-notvoted" />
                       {category.name}
+                      <span className="VotesWidget-infoWrap">
+                        <span
+                          className="VotesWidget-info"
+                          role="button"
+                          tabIndex={0}
+                          aria-expanded={isTooltipOpen}
+                          aria-label={`About ${category.name}`}
+                          onClick={this.toggleTooltipFor.bind(this, category.key)}
+                          onKeyDown={(e) => this.onInfoKeyDown(e, category.key)}
+                        >
+                          <InfoIcon />
+                        </span>
+                        {isTooltipOpen ? (
+                          <span className="VotesWidget-tooltip">
+                            {getCategoryTooltip(category.name) ||
+                              'More info coming soon.'}
+                          </span>
+                        ) : null}
+                      </span>
                     </>
                   )}
                 </li>

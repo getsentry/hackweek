@@ -344,7 +344,9 @@
   align-items: center;
   justify-content: center;
   font-size: 1.25rem;
-  width: 1.5em;
+  width: max-content;
+  padding: 0 0.25em;
+  min-width: 1.5em;
   height: 1.5em;
   border-radius: 0.75em;
   background: var(--color-gray300);

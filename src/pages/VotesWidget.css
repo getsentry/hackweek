@@ -71,7 +71,7 @@
 }
 
 .VotesWidget-list li svg {
-  transform: translateY(12px);
+  transform: none;
 }
 
 .VotesWidget-list li a {
@@ -86,6 +86,44 @@
   width: 24px;
   height: 24px;
   border: 8px solid white;
+}
+
+.VotesWidget-info {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  cursor: help;
+}
+
+.VotesWidget-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.VotesWidget-infoWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.VotesWidget-tooltip {
+  position: absolute;
+  bottom: 100%;
+  right: 0;
+  margin-top: 6px;
+  background: #1f1537;
+  color: white;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.2;
+  min-width: max-content;
+  max-width: 420px;
+  z-index: 20;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 @media screen and (max-width: 1024px) {

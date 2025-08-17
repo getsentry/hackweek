@@ -34,6 +34,16 @@ function getAwardCategories(awardCategoryList) {
   return result;
 }
 
+function formatMemberName(displayName) {
+  if (!displayName || typeof displayName !== 'string') return '';
+  const parts = displayName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '';
+  if (parts.length === 1) return parts[0];
+  const firstInitial = parts[0].charAt(0).toUpperCase();
+  const lastName = parts[parts.length - 1];
+  return `${firstInitial}. ${lastName}`;
+}
+
 class ProjectListItem extends Component {
   static propTypes = {
     awardCategoryOptions: PropTypes.object,
@@ -192,6 +202,9 @@ class ProjectCardItem extends Component {
     if (submissionsClosed && project.isIdea) return null;
 
     const hasHeaderTags = Boolean(group.id) || (project.needHelp && !submissionsClosed);
+    const MEMBER_LIMIT = 3;
+    const visibleMembers = projectMembers.slice(0, MEMBER_LIMIT);
+    const remainingMembersCount = Math.max(projectMembers.length - MEMBER_LIMIT, 0);
 
     return (
       <li className="ProjectCard">
@@ -234,12 +247,22 @@ class ProjectCardItem extends Component {
             <div className="ProjectCard-footer">
               {hasMembers && (
                 <div className="ProjectCard-members">
-                  {projectMembers.map((member) => (
+                  {visibleMembers.map((member) => (
                     <div className="Project-member Tag Tag--member" key={member.email}>
                       <Avatar user={member} />
-                      <span className="Project-member-name">{member.displayName}</span>
+                      <span className="Project-member-name">
+                        {formatMemberName(member.displayName)}
+                      </span>
                     </div>
                   ))}
+                  {remainingMembersCount > 0 && (
+                    <div
+                      className="Project-member Tag Tag--member"
+                      title={`${remainingMembersCount} more`}
+                    >
+                      +{remainingMembersCount} more
+                    </div>
+                  )}
                 </div>
               )}
               <div className="ProjectCard-actions">

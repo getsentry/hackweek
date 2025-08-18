@@ -1,8 +1,22 @@
 import React, {Component} from 'react';
+import PropTypes from 'prop-types';
 import moment from 'moment';
 import confetti from 'canvas-confetti';
 
 class CountdownTimer extends Component {
+  static propTypes = {
+    // targetDate may be a date string, Date object, or timestamp (ms)
+    targetDate: PropTypes.oneOfType([
+      PropTypes.string,
+      PropTypes.instanceOf(Date),
+      PropTypes.number,
+    ]),
+  };
+
+  static defaultProps = {
+    targetDate: '2025-08-18T00:00:00',
+  };
+
   state = {
     set: false,
     days: 0,
@@ -25,9 +39,11 @@ class CountdownTimer extends Component {
   }
 
   updateCountdown = () => {
-    const hackweekStart = moment('2025-08-18');
     const now = moment();
-    const duration = moment.duration(hackweekStart.diff(now));
+    const target = moment(this.props.targetDate);
+    let diffMs = target.diff(now);
+    if (diffMs < 0) diffMs = 0;
+    const duration = moment.duration(diffMs);
 
     const newSeconds = duration.seconds();
     const newMinutes = duration.minutes();
@@ -126,9 +142,7 @@ class CountdownTimer extends Component {
             border-radius: 6px;
             width: 160px;
             border: 1px solid #e0dce5;
-            box-shadow:
-              0 1px 2px rgba(43, 34, 51, 0.04),
-              0 3px 0 0 #e0dce5;
+            box-shadow: 0 1px 2px rgba(43, 34, 51, 0.04), 0 3px 0 0 #e0dce5;
           }
 
           .countdown-segment::after {

@@ -17,6 +17,21 @@ import Select from 'react-select';
 import PageHeader from '../components/PageHeader';
 import Button from '../components/Button';
 
+// Sort function to prioritize projects with "cmd" in the name
+function sortProjectsWithCmd(projects) {
+  return projects.sort((a, b) => {
+    const aHasCmd = a.name.toLowerCase().includes('cmd');
+    const bHasCmd = b.name.toLowerCase().includes('cmd');
+
+    // If one has "cmd" and the other doesn't, prioritize the one with "cmd"
+    if (aHasCmd && !bHasCmd) return -1;
+    if (!aHasCmd && bHasCmd) return 1;
+
+    // If both have "cmd" or neither has "cmd", maintain alphabetical order
+    return a.name.localeCompare(b.name);
+  });
+}
+
 function getAuthUserVotes(uid, voteList) {
   return Object.values(voteList || {}).filter((vote) => vote.creator === uid);
 }
@@ -394,6 +409,10 @@ class ProjectList extends Component {
       }
     });
 
+    // Sort winning and other projects with "cmd" projects at the top
+    winningProjects = sortProjectsWithCmd(winningProjects);
+    otherProjects = sortProjectsWithCmd(otherProjects);
+
     let awardCategoryOptions = getAwardCategories(awardCategoryList);
 
     if (this.state.groupFilter) {
@@ -423,6 +442,11 @@ class ProjectList extends Component {
       if (p.isIdea) projectIdeas.push(p);
       else actualProjects.push(p);
     });
+
+    // Sort each category with "cmd" projects at the top
+    projectIdeas = sortProjectsWithCmd(projectIdeas);
+    actualProjects = sortProjectsWithCmd(actualProjects);
+    myProjects = sortProjectsWithCmd(myProjects);
 
     return (
       <div className="Project-list-container">
@@ -653,6 +677,11 @@ class ProjectList extends Component {
       else otherProjects.push(p);
     });
 
+    // Sort each category with "cmd" projects at the top
+    // Note: projectsLFH and otherProjects are sorted together when displayed
+    projectIdeas = sortProjectsWithCmd(projectIdeas);
+    myProjects = sortProjectsWithCmd(myProjects);
+
     const {show: showParam, view: viewParam} = this.props.location.query;
     const showIdeas = !showParam || showParam === 'ideas';
     const showProjects = showParam === 'projects';
@@ -791,7 +820,7 @@ class ProjectList extends Component {
           <div className="Project-list-section">
             {viewStyle === 'grid' ? (
               <ul className="Project-grid">
-                {[...projectsLFH, ...otherProjects].map((project) => (
+                {sortProjectsWithCmd([...projectsLFH, ...otherProjects]).map((project) => (
                   <ProjectCardItem
                     key={project.key}
                     auth={auth}
@@ -809,7 +838,7 @@ class ProjectList extends Component {
               </ul>
             ) : (
               <ul className="Project-List Project">
-                {[...projectsLFH, ...otherProjects].map((project) => (
+                {sortProjectsWithCmd([...projectsLFH, ...otherProjects]).map((project) => (
                   <ProjectListItem
                     key={project.key}
                     auth={auth}

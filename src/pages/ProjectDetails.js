@@ -326,6 +326,9 @@ class ProjectDetails extends Component {
 
     let awards = mapObject(awardList).filter((award) => award.project === projectKey);
 
+    const videoUrlMatch = project.videoUrl?.match(
+      /https:\/\/drive\.google\.com\/file\/d\/(.*)\/[a-z]*.*/
+    );
     return (
       <Layout>
         <div className="Project-Details">
@@ -341,20 +344,17 @@ class ProjectDetails extends Component {
           </div>
           <div className="Project-Details-Content">
             <div className="Project-Details-Content-main">
-              {project.videoUrl &&
-                project.videoUrl.match(
-                  /https:\/\/drive\.google\.com\/file\/d\/(.*)\/[a-z]*.*/
-                )[1] && (
-                  <iframe
-                    src={`https://drive.google.com/file/d/${
-                      project.videoUrl.match(
-                        /https:\/\/drive\.google\.com\/file\/d\/(.*)\/[a-z]*.*/
-                      )[1]
-                    }/preview`}
-                    allow="autoplay"
-                    style={{width: '100%', aspectRatio: '16/9'}}
-                  ></iframe>
-                )}
+              {project.videoUrl && videoUrlMatch && videoUrlMatch[1] && (
+                <iframe
+                  src={`https://drive.google.com/file/d/${
+                    project.videoUrl.match(
+                      /https:\/\/drive\.google\.com\/file\/d\/(.*)\/[a-z]*.*/
+                    )[1]
+                  }/preview`}
+                  allow="autoplay"
+                  style={{width: '100%', aspectRatio: '16/9'}}
+                ></iframe>
+              )}
               <h2>Summary</h2>
               <div
                 className="Project-details-summary no-forced-lowercase"

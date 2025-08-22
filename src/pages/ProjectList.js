@@ -872,6 +872,16 @@ class ProjectList extends Component {
           currentYear={this.props.params.year || currentYear}
           showAddProjectButton={!year.submissionsClosed}
         />
+        <p style={{textAlign: 'center', fontWeight: 'bold', marginBottom: '1rem'}}>
+          Submit your demo videos{' '}
+          <a
+            style={{color: 'var(--color-blurple)'}}
+            href="https://drive.google.com/drive/u/0/folders/1WoBqogZpFVOv2U818zNo70ldvJUYBpt6"
+          >
+            here
+          </a>{' '}
+          in your group's folder.
+        </p>
         {this.renderBody(year)}
       </Layout>
     );

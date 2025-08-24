@@ -609,7 +609,9 @@ class ProjectList extends Component {
         });
       } else if (this.state.selectedRegion === 'my-votes') {
         // Filter for projects the user has voted on
-        const userVotes = year ? getAuthUserVotes(auth.uid, year.votes) : [];
+        const userVotes = this.props.year
+          ? getAuthUserVotes(auth.uid, this.props.year.votes)
+          : [];
         projects = projects.filter((project) =>
           userVotes.some((vote) => vote.project === project.key)
         );
@@ -628,7 +630,17 @@ class ProjectList extends Component {
     });
 
     let awardCategoryOptions = getAwardCategories(awardCategoryList);
-    let userVotes = year ? getAuthUserVotes(auth.uid, year.votes) : [];
+    let userVotes = this.props.year
+      ? getAuthUserVotes(auth.uid, this.props.year.votes)
+      : [];
+
+    // Get projects the user has voted on
+    let myVotedProjects = [];
+    if (userVotes.length > 0) {
+      myVotedProjects = projects.filter((project) =>
+        userVotes.some((vote) => vote.project === project.key)
+      );
+    }
 
     if (this.state.groupFilter) {
       if (this.state.groupFilter.value === '') {
@@ -1004,7 +1016,9 @@ class ProjectList extends Component {
         });
       } else if (this.state.selectedRegion === 'my-votes') {
         // Filter for projects the user has voted on
-        const userVotes = year ? getAuthUserVotes(auth.uid, year.votes) : [];
+        const userVotes = this.props.year
+          ? getAuthUserVotes(auth.uid, this.props.year.votes)
+          : [];
         projects = projects.filter((project) =>
           userVotes.some((vote) => vote.project === project.key)
         );
@@ -1038,7 +1052,9 @@ class ProjectList extends Component {
     const showMyVotes = showParam === 'my-votes';
     let viewStyle = viewParam === 'grid' ? 'grid' : 'list';
     if (!this.state.isWide) viewStyle = 'list';
-    let userVotes = year ? getAuthUserVotes(auth.uid, year.votes) : [];
+    let userVotes = this.props.year
+      ? getAuthUserVotes(auth.uid, this.props.year.votes)
+      : [];
     let awardCategoryOptions = getAwardCategories(awardCategoryList);
 
     const hasAnyProjects = projectsLFH.length > 0 || otherProjects.length > 0;

@@ -176,6 +176,22 @@
   max-width: 80px;
 }
 
+/* Group column styling */
+.vote-table th:nth-child(3),
+.vote-table td:nth-child(3) {
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
+  text-align: center;
+  padding: 0.75rem 0.5rem;
+}
+
+.group-name {
+  font-size: 0.9rem;
+  color: #6c757d;
+  font-weight: 500;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .vote-table th,

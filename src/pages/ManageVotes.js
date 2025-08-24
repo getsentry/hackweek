@@ -62,6 +62,7 @@ class ManageAwardCategories extends Component {
           data={votesByProjectAndCategory}
           awardCategories={awardCategories}
           projects={projects}
+          groups={this.props.groups}
           year={this.props.params.year}
         />
         {Object.keys(votesByProjectAndCategory).map((categoryKey) => {
@@ -120,6 +121,11 @@ export default compose(
     },
     {path: `/years/${params.year}/votes`, populates: keyPopulates, storeAs: 'voteList'},
     {
+      path: `/years/${params.year}/groups`,
+      populates: keyPopulates,
+      storeAs: 'groups',
+    },
+    {
       path: `/users`,
       queryParams: ['orderByValue=displayName'],
       populates: [],
@@ -131,6 +137,7 @@ export default compose(
     awardCategories: dataToJS(firebase, 'awardCategories'),
     projects: dataToJS(firebase, 'projects'),
     voteList: orderedPopulatedDataToJS(firebase, 'voteList', keyPopulates),
+    groups: dataToJS(firebase, 'groups'),
     userList: dataToJS(firebase, 'userList'),
   }))
 )(ManageAwardCategories);

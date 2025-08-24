@@ -1,7 +1,7 @@
 import React, {useState} from 'react';
 import PropTypes from 'prop-types';
 
-const VoteTable = ({data, awardCategories, projects, year}) => {
+const VoteTable = ({data, awardCategories, projects, groups, year}) => {
   const [sortConfig, setSortConfig] = useState({
     key: null,
     direction: 'desc',
@@ -70,7 +70,14 @@ const VoteTable = ({data, awardCategories, projects, year}) => {
     // Always show all projects
     const allProjects = Object.keys(projects).map((projectKey) => {
       const project = projects[projectKey];
-      const row = {projectKey, projectName: project.name};
+      const row = {
+        projectKey,
+        projectName: project.name,
+        groupName:
+          project.group && groups && groups[project.group]
+            ? groups[project.group].name
+            : 'No Group',
+      };
 
       // Calculate total votes for this project
       let totalVotes = 0;
@@ -139,6 +146,7 @@ const VoteTable = ({data, awardCategories, projects, year}) => {
             <tr>
               <th className="rank-column">Rank</th>
               <th>Project</th>
+              <th>Group</th>
               {Object.keys(awardCategories).map((categoryKey) => (
                 <th
                   key={categoryKey}
@@ -163,6 +171,7 @@ const VoteTable = ({data, awardCategories, projects, year}) => {
               <td>
                 <strong>Category Totals</strong>
               </td>
+              <td></td> {/* Empty cell for group column */}
               {Object.keys(awardCategories).map((categoryKey) => {
                 const categoryVotes = Object.values(data[categoryKey] || {}).reduce(
                   (sum, votes) => sum + votes,
@@ -199,6 +208,7 @@ const VoteTable = ({data, awardCategories, projects, year}) => {
                     {row.projectName}
                   </a>
                 </td>
+                <td className="group-name">{row.groupName}</td>
                 {Object.keys(awardCategories).map((categoryKey) => (
                   <td
                     key={categoryKey}
@@ -231,6 +241,7 @@ VoteTable.propTypes = {
   data: PropTypes.object.isRequired,
   awardCategories: PropTypes.object.isRequired,
   projects: PropTypes.object.isRequired,
+  groups: PropTypes.object,
   year: PropTypes.string.isRequired,
 };
 

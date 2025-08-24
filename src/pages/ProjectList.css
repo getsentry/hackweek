@@ -495,6 +495,14 @@
   background: #e9d8fd; /* lavender tint */
   border: 1px solid #d2bfff;
 }
+.Tag--vote {
+  color: #1d1127; /* gray-100 */
+  background: #d1f2ff; /* light blue tint */
+  border: 1px solid #b5e6ff;
+}
+.Tag--vote .vote-label {
+  font-weight: 400; /* regular weight for "You Voted" */
+}
 .Tag--help {
   color: #1d1127;
   background: #ffd1ea; /* pink tint */

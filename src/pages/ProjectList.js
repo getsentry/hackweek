@@ -45,6 +45,7 @@ class ProjectListItem extends Component {
     group: PropTypes.object,
     submissionsClosed: PropTypes.bool,
     isOlderYear: PropTypes.bool,
+    userVote: PropTypes.array,
   };
 
   render() {
@@ -56,6 +57,7 @@ class ProjectListItem extends Component {
       userList,
       group,
       isOlderYear,
+      userVote,
     } = this.props;
     let link =
       currentYear === project.year
@@ -89,8 +91,12 @@ class ProjectListItem extends Component {
             {/* Project Name */}
             <div className="Project-tags">
               {group.id && <span className="Tag Tag--group">{group.name}</span>}
-              {project.needHelp && !submissionsClosed && (
-                <span className="Tag Tag--help">looking for help</span>
+              {userVote && userVote.length > 0 && userVote[0].awardCategory && (
+                <span className="Tag Tag--vote">
+                  <span className="vote-label">You Voted</span>{' '}
+                  {awardCategoryOptions[userVote[0].awardCategory]?.name ||
+                    userVote[0].awardCategory}
+                </span>
               )}
             </div>
             <Link to={link}>
@@ -155,6 +161,7 @@ class ProjectCardItem extends Component {
     group: PropTypes.object,
     submissionsClosed: PropTypes.bool,
     isOlderYear: PropTypes.bool,
+    userVote: PropTypes.array,
   };
 
   render() {
@@ -166,6 +173,7 @@ class ProjectCardItem extends Component {
       userList,
       group,
       isOlderYear,
+      userVote,
     } = this.props;
 
     const link =
@@ -202,8 +210,12 @@ class ProjectCardItem extends Component {
           <div className="ProjectCard-header">
             <div className="Project-tags">
               {group.id && <span className="Tag Tag--group">{group.name}</span>}
-              {project.needHelp && !submissionsClosed && (
-                <span className="Tag Tag--help">looking for help</span>
+              {userVote && userVote.length > 0 && userVote[0].awardCategory && (
+                <span className="Tag Tag--vote">
+                  <span className="vote-label">You Voted</span>{' '}
+                  {awardCategoryOptions[userVote[0].awardCategory]?.name ||
+                    userVote[0].awardCategory}
+                </span>
               )}
             </div>
           </div>
@@ -291,6 +303,7 @@ class ProjectList extends Component {
       groupFilter: null,
       isWide: typeof window !== 'undefined' ? window.innerWidth >= 640 : true,
       showIdeasTab: false, // Add this line to hide the Ideas tab
+      showMyStuffTab: false, // Add this line to hide the My Stuff tab
     };
   }
 
@@ -345,14 +358,16 @@ class ProjectList extends Component {
             className={`Control-pill ${currentShow === 'projects' ? 'active' : ''}`}
             to={{pathname, query: {...query, show: 'projects'}}}
           >
-            Projects <span className="count">{projectCount || 0}</span>
+            All Projects <span className="count">{projectCount || 0}</span>
           </Link>
-          <Link
-            className={`Control-pill ${currentShow === 'my-projects' ? 'active' : ''}`}
-            to={{pathname, query: {...query, show: 'my-projects'}}}
-          >
-            My Stuff <span className="count">{myProjectsCount || 0}</span>
-          </Link>
+          {this.state.showMyStuffTab && (
+            <Link
+              className={`Control-pill ${currentShow === 'my-projects' ? 'active' : ''}`}
+              to={{pathname, query: {...query, show: 'my-projects'}}}
+            >
+              My Stuff <span className="count">{myProjectsCount || 0}</span>
+            </Link>
+          )}
           <Link
             className={`Control-pill ${currentShow === 'my-votes' ? 'active' : ''}`}
             to={{pathname, query: {...query, show: 'my-votes'}}}
@@ -408,6 +423,7 @@ class ProjectList extends Component {
     });
 
     let awardCategoryOptions = getAwardCategories(awardCategoryList);
+    let userVotes = year ? getAuthUserVotes(auth.uid, year.votes) : [];
 
     if (this.state.groupFilter) {
       if (this.state.groupFilter.value === '') {
@@ -460,6 +476,7 @@ class ProjectList extends Component {
                   <ProjectCardItem
                     key={project.key}
                     auth={auth}
+                    userVote={userVotes.filter((v) => v.project === project.key)}
                     firebase={firebase}
                     project={project}
                     awardCategoryOptions={awardCategoryOptions}
@@ -477,6 +494,7 @@ class ProjectList extends Component {
                   <ProjectListItem
                     key={project.key}
                     auth={auth}
+                    userVote={userVotes.filter((v) => v.project === project.key)}
                     firebase={firebase}
                     project={project}
                     awardCategoryOptions={awardCategoryOptions}
@@ -500,6 +518,7 @@ class ProjectList extends Component {
                   <ProjectCardItem
                     key={project.key}
                     auth={auth}
+                    userVote={userVotes.filter((v) => v.project === project.key)}
                     firebase={firebase}
                     project={project}
                     awardCategoryOptions={awardCategoryOptions}
@@ -517,6 +536,7 @@ class ProjectList extends Component {
                   <ProjectListItem
                     key={project.key}
                     auth={auth}
+                    userVote={userVotes.filter((v) => v.project === project.key)}
                     firebase={firebase}
                     project={project}
                     awardCategoryOptions={awardCategoryOptions}
@@ -585,6 +605,7 @@ class ProjectList extends Component {
                       <ProjectCardItem
                         key={project.key}
                         auth={auth}
+                        userVote={userVotes.filter((v) => v.project === project.key)}
                         firebase={firebase}
                         project={project}
                         awardCategoryOptions={awardCategoryOptions}
@@ -602,6 +623,7 @@ class ProjectList extends Component {
                       <ProjectListItem
                         key={project.key}
                         auth={auth}
+                        userVote={userVotes.filter((v) => v.project === project.key)}
                         firebase={firebase}
                         project={project}
                         awardCategoryOptions={awardCategoryOptions}
@@ -626,6 +648,7 @@ class ProjectList extends Component {
                       <ProjectCardItem
                         key={project.key}
                         auth={auth}
+                        userVote={userVotes.filter((v) => v.project === project.key)}
                         firebase={firebase}
                         project={project}
                         awardCategoryOptions={awardCategoryOptions}
@@ -643,6 +666,7 @@ class ProjectList extends Component {
                       <ProjectListItem
                         key={project.key}
                         auth={auth}
+                        userVote={userVotes.filter((v) => v.project === project.key)}
                         firebase={firebase}
                         project={project}
                         awardCategoryOptions={awardCategoryOptions}
@@ -669,6 +693,7 @@ class ProjectList extends Component {
                       <ProjectCardItem
                         key={project.key}
                         auth={auth}
+                        userVote={userVotes.filter((v) => v.project === project.key)}
                         firebase={firebase}
                         project={project}
                         awardCategoryOptions={awardCategoryOptions}
@@ -686,6 +711,7 @@ class ProjectList extends Component {
                       <ProjectListItem
                         key={project.key}
                         auth={auth}
+                        userVote={userVotes.filter((v) => v.project === project.key)}
                         firebase={firebase}
                         project={project}
                         awardCategoryOptions={awardCategoryOptions}

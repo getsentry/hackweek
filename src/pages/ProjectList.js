@@ -45,6 +45,7 @@ class ProjectListItem extends Component {
     group: PropTypes.object,
     submissionsClosed: PropTypes.bool,
     isOlderYear: PropTypes.bool,
+    userVote: PropTypes.array,
   };
 
   render() {
@@ -56,6 +57,7 @@ class ProjectListItem extends Component {
       userList,
       group,
       isOlderYear,
+      userVote,
     } = this.props;
     let link =
       currentYear === project.year
@@ -89,8 +91,12 @@ class ProjectListItem extends Component {
             {/* Project Name */}
             <div className="Project-tags">
               {group.id && <span className="Tag Tag--group">{group.name}</span>}
-              {project.needHelp && !submissionsClosed && (
-                <span className="Tag Tag--help">looking for help</span>
+              {userVote && userVote.length > 0 && userVote[0].awardCategory && (
+                <span className="Tag Tag--vote">
+                  <span className="vote-label">You Voted</span>{' '}
+                  {awardCategoryOptions[userVote[0].awardCategory]?.name ||
+                    userVote[0].awardCategory}
+                </span>
               )}
             </div>
             <Link to={link}>
@@ -155,6 +161,7 @@ class ProjectCardItem extends Component {
     group: PropTypes.object,
     submissionsClosed: PropTypes.bool,
     isOlderYear: PropTypes.bool,
+    userVote: PropTypes.array,
   };
 
   render() {
@@ -166,6 +173,7 @@ class ProjectCardItem extends Component {
       userList,
       group,
       isOlderYear,
+      userVote,
     } = this.props;
 
     const link =
@@ -202,8 +210,12 @@ class ProjectCardItem extends Component {
           <div className="ProjectCard-header">
             <div className="Project-tags">
               {group.id && <span className="Tag Tag--group">{group.name}</span>}
-              {project.needHelp && !submissionsClosed && (
-                <span className="Tag Tag--help">looking for help</span>
+              {userVote && userVote.length > 0 && userVote[0].awardCategory && (
+                <span className="Tag Tag--vote">
+                  <span className="vote-label">You Voted</span>{' '}
+                  {awardCategoryOptions[userVote[0].awardCategory]?.name ||
+                    userVote[0].awardCategory}
+                </span>
               )}
             </div>
           </div>
@@ -290,6 +302,16 @@ class ProjectList extends Component {
     this.state = {
       groupFilter: null,
       isWide: typeof window !== 'undefined' ? window.innerWidth >= 640 : true,
+      showIdeasTab: false, // Add this line to hide the Ideas tab
+      showMyStuffTab: false, // Add this line to hide the My Stuff tab
+      selectedRegion: 'all', // Default to All Projects
+      regionCounts: {
+        westCoast: 0,
+        eastCoast: 0,
+        europe: 0,
+        allProjects: 0,
+        myVotes: 0,
+      },
     };
   }
 
@@ -302,6 +324,114 @@ class ProjectList extends Component {
     this._handleResize();
   }
 
+  componentDidUpdate(prevProps) {
+    // Update region counts when projectList or groupsList changes
+    if (
+      prevProps.projectList !== this.props.projectList ||
+      prevProps.groupsList !== this.props.groupsList
+    ) {
+      this.calculateRegionCounts();
+    }
+
+    // Update myVotes count when year or auth changes
+    if (prevProps.year !== this.props.year || prevProps.auth !== this.props.auth) {
+      this.updateMyVotesCount();
+    }
+
+    // Reset region selection if region toggle is hidden
+    if (
+      prevProps.groupsList !== this.props.groupsList &&
+      !this.shouldShowRegionToggle()
+    ) {
+      this.setState({selectedRegion: 'all'});
+    }
+  }
+
+  calculateRegionCounts() {
+    const {projectList, groupsList} = this.props;
+    if (!projectList || !groupsList) return;
+
+    const projects = mapObject(projectList);
+    const westCoast = projects.filter((project) => {
+      const group = groupsList[project.group];
+      return (
+        group &&
+        (group.name.toLowerCase().includes('west') ||
+          group.name.toLowerCase().includes('california') ||
+          group.name.toLowerCase().includes('seattle'))
+      );
+    }).length;
+
+    const eastCoast = projects.filter((project) => {
+      const group = groupsList[project.group];
+      return (
+        group &&
+        (group.name.toLowerCase().includes('east') ||
+          group.name.toLowerCase().includes('new york') ||
+          group.name.toLowerCase().includes('boston'))
+      );
+    }).length;
+
+    const europe = projects.filter((project) => {
+      const group = groupsList[project.group];
+      return (
+        group &&
+        (group.name.toLowerCase().includes('europe') ||
+          group.name.toLowerCase().includes('london') ||
+          group.name.toLowerCase().includes('berlin'))
+      );
+    }).length;
+
+    this.setState({
+      regionCounts: {
+        westCoast,
+        eastCoast,
+        europe,
+        allProjects: projects.length,
+        myVotes: 0, // This will be updated separately since it depends on user votes
+      },
+    });
+  }
+
+  updateMyVotesCount() {
+    const {year, auth} = this.props;
+    if (!year || !auth) return;
+
+    const userVotes = year ? getAuthUserVotes(auth.uid, year.votes) : [];
+    this.setState((prevState) => ({
+      regionCounts: {
+        ...prevState.regionCounts,
+        myVotes: userVotes.length,
+      },
+    }));
+  }
+
+  shouldShowRegionToggle() {
+    const {groupsList} = this.props;
+    if (!groupsList) return false;
+
+    // Check if there are any groups defined for this year
+    const hasGroups = Object.keys(groupsList).length > 0;
+
+    // Check if any groups have region-related names
+    const hasRegionGroups = Object.values(groupsList).some(
+      (group) =>
+        group &&
+        group.name &&
+        (group.name.toLowerCase().includes('west') ||
+          group.name.toLowerCase().includes('east') ||
+          group.name.toLowerCase().includes('europe') ||
+          group.name.toLowerCase().includes('california') ||
+          group.name.toLowerCase().includes('seattle') ||
+          group.name.toLowerCase().includes('new york') ||
+          group.name.toLowerCase().includes('boston') ||
+          group.name.toLowerCase().includes('london') ||
+          group.name.toLowerCase().includes('berlin'))
+    );
+
+    return hasGroups && hasRegionGroups;
+  }
+
   componentWillUnmount() {
     if (this._handleResize) window.removeEventListener('resize', this._handleResize);
   }
@@ -310,10 +440,16 @@ class ProjectList extends Component {
     showIdeas,
     showProjects,
     showMyProjects,
+    showMyVotes,
     ideaCount,
     projectCount,
     myProjectsCount,
+    myVotesCount,
     viewStyle,
+    westCoastCount,
+    eastCoastCount,
+    europeCount,
+    allProjectsCount,
   }) {
     const {pathname, query} = this.props.location;
     const currentShow = showIdeas
@@ -322,30 +458,84 @@ class ProjectList extends Component {
       ? 'projects'
       : showMyProjects
       ? 'my-projects'
+      : showMyVotes
+      ? 'my-votes'
       : query.show || 'ideas';
     const currentView = (this.state.isWide ? viewStyle || query.view : 'list') || 'list';
 
     return (
       <div className="Project-controls">
         <div className="Project-controls-left">
-          <Link
-            className={`Control-pill ${currentShow === 'ideas' ? 'active' : ''}`}
-            to={{pathname, query: {...query, show: 'ideas'}}}
-          >
-            Ideas <span className="count">{ideaCount || 0}</span>
-          </Link>
-          <Link
+          {this.state.showIdeasTab && (
+            <Link
+              className={`Control-pill ${currentShow === 'ideas' ? 'active' : ''}`}
+              to={{pathname, query: {...query, show: 'ideas'}}}
+            >
+              Ideas <span className="count">{ideaCount || 0}</span>
+            </Link>
+          )}
+          {/* <Link
             className={`Control-pill ${currentShow === 'projects' ? 'active' : ''}`}
             to={{pathname, query: {...query, show: 'projects'}}}
           >
-            Projects <span className="count">{projectCount || 0}</span>
-          </Link>
-          <Link
-            className={`Control-pill ${currentShow === 'my-projects' ? 'active' : ''}`}
-            to={{pathname, query: {...query, show: 'my-projects'}}}
+            All Projects <span className="count">{projectCount || 0}</span>
+          </Link> */}
+          {this.state.showMyStuffTab && (
+            <Link
+              className={`Control-pill ${currentShow === 'my-projects' ? 'active' : ''}`}
+              to={{pathname, query: {...query, show: 'my-projects'}}}
+            >
+              My Stuff <span className="count">{myProjectsCount || 0}</span>
+            </Link>
+          )}
+          {/* <Link
+            className={`Control-pill ${currentShow === 'my-votes' ? 'active' : ''}`}
+            to={{pathname, query: {...query, show: 'my-votes'}}}
           >
-            My Stuff <span className="count">{myProjectsCount || 0}</span>
-          </Link>
+            My Votes <span className="count">{myVotesCount || 0}</span>
+          </Link> */}
+
+          {this.shouldShowRegionToggle() ? (
+            <div className="RegionToggle" role="tablist" aria-label="Region toggle">
+              <button
+                className={this.state.selectedRegion === 'all' ? 'active' : ''}
+                onClick={() => this.setState({selectedRegion: 'all'})}
+              >
+                All Projects <span className="count">{allProjectsCount || 0}</span>
+              </button>
+              <button
+                className={this.state.selectedRegion === 'west' ? 'active' : ''}
+                onClick={() => this.setState({selectedRegion: 'west'})}
+              >
+                West Coast <span className="count">{westCoastCount || 0}</span>
+              </button>
+              <button
+                className={this.state.selectedRegion === 'east' ? 'active' : ''}
+                onClick={() => this.setState({selectedRegion: 'east'})}
+              >
+                East Coast <span className="count">{eastCoastCount || 0}</span>
+              </button>
+              <button
+                className={this.state.selectedRegion === 'europe' ? 'active' : ''}
+                onClick={() => this.setState({selectedRegion: 'europe'})}
+              >
+                Europe <span className="count">{europeCount || 0}</span>
+              </button>
+              <button
+                className={this.state.selectedRegion === 'my-votes' ? 'active' : ''}
+                onClick={() => this.setState({selectedRegion: 'my-votes'})}
+              >
+                My Votes{' '}
+                <span className="count">{this.state.regionCounts.myVotes || 0}</span>
+              </button>
+            </div>
+          ) : (
+            <div className="RegionToggle" role="tablist" aria-label="Region toggle">
+              <button className="active">
+                All Projects <span className="count">{allProjectsCount || 0}</span>
+              </button>
+            </div>
+          )}
         </div>
         <div className="Project-controls-right">
           {this.state.isWide && (
@@ -378,11 +568,56 @@ class ProjectList extends Component {
       projectList,
       userList,
       groupsList,
+      year,
     } = this.props;
     if (!groupsList) {
       groupsList = {};
     }
     let projects = mapObject(projectList);
+
+    // Apply region filtering for closed years
+    if (this.state.selectedRegion !== 'all') {
+      if (this.state.selectedRegion === 'west') {
+        projects = projects.filter((project) => {
+          const group = groupsList[project.group];
+          return (
+            group &&
+            (group.name.toLowerCase().includes('west') ||
+              group.name.toLowerCase().includes('california') ||
+              group.name.toLowerCase().includes('seattle'))
+          );
+        });
+      } else if (this.state.selectedRegion === 'east') {
+        projects = projects.filter((project) => {
+          const group = groupsList[project.group];
+          return (
+            group &&
+            (group.name.toLowerCase().includes('east') ||
+              group.name.toLowerCase().includes('new york') ||
+              group.name.toLowerCase().includes('boston'))
+          );
+        });
+      } else if (this.state.selectedRegion === 'europe') {
+        projects = projects.filter((project) => {
+          const group = groupsList[project.group];
+          return (
+            group &&
+            (group.name.toLowerCase().includes('europe') ||
+              group.name.toLowerCase().includes('london') ||
+              group.name.toLowerCase().includes('berlin'))
+          );
+        });
+      } else if (this.state.selectedRegion === 'my-votes') {
+        // Filter for projects the user has voted on
+        const userVotes = this.props.year
+          ? getAuthUserVotes(auth.uid, this.props.year.votes)
+          : [];
+        projects = projects.filter((project) =>
+          userVotes.some((vote) => vote.project === project.key)
+        );
+      }
+    }
+
     let winningProjects = [];
     let otherProjects = [];
 
@@ -395,6 +630,17 @@ class ProjectList extends Component {
     });
 
     let awardCategoryOptions = getAwardCategories(awardCategoryList);
+    let userVotes = this.props.year
+      ? getAuthUserVotes(auth.uid, this.props.year.votes)
+      : [];
+
+    // Get projects the user has voted on
+    let myVotedProjects = [];
+    if (userVotes.length > 0) {
+      myVotedProjects = projects.filter((project) =>
+        userVotes.some((vote) => vote.project === project.key)
+      );
+    }
 
     if (this.state.groupFilter) {
       if (this.state.groupFilter.value === '') {
@@ -411,6 +657,7 @@ class ProjectList extends Component {
     const showIdeas = !showParam || showParam === 'ideas';
     const showProjects = showParam === 'projects';
     const showMyProjects = showParam === 'my-projects';
+    const showMyVotes = showParam === 'my-votes';
     let viewStyle = viewParam === 'grid' ? 'grid' : 'list';
     if (!this.state.isWide) viewStyle = 'list';
 
@@ -430,10 +677,16 @@ class ProjectList extends Component {
           showIdeas,
           showProjects,
           showMyProjects,
+          showMyVotes,
           ideaCount: projectIdeas.length,
           projectCount: actualProjects.length,
           myProjectsCount: myProjects.length,
+          myVotesCount: userVotes.length,
           viewStyle,
+          westCoastCount: this.state.regionCounts.westCoast,
+          eastCoastCount: this.state.regionCounts.eastCoast,
+          europeCount: this.state.regionCounts.europe,
+          allProjectsCount: this.state.regionCounts.allProjects,
         })}
 
         {showIdeas && projectIdeas.length > 0 && (
@@ -444,6 +697,7 @@ class ProjectList extends Component {
                   <ProjectCardItem
                     key={project.key}
                     auth={auth}
+                    userVote={userVotes.filter((v) => v.project === project.key)}
                     firebase={firebase}
                     project={project}
                     awardCategoryOptions={awardCategoryOptions}
@@ -461,6 +715,7 @@ class ProjectList extends Component {
                   <ProjectListItem
                     key={project.key}
                     auth={auth}
+                    userVote={userVotes.filter((v) => v.project === project.key)}
                     firebase={firebase}
                     project={project}
                     awardCategoryOptions={awardCategoryOptions}
@@ -469,6 +724,90 @@ class ProjectList extends Component {
                     group={{id: project.group, ...groupsList[project.group]}}
                     submissionsClosed={false}
                     isOlderYear={true}
+                  />
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {showMyProjects && myProjects.length > 0 && (
+          <div className="Project-list-section">
+            {viewStyle === 'grid' ? (
+              <ul className="Project-grid">
+                {myProjects.map((project) => (
+                  <ProjectCardItem
+                    key={project.key}
+                    auth={auth}
+                    userVote={userVotes.filter((v) => v.project === project.key)}
+                    firebase={firebase}
+                    project={project}
+                    awardCategoryOptions={awardCategoryOptions}
+                    awardList={awardList}
+                    userList={userList}
+                    group={{id: project.group, ...groupsList[project.group]}}
+                    submissionsClosed={false}
+                    isOlderYear={true}
+                  />
+                ))}
+              </ul>
+            ) : (
+              <ul className="Project-List Project">
+                {myProjects.map((project) => (
+                  <ProjectListItem
+                    key={project.key}
+                    auth={auth}
+                    userVote={userVotes.filter((v) => v.project === project.key)}
+                    firebase={firebase}
+                    project={project}
+                    awardCategoryOptions={awardCategoryOptions}
+                    awardList={awardList}
+                    userList={userList}
+                    group={{id: project.group, ...groupsList[project.group]}}
+                    submissionsClosed={false}
+                    isOlderYear={true}
+                  />
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {showMyVotes && myVotedProjects.length > 0 && (
+          <div className="Project-list-section">
+            {viewStyle === 'grid' ? (
+              <ul className="Project-grid">
+                {myVotedProjects.map((project) => (
+                  <ProjectCardItem
+                    key={project.key}
+                    auth={auth}
+                    userVote={userVotes.filter((v) => v.project === project.key)}
+                    firebase={firebase}
+                    project={project}
+                    awardCategoryOptions={awardCategoryOptions}
+                    awardList={awardList}
+                    userList={userList}
+                    group={{id: project.group, ...groupsList[project.group]}}
+                    submissionsClosed={submissionsClosed}
+                    isOlderYear={isOlderYear}
+                  />
+                ))}
+              </ul>
+            ) : (
+              <ul className="Project-List Project">
+                {myVotedProjects.map((project) => (
+                  <ProjectListItem
+                    key={project.key}
+                    auth={auth}
+                    userVote={userVotes.filter((v) => v.project === project.key)}
+                    firebase={firebase}
+                    project={project}
+                    awardCategoryOptions={awardCategoryOptions}
+                    awardList={awardList}
+                    userList={userList}
+                    group={{id: project.group, ...groupsList[project.group]}}
+                    submissionsClosed={submissionsClosed}
+                    isOlderYear={isOlderYear}
                   />
                 ))}
               </ul>
@@ -487,6 +826,7 @@ class ProjectList extends Component {
                       <ProjectCardItem
                         key={project.key}
                         auth={auth}
+                        userVote={userVotes.filter((v) => v.project === project.key)}
                         firebase={firebase}
                         project={project}
                         awardCategoryOptions={awardCategoryOptions}
@@ -504,6 +844,7 @@ class ProjectList extends Component {
                       <ProjectListItem
                         key={project.key}
                         auth={auth}
+                        userVote={userVotes.filter((v) => v.project === project.key)}
                         firebase={firebase}
                         project={project}
                         awardCategoryOptions={awardCategoryOptions}
@@ -528,6 +869,7 @@ class ProjectList extends Component {
                       <ProjectCardItem
                         key={project.key}
                         auth={auth}
+                        userVote={userVotes.filter((v) => v.project === project.key)}
                         firebase={firebase}
                         project={project}
                         awardCategoryOptions={awardCategoryOptions}
@@ -545,6 +887,7 @@ class ProjectList extends Component {
                       <ProjectListItem
                         key={project.key}
                         auth={auth}
+                        userVote={userVotes.filter((v) => v.project === project.key)}
                         firebase={firebase}
                         project={project}
                         awardCategoryOptions={awardCategoryOptions}
@@ -571,6 +914,7 @@ class ProjectList extends Component {
                       <ProjectCardItem
                         key={project.key}
                         auth={auth}
+                        userVote={userVotes.filter((v) => v.project === project.key)}
                         firebase={firebase}
                         project={project}
                         awardCategoryOptions={awardCategoryOptions}
@@ -588,6 +932,7 @@ class ProjectList extends Component {
                       <ProjectListItem
                         key={project.key}
                         auth={auth}
+                        userVote={userVotes.filter((v) => v.project === project.key)}
                         firebase={firebase}
                         project={project}
                         awardCategoryOptions={awardCategoryOptions}
@@ -633,6 +978,53 @@ class ProjectList extends Component {
     }
 
     let projects = mapObject(projectList);
+
+    // Apply region filtering
+    if (this.state.selectedRegion !== 'all') {
+      if (this.state.selectedRegion === 'west') {
+        projects = projects.filter((project) => {
+          // Filter for West Coast projects - you can customize this logic
+          const group = groupsList[project.group];
+          return (
+            group &&
+            (group.name.toLowerCase().includes('west') ||
+              group.name.toLowerCase().includes('california') ||
+              group.name.toLowerCase().includes('seattle'))
+          );
+        });
+      } else if (this.state.selectedRegion === 'east') {
+        projects = projects.filter((project) => {
+          // Filter for East Coast projects
+          const group = groupsList[project.group];
+          return (
+            group &&
+            (group.name.toLowerCase().includes('east') ||
+              group.name.toLowerCase().includes('new york') ||
+              group.name.toLowerCase().includes('boston'))
+          );
+        });
+      } else if (this.state.selectedRegion === 'europe') {
+        projects = projects.filter((project) => {
+          // Filter for Europe projects
+          const group = groupsList[project.group];
+          return (
+            group &&
+            (group.name.toLowerCase().includes('europe') ||
+              group.name.toLowerCase().includes('london') ||
+              group.name.toLowerCase().includes('berlin'))
+          );
+        });
+      } else if (this.state.selectedRegion === 'my-votes') {
+        // Filter for projects the user has voted on
+        const userVotes = this.props.year
+          ? getAuthUserVotes(auth.uid, this.props.year.votes)
+          : [];
+        projects = projects.filter((project) =>
+          userVotes.some((vote) => vote.project === project.key)
+        );
+      }
+    }
+
     if (this.state.groupFilter) {
       if (this.state.groupFilter.value === '') {
         projects = projects.filter((project) => !project.group);
@@ -657,34 +1049,50 @@ class ProjectList extends Component {
     const showIdeas = !showParam || showParam === 'ideas';
     const showProjects = showParam === 'projects';
     const showMyProjects = showParam === 'my-projects';
+    const showMyVotes = showParam === 'my-votes';
     let viewStyle = viewParam === 'grid' ? 'grid' : 'list';
     if (!this.state.isWide) viewStyle = 'list';
+    let userVotes = this.props.year
+      ? getAuthUserVotes(auth.uid, this.props.year.votes)
+      : [];
+    let awardCategoryOptions = getAwardCategories(awardCategoryList);
+
+    // Get projects the user has voted on
+    let myVotedProjects = [];
+    if (userVotes.length > 0) {
+      myVotedProjects = projects.filter((project) =>
+        userVotes.some((vote) => vote.project === project.key)
+      );
+    }
+
     const hasAnyProjects = projectsLFH.length > 0 || otherProjects.length > 0;
     const hasAnyIdeas = projectIdeas.length > 0;
     const hasAnyMyProjects = myProjects.length > 0;
-
-    let userVotes = year ? getAuthUserVotes(auth.uid, year.votes) : [];
-    let awardCategoryOptions = getAwardCategories(awardCategoryList);
+    const hasAnyMyVotes = myVotedProjects.length > 0;
 
     let emptyState = null;
-    if (showProjects && !hasAnyProjects) {
+    if ((showMyVotes || this.state.selectedRegion === 'my-votes') && !hasAnyMyVotes) {
       emptyState = (
         <div className="alert alert-block alert-info">
-          Oops! No projects have been created yet for this year!
+          No votes cast yet! Start voting on projects to see them here.
         </div>
       );
-    }
-    if (showIdeas && !hasAnyIdeas) {
+    } else if (showMyProjects && !hasAnyMyProjects) {
+      emptyState = (
+        <div className="alert alert-block alert-info">
+          Oops! You don't have any projects yet! Create, claim or join a project!
+        </div>
+      );
+    } else if (showIdeas && !hasAnyIdeas) {
       emptyState = (
         <div className="alert alert-block alert-info">
           Oops! No project ideas have been submitted yet for this year!
         </div>
       );
-    }
-    if (showMyProjects && !hasAnyMyProjects) {
+    } else if (showProjects && !hasAnyProjects) {
       emptyState = (
         <div className="alert alert-block alert-info">
-          Oops! You don't have any projects yet! Create, claim or join a project!
+          Oops! No projects have been created yet for this year!
         </div>
       );
     }
@@ -695,10 +1103,16 @@ class ProjectList extends Component {
           showIdeas,
           showProjects,
           showMyProjects,
+          showMyVotes,
           ideaCount: projectIdeas.length,
           projectCount: projectsLFH.length + otherProjects.length,
           myProjectsCount: myProjects.length,
+          myVotesCount: userVotes.length,
           viewStyle,
+          westCoastCount: this.state.regionCounts.westCoast,
+          eastCoastCount: this.state.regionCounts.eastCoast,
+          europeCount: this.state.regionCounts.europe,
+          allProjectsCount: this.state.regionCounts.allProjects,
         })}
 
         {emptyState}
@@ -768,6 +1182,48 @@ class ProjectList extends Component {
             ) : (
               <ul className="Project-List Project">
                 {myProjects.map((project) => (
+                  <ProjectListItem
+                    key={project.key}
+                    auth={auth}
+                    userVote={userVotes.filter((v) => v.project === project.key)}
+                    firebase={firebase}
+                    project={project}
+                    awardCategoryOptions={awardCategoryOptions}
+                    awardList={awardList}
+                    userList={userList}
+                    group={{id: project.group, ...groupsList[project.group]}}
+                    submissionsClosed={submissionsClosed}
+                    isOlderYear={isOlderYear}
+                  />
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {showMyVotes && myVotedProjects.length > 0 && (
+          <div className="Project-list-section">
+            {viewStyle === 'grid' ? (
+              <ul className="Project-grid">
+                {myVotedProjects.map((project) => (
+                  <ProjectCardItem
+                    key={project.key}
+                    auth={auth}
+                    userVote={userVotes.filter((v) => v.project === project.key)}
+                    firebase={firebase}
+                    project={project}
+                    awardCategoryOptions={awardCategoryOptions}
+                    awardList={awardList}
+                    userList={userList}
+                    group={{id: project.group, ...groupsList[project.group]}}
+                    submissionsClosed={submissionsClosed}
+                    isOlderYear={isOlderYear}
+                  />
+                ))}
+              </ul>
+            ) : (
+              <ul className="Project-List Project">
+                {myVotedProjects.map((project) => (
                   <ProjectListItem
                     key={project.key}
                     auth={auth}
@@ -872,7 +1328,7 @@ class ProjectList extends Component {
           currentYear={this.props.params.year || currentYear}
           showAddProjectButton={!year.submissionsClosed}
         />
-        <p style={{textAlign: 'center', fontWeight: 'bold', marginBottom: '1rem'}}>
+        {/* <p style={{textAlign: 'center', fontWeight: 'bold', marginBottom: '1rem'}}>
           Submit your demo videos{' '}
           <a
             style={{color: 'var(--color-blurple)'}}
@@ -881,7 +1337,7 @@ class ProjectList extends Component {
             here
           </a>{' '}
           in your group's folder.
-        </p>
+        </p> */}
         {this.renderBody(year)}
       </Layout>
     );

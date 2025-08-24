@@ -912,7 +912,7 @@ class ProjectList extends Component {
           currentYear={this.props.params.year || currentYear}
           showAddProjectButton={!year.submissionsClosed}
         />
-        <p style={{textAlign: 'center', fontWeight: 'bold', marginBottom: '1rem'}}>
+        {/* <p style={{textAlign: 'center', fontWeight: 'bold', marginBottom: '1rem'}}>
           Submit your demo videos{' '}
           <a
             style={{color: 'var(--color-blurple)'}}
@@ -921,7 +921,7 @@ class ProjectList extends Component {
             here
           </a>{' '}
           in your group's folder.
-        </p>
+        </p> */}
         {this.renderBody(year)}
       </Layout>
     );

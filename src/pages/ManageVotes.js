@@ -6,7 +6,11 @@ import {compose} from 'redux';
 import {firebaseConnect, isLoaded, pathToJS, dataToJS} from 'react-redux-firebase';
 
 import {mapObject, orderedPopulatedDataToJS} from '../helpers';
-import Button from '../components/Button';
+
+import VoteTable from '../components/VoteTable';
+import '../components/VoteTable.css';
+import VoteAnalytics from '../components/VoteAnalytics';
+import '../components/VoteAnalytics.css';
 
 class ManageAwardCategories extends Component {
   static propTypes = {
@@ -106,12 +110,20 @@ class ManageAwardCategories extends Component {
     });
 
     return (
-      <div>
-        <div style={{marginBottom: '20px'}}>
-          <Button onClick={this.handleExportCSV} priority="secondary" size="sm">
-            Export to CSV
-          </Button>
-        </div>
+      <div className="admin-page">
+        <VoteAnalytics
+          data={votesByProjectAndCategory}
+          awardCategories={awardCategories}
+          projects={projects}
+          userCount={Object.keys(this.props.userList || {}).length}
+        />
+        <VoteTable
+          data={votesByProjectAndCategory}
+          awardCategories={awardCategories}
+          projects={projects}
+          groups={this.props.groups}
+          year={this.props.params.year}
+        />
         {Object.keys(votesByProjectAndCategory).map((categoryKey) => {
           let votesByProject = votesByProjectAndCategory[categoryKey];
 
@@ -131,7 +143,14 @@ class ManageAwardCategories extends Component {
                     let project = projects[projectKey];
                     return (
                       <li key={projectKey}>
-                        {project.name} • {votesByProject[projectKey]}
+                        <a
+                          href={`/years/${this.props.params.year}/projects/${projectKey}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {project.name}
+                        </a>{' '}
+                        • {votesByProject[projectKey]}
                       </li>
                     );
                   })}
@@ -160,11 +179,24 @@ export default compose(
       storeAs: 'projects',
     },
     {path: `/years/${params.year}/votes`, populates: keyPopulates, storeAs: 'voteList'},
+    {
+      path: `/years/${params.year}/groups`,
+      populates: keyPopulates,
+      storeAs: 'groups',
+    },
+    {
+      path: `/users`,
+      queryParams: ['orderByValue=displayName'],
+      populates: [],
+      storeAs: 'userList',
+    },
   ]),
   connect(({firebase}) => ({
     auth: pathToJS(firebase, 'auth'),
     awardCategories: dataToJS(firebase, 'awardCategories'),
     projects: dataToJS(firebase, 'projects'),
     voteList: orderedPopulatedDataToJS(firebase, 'voteList', keyPopulates),
+    groups: dataToJS(firebase, 'groups'),
+    userList: dataToJS(firebase, 'userList'),
   }))
 )(ManageAwardCategories);

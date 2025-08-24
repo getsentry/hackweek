@@ -1,0 +1,239 @@
+.vote-table-container {
+  margin-bottom: 2rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Admin pages - make table wider */
+.admin-page .vote-table-container {
+  max-width: none;
+}
+
+.vote-table-container h3 {
+  margin-bottom: 1rem;
+  color: var(--color-gray100, #1d1127);
+  font-size: 1.75rem;
+  font-weight: 600;
+}
+
+.vote-table-wrapper {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid var(--color-gray400);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  max-width: 100%;
+}
+
+.vote-table {
+  width: 100%;
+  border-collapse: separate;
+  background: white;
+  font-size: 1.1rem;
+}
+
+.vote-table th,
+.vote-table td {
+  padding: 1rem 1.5rem; /* More comfortable padding on desktop */
+  text-align: left;
+  border-bottom: 1px solid var(--color-gray400);
+}
+
+.vote-table th {
+  background: var(--color-gray400);
+  color: var(--color-gray100);
+  font-weight: 600;
+  font-size: 1.2rem;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.vote-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+/* Top 5 rows styling - rows 2-6 (category totals + top 5 projects) */
+.vote-table tbody tr:nth-child(n + 2):nth-child(-n + 6) {
+  background-color: #f0f8ff !important; /* Light blue background */
+  font-weight: 500; /* Slightly bolder text */
+}
+
+/* Top 5 project names - make them bolder for additional distinction */
+.vote-table tbody tr:nth-child(n + 2):nth-child(-n + 6) .project-name {
+  font-weight: 700 !important; /* Bold project names for top 5 */
+}
+
+/* Top 5 project names - make them bolder for additional distinction */
+.vote-table tbody tr:nth-child(n + 2):nth-child(-n + 6) .project-name a {
+  font-weight: 700 !important; /* Bold project names for top 5 */
+  color: #007bff !important; /* Blue color to match the theme */
+}
+
+/* Ensure hover effect still works on top 5 rows (rows 2-6) */
+.vote-table tbody tr:nth-child(n + 2):nth-child(-n + 6):hover {
+  background-color: #e3f2fd !important; /* Slightly darker blue on hover */
+}
+
+/* Thicker divider between 5th and 6th highest project rows */
+/* Category totals is row 1, then projects start at row 2, so divider is after row 6 (6th project) */
+.vote-table tbody tr:nth-child(7) {
+  border-top: 3px solid #dee2e6 !important; /* Thicker top border */
+}
+
+/* Remove any conflicting borders */
+.vote-table tbody tr:nth-child(6) {
+  border-top: none !important;
+}
+
+/* Rank column styling */
+.rank-column {
+  width: 60px;
+  min-width: 60px;
+  text-align: center;
+  font-weight: bold;
+  color: #007bff;
+  background-color: #f8f9fa;
+  border-right: 2px solid #dee2e6;
+}
+
+/* Top 5 rows - blue left border in rank column (rows 2-6: category totals + top 5 projects) */
+.vote-table tbody tr:nth-child(n + 2):nth-child(-n + 6) .rank-column {
+  border-left: 4px solid #007bff !important;
+  background-color: #f0f8ff !important;
+  color: #007bff !important; /* Blue numbers for top 5 */
+}
+
+/* Rows 6+ - gray numbers for lower rankings */
+.vote-table tbody tr:nth-child(n + 7) .rank-column {
+  color: #6c757d !important; /* Gray numbers for 6th place and below */
+}
+
+/* Category totals row - no left border */
+.category-totals-row .rank-column {
+  border-left: none !important;
+  background-color: #f8f9fa !important;
+}
+
+/* Category totals row styling - remove blue borders */
+.category-totals-row {
+  background-color: #f8f9fa !important;
+  border-top: 2px solid #dee2e6 !important;
+  border-bottom: 2px solid #dee2e6 !important;
+}
+
+.category-totals-row .rank-column {
+  border-left: none !important;
+  background-color: #f8f9fa !important;
+  color: #495057 !important; /* Dark gray for totals */
+}
+
+.category-total {
+  font-size: 1.2rem;
+  color: var(--color-blurple) !important;
+}
+
+.grand-total {
+  background: var(--color-blurple) !important;
+  color: white !important;
+  font-size: 1.3rem;
+}
+
+/* Column width adjustments for better desktop experience */
+.vote-table .project-name {
+  min-width: 250px; /* Project names get more space */
+}
+
+.vote-table .vote-count {
+  min-width: 120px; /* Vote counts get comfortable width */
+  text-align: center;
+}
+
+.vote-table .total-votes {
+  min-width: 140px; /* Total column gets more space */
+  text-align: center;
+  background: var(--color-gray400);
+  font-weight: 600;
+  color: var(--color-gray100);
+  font-size: 1.1rem;
+}
+
+/* Totals column - narrower width to fit the label */
+.vote-table th:last-child,
+.vote-table td:last-child {
+  width: 80px;
+  min-width: 80px;
+  max-width: 80px;
+}
+
+/* Group column styling */
+.vote-table th:nth-child(3),
+.vote-table td:nth-child(3) {
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
+  text-align: center;
+  padding: 0.75rem 0.5rem;
+}
+
+.group-name {
+  font-size: 0.9rem;
+  color: #6c757d;
+  font-weight: 500;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .vote-table th,
+  .vote-table td {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+  }
+
+  .vote-table-container h3 {
+    font-size: 1.25rem;
+  }
+}
+
+.vote-table-header {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+.vote-table-header:hover {
+  background-color: #e9ecef;
+}
+
+/* Active category column styling */
+.vote-table-header.active-category {
+  background-color: #007bff !important;
+  color: white !important;
+  position: relative;
+}
+
+.vote-table-header.active-category::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background-color: #0056b3;
+}
+
+/* Blue border around active category column using data attributes */
+.vote-table tbody tr td[data-category-active='true'] {
+  border-left: 2px solid #007bff !important;
+  border-right: 2px solid #007bff !important;
+}
+
+/* Add top and bottom borders to header for complete column box effect */
+.vote-table-header.active-category {
+  border-top: 2px solid #007bff !important;
+  border-bottom: 2px solid #007bff !important;
+}
+
+/* Center-align category headers to match vote count columns */
+.vote-table-header {
+  text-align: center !important;
+}

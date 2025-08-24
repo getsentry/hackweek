@@ -399,3 +399,19 @@ input {
 .Project-details-summary {
   overflow: hidden;
 }
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .vote-table th,
+  .vote-table td {
+    padding: 0.5rem 0.75rem;
+  }
+}
+
+/* Admin page full width - simple and reliable */
+.admin-page {
+  width: 98vw;
+  padding: 0px 12px;
+  margin-left: calc(-49vw + 50%);
+  box-sizing: border-box;
+}

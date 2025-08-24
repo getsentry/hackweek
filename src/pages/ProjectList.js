@@ -290,6 +290,7 @@ class ProjectList extends Component {
     this.state = {
       groupFilter: null,
       isWide: typeof window !== 'undefined' ? window.innerWidth >= 640 : true,
+      showIdeasTab: false, // Add this line to hide the Ideas tab
     };
   }
 
@@ -310,9 +311,11 @@ class ProjectList extends Component {
     showIdeas,
     showProjects,
     showMyProjects,
+    showMyVotes,
     ideaCount,
     projectCount,
     myProjectsCount,
+    myVotesCount,
     viewStyle,
   }) {
     const {pathname, query} = this.props.location;
@@ -322,18 +325,22 @@ class ProjectList extends Component {
       ? 'projects'
       : showMyProjects
       ? 'my-projects'
+      : showMyVotes
+      ? 'my-votes'
       : query.show || 'ideas';
     const currentView = (this.state.isWide ? viewStyle || query.view : 'list') || 'list';
 
     return (
       <div className="Project-controls">
         <div className="Project-controls-left">
-          <Link
-            className={`Control-pill ${currentShow === 'ideas' ? 'active' : ''}`}
-            to={{pathname, query: {...query, show: 'ideas'}}}
-          >
-            Ideas <span className="count">{ideaCount || 0}</span>
-          </Link>
+          {this.state.showIdeasTab && (
+            <Link
+              className={`Control-pill ${currentShow === 'ideas' ? 'active' : ''}`}
+              to={{pathname, query: {...query, show: 'ideas'}}}
+            >
+              Ideas <span className="count">{ideaCount || 0}</span>
+            </Link>
+          )}
           <Link
             className={`Control-pill ${currentShow === 'projects' ? 'active' : ''}`}
             to={{pathname, query: {...query, show: 'projects'}}}
@@ -345,6 +352,12 @@ class ProjectList extends Component {
             to={{pathname, query: {...query, show: 'my-projects'}}}
           >
             My Stuff <span className="count">{myProjectsCount || 0}</span>
+          </Link>
+          <Link
+            className={`Control-pill ${currentShow === 'my-votes' ? 'active' : ''}`}
+            to={{pathname, query: {...query, show: 'my-votes'}}}
+          >
+            My Votes <span className="count">{myVotesCount || 0}</span>
           </Link>
         </div>
         <div className="Project-controls-right">
@@ -411,6 +424,7 @@ class ProjectList extends Component {
     const showIdeas = !showParam || showParam === 'ideas';
     const showProjects = showParam === 'projects';
     const showMyProjects = showParam === 'my-projects';
+    const showMyVotes = showParam === 'my-votes';
     let viewStyle = viewParam === 'grid' ? 'grid' : 'list';
     if (!this.state.isWide) viewStyle = 'list';
 
@@ -430,9 +444,11 @@ class ProjectList extends Component {
           showIdeas,
           showProjects,
           showMyProjects,
+          showMyVotes,
           ideaCount: projectIdeas.length,
           projectCount: actualProjects.length,
           myProjectsCount: myProjects.length,
+          myVotesCount: userVotes.length,
           viewStyle,
         })}
 
@@ -509,6 +525,48 @@ class ProjectList extends Component {
                     group={{id: project.group, ...groupsList[project.group]}}
                     submissionsClosed={false}
                     isOlderYear={true}
+                  />
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {showMyVotes && myVotedProjects.length > 0 && (
+          <div className="Project-list-section">
+            {viewStyle === 'grid' ? (
+              <ul className="Project-grid">
+                {myVotedProjects.map((project) => (
+                  <ProjectCardItem
+                    key={project.key}
+                    auth={auth}
+                    userVote={userVotes.filter((v) => v.project === project.key)}
+                    firebase={firebase}
+                    project={project}
+                    awardCategoryOptions={awardCategoryOptions}
+                    awardList={awardList}
+                    userList={userList}
+                    group={{id: project.group, ...groupsList[project.group]}}
+                    submissionsClosed={submissionsClosed}
+                    isOlderYear={isOlderYear}
+                  />
+                ))}
+              </ul>
+            ) : (
+              <ul className="Project-List Project">
+                {myVotedProjects.map((project) => (
+                  <ProjectListItem
+                    key={project.key}
+                    auth={auth}
+                    userVote={userVotes.filter((v) => v.project === project.key)}
+                    firebase={firebase}
+                    project={project}
+                    awardCategoryOptions={awardCategoryOptions}
+                    awardList={awardList}
+                    userList={userList}
+                    group={{id: project.group, ...groupsList[project.group]}}
+                    submissionsClosed={submissionsClosed}
+                    isOlderYear={isOlderYear}
                   />
                 ))}
               </ul>
@@ -697,14 +755,24 @@ class ProjectList extends Component {
     const showIdeas = !showParam || showParam === 'ideas';
     const showProjects = showParam === 'projects';
     const showMyProjects = showParam === 'my-projects';
+    const showMyVotes = showParam === 'my-votes';
     let viewStyle = viewParam === 'grid' ? 'grid' : 'list';
     if (!this.state.isWide) viewStyle = 'list';
+    let userVotes = year ? getAuthUserVotes(auth.uid, year.votes) : [];
+    let awardCategoryOptions = getAwardCategories(awardCategoryList);
+
     const hasAnyProjects = projectsLFH.length > 0 || otherProjects.length > 0;
     const hasAnyIdeas = projectIdeas.length > 0;
     const hasAnyMyProjects = myProjects.length > 0;
+    const hasAnyMyVotes = userVotes.length > 0;
 
-    let userVotes = year ? getAuthUserVotes(auth.uid, year.votes) : [];
-    let awardCategoryOptions = getAwardCategories(awardCategoryList);
+    // Get projects the user has voted on
+    let myVotedProjects = [];
+    if (userVotes.length > 0) {
+      myVotedProjects = projects.filter((project) =>
+        userVotes.some((vote) => vote.project === project.key)
+      );
+    }
 
     let emptyState = null;
     if (showProjects && !hasAnyProjects) {
@@ -728,6 +796,13 @@ class ProjectList extends Component {
         </div>
       );
     }
+    if (showMyVotes && !hasAnyMyVotes) {
+      emptyState = (
+        <div className="alert alert-block alert-info">
+          Oops! You haven't voted on any projects yet!
+        </div>
+      );
+    }
 
     return (
       <div className="Project-list-container">
@@ -735,9 +810,11 @@ class ProjectList extends Component {
           showIdeas,
           showProjects,
           showMyProjects,
+          showMyVotes,
           ideaCount: projectIdeas.length,
           projectCount: projectsLFH.length + otherProjects.length,
           myProjectsCount: myProjects.length,
+          myVotesCount: userVotes.length,
           viewStyle,
         })}
 
@@ -808,6 +885,48 @@ class ProjectList extends Component {
             ) : (
               <ul className="Project-List Project">
                 {myProjects.map((project) => (
+                  <ProjectListItem
+                    key={project.key}
+                    auth={auth}
+                    userVote={userVotes.filter((v) => v.project === project.key)}
+                    firebase={firebase}
+                    project={project}
+                    awardCategoryOptions={awardCategoryOptions}
+                    awardList={awardList}
+                    userList={userList}
+                    group={{id: project.group, ...groupsList[project.group]}}
+                    submissionsClosed={submissionsClosed}
+                    isOlderYear={isOlderYear}
+                  />
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {showMyVotes && myVotedProjects.length > 0 && (
+          <div className="Project-list-section">
+            {viewStyle === 'grid' ? (
+              <ul className="Project-grid">
+                {myVotedProjects.map((project) => (
+                  <ProjectCardItem
+                    key={project.key}
+                    auth={auth}
+                    userVote={userVotes.filter((v) => v.project === project.key)}
+                    firebase={firebase}
+                    project={project}
+                    awardCategoryOptions={awardCategoryOptions}
+                    awardList={awardList}
+                    userList={userList}
+                    group={{id: project.group, ...groupsList[project.group]}}
+                    submissionsClosed={submissionsClosed}
+                    isOlderYear={isOlderYear}
+                  />
+                ))}
+              </ul>
+            ) : (
+              <ul className="Project-List Project">
+                {myVotedProjects.map((project) => (
                   <ProjectListItem
                     key={project.key}
                     auth={auth}

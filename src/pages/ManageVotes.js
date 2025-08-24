@@ -51,7 +51,7 @@ class ManageAwardCategories extends Component {
     });
 
     return (
-      <div>
+      <div className="admin-page">
         <VoteAnalytics
           data={votesByProjectAndCategory}
           awardCategories={awardCategories}

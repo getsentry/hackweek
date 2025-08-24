@@ -1,5 +1,14 @@
 .vote-table-container {
   margin-bottom: 2rem;
+  width: 95%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Admin pages - make table wider */
+.admin-page .vote-table-container {
+  width: 95%;
+  max-width: none;
 }
 
 .vote-table-container h3 {
@@ -51,7 +60,19 @@
 }
 
 .vote-table tbody tr:hover {
-  background: var(--color-gray400);
+  background-color: #f8f9fa;
+}
+
+/* Top 5 rows styling - visually distinguish top performers */
+.vote-table tbody tr:nth-child(-n + 5) {
+  background-color: #f0f8ff !important; /* Light blue background */
+  border-left: 4px solid #007bff !important; /* Blue left border */
+  font-weight: 500; /* Slightly bolder text */
+}
+
+/* Ensure hover effect still works on top 5 rows */
+.vote-table tbody tr:nth-child(-n + 5):hover {
+  background-color: #e3f2fd !important; /* Slightly darker blue on hover */
 }
 
 .vote-table tbody tr:last-child td {
@@ -159,4 +180,31 @@
   .vote-table-container h3 {
     font-size: 1.25rem;
   }
+}
+
+.vote-table-header {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+.vote-table-header:hover {
+  background-color: #e9ecef;
+}
+
+/* Active category column styling */
+.vote-table-header.active-category {
+  background-color: #007bff !important;
+  color: white !important;
+  position: relative;
+}
+
+.vote-table-header.active-category::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background-color: #0056b3;
 }

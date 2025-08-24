@@ -388,7 +388,6 @@
   background: var(--color-gray400);
   border-radius: 10px;
   padding: 2px;
-  margin-left: 1rem;
 }
 .RegionToggle button {
   appearance: none;

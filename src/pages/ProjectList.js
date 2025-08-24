@@ -305,6 +305,13 @@ class ProjectList extends Component {
       showIdeasTab: false, // Add this line to hide the Ideas tab
       showMyStuffTab: false, // Add this line to hide the My Stuff tab
       selectedRegion: 'all', // Default to All Projects
+      regionCounts: {
+        westCoast: 0,
+        eastCoast: 0,
+        europe: 0,
+        allProjects: 0,
+        myVotes: 0,
+      },
     };
   }
 
@@ -315,6 +322,80 @@ class ProjectList extends Component {
     };
     window.addEventListener('resize', this._handleResize);
     this._handleResize();
+  }
+
+  componentDidUpdate(prevProps) {
+    // Update region counts when projectList or groupsList changes
+    if (
+      prevProps.projectList !== this.props.projectList ||
+      prevProps.groupsList !== this.props.groupsList
+    ) {
+      this.calculateRegionCounts();
+    }
+
+    // Update myVotes count when year or auth changes
+    if (prevProps.year !== this.props.year || prevProps.auth !== this.props.auth) {
+      this.updateMyVotesCount();
+    }
+  }
+
+  calculateRegionCounts() {
+    const {projectList, groupsList} = this.props;
+    if (!projectList || !groupsList) return;
+
+    const projects = mapObject(projectList);
+    const westCoast = projects.filter((project) => {
+      const group = groupsList[project.group];
+      return (
+        group &&
+        (group.name.toLowerCase().includes('west') ||
+          group.name.toLowerCase().includes('california') ||
+          group.name.toLowerCase().includes('seattle'))
+      );
+    }).length;
+
+    const eastCoast = projects.filter((project) => {
+      const group = groupsList[project.group];
+      return (
+        group &&
+        (group.name.toLowerCase().includes('east') ||
+          group.name.toLowerCase().includes('new york') ||
+          group.name.toLowerCase().includes('boston'))
+      );
+    }).length;
+
+    const europe = projects.filter((project) => {
+      const group = groupsList[project.group];
+      return (
+        group &&
+        (group.name.toLowerCase().includes('europe') ||
+          group.name.toLowerCase().includes('london') ||
+          group.name.toLowerCase().includes('berlin'))
+      );
+    }).length;
+
+    this.setState({
+      regionCounts: {
+        westCoast,
+        eastCoast,
+        europe,
+        allProjects: projects.length,
+        myVotes: 0, // This will be updated separately since it depends on user votes
+      },
+    });
+  }
+
+  updateMyVotesCount() {
+    const {year, auth} = this.props;
+    if (!year || !auth) return;
+
+    const userVotes = year ? getAuthUserVotes(auth.uid, year.votes) : [];
+    this.setState((prevState) => ({
+      regionCounts: {
+        ...prevState.regionCounts,
+        myVotes: userVotes.length,
+      },
+    }));
   }
 
   componentWillUnmount() {
@@ -359,12 +440,12 @@ class ProjectList extends Component {
               Ideas <span className="count">{ideaCount || 0}</span>
             </Link>
           )}
-          <Link
+          {/* <Link
             className={`Control-pill ${currentShow === 'projects' ? 'active' : ''}`}
             to={{pathname, query: {...query, show: 'projects'}}}
           >
             All Projects <span className="count">{projectCount || 0}</span>
-          </Link>
+          </Link> */}
           {this.state.showMyStuffTab && (
             <Link
               className={`Control-pill ${currentShow === 'my-projects' ? 'active' : ''}`}
@@ -373,12 +454,12 @@ class ProjectList extends Component {
               My Stuff <span className="count">{myProjectsCount || 0}</span>
             </Link>
           )}
-          <Link
+          {/* <Link
             className={`Control-pill ${currentShow === 'my-votes' ? 'active' : ''}`}
             to={{pathname, query: {...query, show: 'my-votes'}}}
           >
             My Votes <span className="count">{myVotesCount || 0}</span>
-          </Link>
+          </Link> */}
 
           <div className="RegionToggle" role="tablist" aria-label="Region toggle">
             <button
@@ -404,6 +485,13 @@ class ProjectList extends Component {
               onClick={() => this.setState({selectedRegion: 'europe'})}
             >
               Europe <span className="count">{europeCount || 0}</span>
+            </button>
+            <button
+              className={this.state.selectedRegion === 'my-votes' ? 'active' : ''}
+              onClick={() => this.setState({selectedRegion: 'my-votes'})}
+            >
+              My Votes{' '}
+              <span className="count">{this.state.regionCounts.myVotes || 0}</span>
             </button>
           </div>
         </div>
@@ -443,6 +531,48 @@ class ProjectList extends Component {
       groupsList = {};
     }
     let projects = mapObject(projectList);
+
+    // Apply region filtering for closed years
+    if (this.state.selectedRegion !== 'all') {
+      if (this.state.selectedRegion === 'west') {
+        projects = projects.filter((project) => {
+          const group = groupsList[project.group];
+          return (
+            group &&
+            (group.name.toLowerCase().includes('west') ||
+              group.name.toLowerCase().includes('california') ||
+              group.name.toLowerCase().includes('seattle'))
+          );
+        });
+      } else if (this.state.selectedRegion === 'east') {
+        projects = projects.filter((project) => {
+          const group = groupsList[project.group];
+          return (
+            group &&
+            (group.name.toLowerCase().includes('east') ||
+              group.name.toLowerCase().includes('new york') ||
+              group.name.toLowerCase().includes('boston'))
+          );
+        });
+      } else if (this.state.selectedRegion === 'europe') {
+        projects = projects.filter((project) => {
+          const group = groupsList[project.group];
+          return (
+            group &&
+            (group.name.toLowerCase().includes('europe') ||
+              group.name.toLowerCase().includes('london') ||
+              group.name.toLowerCase().includes('berlin'))
+          );
+        });
+      } else if (this.state.selectedRegion === 'my-votes') {
+        // Filter for projects the user has voted on
+        const userVotes = year ? getAuthUserVotes(auth.uid, year.votes) : [];
+        projects = projects.filter((project) =>
+          userVotes.some((vote) => vote.project === project.key)
+        );
+      }
+    }
+
     let winningProjects = [];
     let otherProjects = [];
 
@@ -498,10 +628,10 @@ class ProjectList extends Component {
           myProjectsCount: myProjects.length,
           myVotesCount: userVotes.length,
           viewStyle,
-          westCoastCount: Math.floor(actualProjects.length * 0.3),
-          eastCoastCount: Math.floor(actualProjects.length * 0.4),
-          europeCount: Math.floor(actualProjects.length * 0.3),
-          allProjectsCount: actualProjects.length,
+          westCoastCount: this.state.regionCounts.westCoast,
+          eastCoastCount: this.state.regionCounts.eastCoast,
+          europeCount: this.state.regionCounts.europe,
+          allProjectsCount: this.state.regionCounts.allProjects,
         })}
 
         {showIdeas && projectIdeas.length > 0 && (
@@ -793,6 +923,51 @@ class ProjectList extends Component {
     }
 
     let projects = mapObject(projectList);
+
+    // Apply region filtering
+    if (this.state.selectedRegion !== 'all') {
+      if (this.state.selectedRegion === 'west') {
+        projects = projects.filter((project) => {
+          // Filter for West Coast projects - you can customize this logic
+          const group = groupsList[project.group];
+          return (
+            group &&
+            (group.name.toLowerCase().includes('west') ||
+              group.name.toLowerCase().includes('california') ||
+              group.name.toLowerCase().includes('seattle'))
+          );
+        });
+      } else if (this.state.selectedRegion === 'east') {
+        projects = projects.filter((project) => {
+          // Filter for East Coast projects
+          const group = groupsList[project.group];
+          return (
+            group &&
+            (group.name.toLowerCase().includes('east') ||
+              group.name.toLowerCase().includes('new york') ||
+              group.name.toLowerCase().includes('boston'))
+          );
+        });
+      } else if (this.state.selectedRegion === 'europe') {
+        projects = projects.filter((project) => {
+          // Filter for Europe projects
+          const group = groupsList[project.group];
+          return (
+            group &&
+            (group.name.toLowerCase().includes('europe') ||
+              group.name.toLowerCase().includes('london') ||
+              group.name.toLowerCase().includes('berlin'))
+          );
+        });
+      } else if (this.state.selectedRegion === 'my-votes') {
+        // Filter for projects the user has voted on
+        const userVotes = year ? getAuthUserVotes(auth.uid, year.votes) : [];
+        projects = projects.filter((project) =>
+          userVotes.some((vote) => vote.project === project.key)
+        );
+      }
+    }
+
     if (this.state.groupFilter) {
       if (this.state.groupFilter.value === '') {
         projects = projects.filter((project) => !project.group);
@@ -878,10 +1053,10 @@ class ProjectList extends Component {
           myProjectsCount: myProjects.length,
           myVotesCount: userVotes.length,
           viewStyle,
-          westCoastCount: Math.floor((projectsLFH.length + otherProjects.length) * 0.3),
-          eastCoastCount: Math.floor((projectsLFH.length + otherProjects.length) * 0.4),
-          europeCount: Math.floor((projectsLFH.length + otherProjects.length) * 0.3),
-          allProjectsCount: projectsLFH.length + otherProjects.length,
+          westCoastCount: this.state.regionCounts.westCoast,
+          eastCoastCount: this.state.regionCounts.eastCoast,
+          europeCount: this.state.regionCounts.europe,
+          allProjectsCount: this.state.regionCounts.allProjects,
         })}
 
         {emptyState}

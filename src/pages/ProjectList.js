@@ -1057,11 +1057,6 @@ class ProjectList extends Component {
       : [];
     let awardCategoryOptions = getAwardCategories(awardCategoryList);
 
-    const hasAnyProjects = projectsLFH.length > 0 || otherProjects.length > 0;
-    const hasAnyIdeas = projectIdeas.length > 0;
-    const hasAnyMyProjects = myProjects.length > 0;
-    const hasAnyMyVotes = userVotes.length > 0;
-
     // Get projects the user has voted on
     let myVotedProjects = [];
     if (userVotes.length > 0) {
@@ -1070,32 +1065,34 @@ class ProjectList extends Component {
       );
     }
 
+    const hasAnyProjects = projectsLFH.length > 0 || otherProjects.length > 0;
+    const hasAnyIdeas = projectIdeas.length > 0;
+    const hasAnyMyProjects = myProjects.length > 0;
+    const hasAnyMyVotes = myVotedProjects.length > 0;
+
     let emptyState = null;
-    if (showProjects && !hasAnyProjects) {
+    if ((showMyVotes || this.state.selectedRegion === 'my-votes') && !hasAnyMyVotes) {
       emptyState = (
         <div className="alert alert-block alert-info">
-          Oops! No projects have been created yet for this year!
+          No votes cast yet! Start voting on projects to see them here.
         </div>
       );
-    }
-    if (showIdeas && !hasAnyIdeas) {
-      emptyState = (
-        <div className="alert alert-block alert-info">
-          Oops! No project ideas have been submitted yet for this year!
-        </div>
-      );
-    }
-    if (showMyProjects && !hasAnyMyProjects) {
+    } else if (showMyProjects && !hasAnyMyProjects) {
       emptyState = (
         <div className="alert alert-block alert-info">
           Oops! You don't have any projects yet! Create, claim or join a project!
         </div>
       );
-    }
-    if (showMyVotes && !hasAnyMyVotes) {
+    } else if (showIdeas && !hasAnyIdeas) {
       emptyState = (
         <div className="alert alert-block alert-info">
-          Oops! You haven't voted on any projects yet!
+          Oops! No project ideas have been submitted yet for this year!
+        </div>
+      );
+    } else if (showProjects && !hasAnyProjects) {
+      emptyState = (
+        <div className="alert alert-block alert-info">
+          Oops! No projects have been created yet for this year!
         </div>
       );
     }

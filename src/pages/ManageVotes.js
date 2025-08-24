@@ -6,6 +6,7 @@ import {compose} from 'redux';
 import {firebaseConnect, isLoaded, pathToJS, dataToJS} from 'react-redux-firebase';
 
 import {mapObject, orderedPopulatedDataToJS} from '../helpers';
+import Button from '../components/Button';
 
 class ManageAwardCategories extends Component {
   static propTypes = {
@@ -23,6 +24,64 @@ class ManageAwardCategories extends Component {
   constructor(...args) {
     super(...args);
     this.state = {};
+    this.handleExportCSV = this.handleExportCSV.bind(this);
+  }
+
+  handleExportCSV() {
+    const {awardCategories, voteList, projects} = this.props;
+
+    // Build votesByProjectAndCategory in the same way as render()
+    let normalizedVoteList = mapObject(voteList);
+    let votesByProjectAndCategory = {};
+    normalizedVoteList.forEach((v) => {
+      let projectKey = v.project;
+      let categoryKey = v.awardCategory;
+      votesByProjectAndCategory[categoryKey] =
+        votesByProjectAndCategory[categoryKey] || {};
+      let votesByProject = votesByProjectAndCategory[categoryKey];
+      votesByProject[projectKey] = (votesByProject[projectKey] || 0) + 1;
+    });
+
+    const csvEscape = (value) => {
+      const str = String(value == null ? '' : value);
+      return '"' + str.replace(/"/g, '""') + '"';
+    };
+
+    const rows = [['Category', 'Project', 'Votes']];
+
+    Object.keys(votesByProjectAndCategory).forEach((categoryKey) => {
+      const categoryName =
+        (awardCategories[categoryKey] && awardCategories[categoryKey].name) ||
+        categoryKey;
+      const votesByProject = votesByProjectAndCategory[categoryKey];
+
+      Object.keys(votesByProject)
+        .sort((a, b) => {
+          return votesByProject[a] < votesByProject[b]
+            ? 1
+            : votesByProject[a] > votesByProject[b]
+            ? -1
+            : 0;
+        })
+        .forEach((projectKey) => {
+          const projectName =
+            (projects[projectKey] && projects[projectKey].name) || projectKey;
+          const votes = votesByProject[projectKey];
+          rows.push([categoryName, projectName, votes]);
+        });
+    });
+
+    const csvContent = rows.map((row) => row.map(csvEscape).join(',')).join('\n');
+
+    const blob = new Blob([csvContent], {type: 'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'votes.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }
 
   render() {
@@ -48,6 +107,11 @@ class ManageAwardCategories extends Component {
 
     return (
       <div>
+        <div style={{marginBottom: '20px'}}>
+          <Button onClick={this.handleExportCSV} priority="secondary" size="sm">
+            Export to CSV
+          </Button>
+        </div>
         {Object.keys(votesByProjectAndCategory).map((categoryKey) => {
           let votesByProject = votesByProjectAndCategory[categoryKey];
 

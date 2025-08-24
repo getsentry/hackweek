@@ -476,6 +476,46 @@ class ProjectList extends Component {
           </div>
         )}
 
+        {showMyProjects && myProjects.length > 0 && (
+          <div className="Project-list-section">
+            {viewStyle === 'grid' ? (
+              <ul className="Project-grid">
+                {myProjects.map((project) => (
+                  <ProjectCardItem
+                    key={project.key}
+                    auth={auth}
+                    firebase={firebase}
+                    project={project}
+                    awardCategoryOptions={awardCategoryOptions}
+                    awardList={awardList}
+                    userList={userList}
+                    group={{id: project.group, ...groupsList[project.group]}}
+                    submissionsClosed={false}
+                    isOlderYear={true}
+                  />
+                ))}
+              </ul>
+            ) : (
+              <ul className="Project-List Project">
+                {myProjects.map((project) => (
+                  <ProjectListItem
+                    key={project.key}
+                    auth={auth}
+                    firebase={firebase}
+                    project={project}
+                    awardCategoryOptions={awardCategoryOptions}
+                    awardList={awardList}
+                    userList={userList}
+                    group={{id: project.group, ...groupsList[project.group]}}
+                    submissionsClosed={false}
+                    isOlderYear={true}
+                  />
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
         {showProjects && (
           <div className="Project-list-section">
             {!!winningProjects.length && (

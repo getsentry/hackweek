@@ -99,6 +99,37 @@
   font-size: 1.2rem;
 }
 
+/* Category Totals Row Styling */
+.category-totals-row {
+  background: var(--color-gray400);
+  border-top: 2px solid var(--color-blurple);
+  border-bottom: 2px solid var(--color-blurple);
+}
+
+.category-totals-row td {
+  padding: 1rem 1.5rem;
+  font-weight: 600;
+  color: var(--color-gray100);
+  text-align: center;
+}
+
+.category-totals-label {
+  text-align: left !important;
+  color: var(--color-gray100) !important;
+  font-size: 1rem;
+}
+
+.category-total {
+  font-size: 1.2rem;
+  color: var(--color-blurple) !important;
+}
+
+.grand-total {
+  background: var(--color-blurple) !important;
+  color: white !important;
+  font-size: 1.3rem;
+}
+
 /* Column width adjustments for better desktop experience */
 .vote-table .project-name {
   min-width: 250px; /* Project names get more space */

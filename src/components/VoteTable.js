@@ -54,6 +54,15 @@ const VoteTable = ({data, awardCategories, projects, year}) => {
     return sortConfig.direction === 'asc' ? '↑' : '↓';
   };
 
+  // Calculate category totals for summary row
+  const categoryTotals = Object.keys(awardCategories).map((categoryKey) => {
+    const categoryVotes = data[categoryKey] || {};
+    return Object.values(categoryVotes).reduce((sum, votes) => sum + votes, 0);
+  });
+
+  // Calculate grand total
+  const grandTotal = categoryTotals.reduce((sum, total) => sum + total, 0);
+
   const sortedData = sortData(tableData, sortConfig);
 
   return (
@@ -80,6 +89,21 @@ const VoteTable = ({data, awardCategories, projects, year}) => {
               </th>
             </tr>
           </thead>
+          <tbody>
+            <tr className="category-totals-row">
+              <td className="category-totals-label">
+                <strong>CATEGORY TOTALS</strong>
+              </td>
+              {categoryTotals.map((total, index) => (
+                <td key={index} className="category-total">
+                  <strong>{total}</strong>
+                </td>
+              ))}
+              <td className="category-total grand-total">
+                <strong>{grandTotal}</strong>
+              </td>
+            </tr>
+          </tbody>
           <tbody>
             {sortedData.map(({projectKey, project, total, ...categoryVotes}) => (
               <tr key={projectKey}>

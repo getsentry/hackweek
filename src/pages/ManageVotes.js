@@ -8,6 +8,8 @@ import {firebaseConnect, isLoaded, pathToJS, dataToJS} from 'react-redux-firebas
 import {mapObject, orderedPopulatedDataToJS} from '../helpers';
 import VoteTable from '../components/VoteTable';
 import '../components/VoteTable.css';
+import VoteAnalytics from '../components/VoteAnalytics';
+import '../components/VoteAnalytics.css';
 
 class ManageAwardCategories extends Component {
   static propTypes = {
@@ -50,6 +52,12 @@ class ManageAwardCategories extends Component {
 
     return (
       <div>
+        <VoteAnalytics
+          data={votesByProjectAndCategory}
+          awardCategories={awardCategories}
+          projects={projects}
+          userCount={Object.keys(this.props.userList || {}).length}
+        />
         <VoteTable
           data={votesByProjectAndCategory}
           awardCategories={awardCategories}
@@ -111,11 +119,18 @@ export default compose(
       storeAs: 'projects',
     },
     {path: `/years/${params.year}/votes`, populates: keyPopulates, storeAs: 'voteList'},
+    {
+      path: `/users`,
+      queryParams: ['orderByValue=displayName'],
+      populates: [],
+      storeAs: 'userList',
+    },
   ]),
   connect(({firebase}) => ({
     auth: pathToJS(firebase, 'auth'),
     awardCategories: dataToJS(firebase, 'awardCategories'),
     projects: dataToJS(firebase, 'projects'),
     voteList: orderedPopulatedDataToJS(firebase, 'voteList', keyPopulates),
+    userList: dataToJS(firebase, 'userList'),
   }))
 )(ManageAwardCategories);

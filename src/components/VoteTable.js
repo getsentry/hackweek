@@ -91,8 +91,11 @@ const VoteTable = ({data, awardCategories, projects, year}) => {
     let sortableData = getFilteredData();
 
     if (activeCategory) {
-      // Sort by the active category (highest to lowest)
+      // Sort by the active category or total votes (highest to lowest)
       sortableData.sort((a, b) => {
+        if (activeCategory === 'totalVotes') {
+          return (b.totalVotes || 0) - (a.totalVotes || 0);
+        }
         return (b[activeCategory] || 0) - (a[activeCategory] || 0);
       });
     }
@@ -134,6 +137,7 @@ const VoteTable = ({data, awardCategories, projects, year}) => {
         <table className="vote-table">
           <thead>
             <tr>
+              <th className="rank-column">Rank</th>
               <th>Project</th>
               {Object.keys(awardCategories).map((categoryKey) => (
                 <th
@@ -144,12 +148,18 @@ const VoteTable = ({data, awardCategories, projects, year}) => {
                   {awardCategories[categoryKey].name}
                 </th>
               ))}
-              <th>Total Votes</th>
+              <th
+                onClick={() => handleSort('totalVotes')}
+                className={getHeaderClassName('totalVotes')}
+              >
+                Totals
+              </th>
             </tr>
           </thead>
           <tbody>
             {/* Category totals row */}
             <tr className="category-totals-row">
+              <td></td> {/* Empty cell for rank column */}
               <td>
                 <strong>Category Totals</strong>
               </td>
@@ -159,17 +169,27 @@ const VoteTable = ({data, awardCategories, projects, year}) => {
                   0
                 );
                 return (
-                  <td key={categoryKey} className="vote-count">
+                  <td
+                    key={categoryKey}
+                    className="vote-count"
+                    data-category-active={
+                      activeCategory === categoryKey ? 'true' : 'false'
+                    }
+                  >
                     <strong>{categoryVotes}</strong>
                   </td>
                 );
               })}
-              <td className="total-votes">
+              <td
+                className="total-votes"
+                data-category-active={activeCategory === 'totalVotes' ? 'true' : 'false'}
+              >
                 <strong>{grandTotal}</strong>
               </td>
             </tr>
-            {sortedData.map((row) => (
+            {sortedData.map((row, index) => (
               <tr key={row.projectKey}>
+                <td className="rank-column">{index + 1}</td>
                 <td className="project-name">
                   <a
                     href={`/years/${year}/projects/${row.projectKey}`}
@@ -180,11 +200,24 @@ const VoteTable = ({data, awardCategories, projects, year}) => {
                   </a>
                 </td>
                 {Object.keys(awardCategories).map((categoryKey) => (
-                  <td key={categoryKey} className="vote-count">
+                  <td
+                    key={categoryKey}
+                    className="vote-count"
+                    data-category-active={
+                      activeCategory === categoryKey ? 'true' : 'false'
+                    }
+                  >
                     {row[categoryKey] || 0}
                   </td>
                 ))}
-                <td className="total-votes">{row.totalVotes}</td>
+                <td
+                  className="total-votes"
+                  data-category-active={
+                    activeCategory === 'totalVotes' ? 'true' : 'false'
+                  }
+                >
+                  {row.totalVotes}
+                </td>
               </tr>
             ))}
           </tbody>

@@ -1,13 +1,11 @@
 .vote-table-container {
   margin-bottom: 2rem;
-  width: 95%;
   margin-left: auto;
   margin-right: auto;
 }
 
 /* Admin pages - make table wider */
 .admin-page .vote-table-container {
-  width: 95%;
   max-width: none;
 }
 
@@ -23,13 +21,12 @@
   border-radius: 8px;
   border: 1px solid var(--color-gray400);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  min-width: 1200px; /* Ensure minimum comfortable width on desktop */
+  max-width: 100%;
 }
 
 .vote-table {
   width: 100%;
-  min-width: 1000px; /* Match wrapper minimum width */
-  border-collapse: collapse;
+  border-collapse: separate;
   background: white;
   font-size: 1.1rem;
 }
@@ -49,14 +46,6 @@
   position: sticky;
   top: 0;
   z-index: 10;
-}
-
-.vote-table th:first-child {
-  border-top-left-radius: 8px;
-}
-
-.vote-table th:last-child {
-  border-top-right-radius: 8px;
 }
 
 .vote-table tbody tr:hover {

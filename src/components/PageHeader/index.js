@@ -19,7 +19,7 @@ const PageHeader = ({
       {title && <h2 className="page-header-title no-forced-lowercase">{title}</h2>}
       {currentYear && <h2 className="page-header-title">{currentYear}</h2>}
     </div>
-    <div className="page-header-action">
+    {/* <div className="page-header-action">
       {showAddProjectButton && (
         <Link to="/new-project">
           <Button priority="primary" size="sm">
@@ -41,7 +41,7 @@ const PageHeader = ({
           </Button>
         </>
       )}
-    </div>
+    </div> */}
   </div>
 );
 

@@ -304,6 +304,7 @@ class ProjectList extends Component {
       isWide: typeof window !== 'undefined' ? window.innerWidth >= 640 : true,
       showIdeasTab: false, // Add this line to hide the Ideas tab
       showMyStuffTab: false, // Add this line to hide the My Stuff tab
+      selectedRegion: 'all', // Default to All Projects
     };
   }
 
@@ -330,6 +331,10 @@ class ProjectList extends Component {
     myProjectsCount,
     myVotesCount,
     viewStyle,
+    westCoastCount,
+    eastCoastCount,
+    europeCount,
+    allProjectsCount,
   }) {
     const {pathname, query} = this.props.location;
     const currentShow = showIdeas
@@ -374,6 +379,33 @@ class ProjectList extends Component {
           >
             My Votes <span className="count">{myVotesCount || 0}</span>
           </Link>
+
+          <div className="RegionToggle" role="tablist" aria-label="Region toggle">
+            <button
+              className={this.state.selectedRegion === 'all' ? 'active' : ''}
+              onClick={() => this.setState({selectedRegion: 'all'})}
+            >
+              All Projects <span className="count">{allProjectsCount || 0}</span>
+            </button>
+            <button
+              className={this.state.selectedRegion === 'west' ? 'active' : ''}
+              onClick={() => this.setState({selectedRegion: 'west'})}
+            >
+              West Coast <span className="count">{westCoastCount || 0}</span>
+            </button>
+            <button
+              className={this.state.selectedRegion === 'east' ? 'active' : ''}
+              onClick={() => this.setState({selectedRegion: 'east'})}
+            >
+              East Coast <span className="count">{eastCoastCount || 0}</span>
+            </button>
+            <button
+              className={this.state.selectedRegion === 'europe' ? 'active' : ''}
+              onClick={() => this.setState({selectedRegion: 'europe'})}
+            >
+              Europe <span className="count">{europeCount || 0}</span>
+            </button>
+          </div>
         </div>
         <div className="Project-controls-right">
           {this.state.isWide && (
@@ -466,6 +498,10 @@ class ProjectList extends Component {
           myProjectsCount: myProjects.length,
           myVotesCount: userVotes.length,
           viewStyle,
+          westCoastCount: Math.floor(actualProjects.length * 0.3),
+          eastCoastCount: Math.floor(actualProjects.length * 0.4),
+          europeCount: Math.floor(actualProjects.length * 0.3),
+          allProjectsCount: actualProjects.length,
         })}
 
         {showIdeas && projectIdeas.length > 0 && (
@@ -842,6 +878,10 @@ class ProjectList extends Component {
           myProjectsCount: myProjects.length,
           myVotesCount: userVotes.length,
           viewStyle,
+          westCoastCount: Math.floor((projectsLFH.length + otherProjects.length) * 0.3),
+          eastCoastCount: Math.floor((projectsLFH.length + otherProjects.length) * 0.4),
+          europeCount: Math.floor((projectsLFH.length + otherProjects.length) * 0.3),
+          allProjectsCount: projectsLFH.length + otherProjects.length,
         })}
 
         {emptyState}

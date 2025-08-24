@@ -29,7 +29,7 @@ const MicroCountdownTimer = () => {
   }, []);
 
   if (timeLeft.days === 0) {
-    return <h3 className="micro-countdown">HACK NOW!!</h3>;
+    return <h3 className="micro-countdown">VOTE NOW!!</h3>;
   }
 
   return <h3 className="micro-countdown">{timeLeft.days} days away</h3>;

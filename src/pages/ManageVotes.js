@@ -6,6 +6,8 @@ import {compose} from 'redux';
 import {firebaseConnect, isLoaded, pathToJS, dataToJS} from 'react-redux-firebase';
 
 import {mapObject, orderedPopulatedDataToJS} from '../helpers';
+import VoteTable from '../components/VoteTable';
+import '../components/VoteTable.css';
 
 class ManageAwardCategories extends Component {
   static propTypes = {
@@ -48,6 +50,12 @@ class ManageAwardCategories extends Component {
 
     return (
       <div>
+        <VoteTable
+          data={votesByProjectAndCategory}
+          awardCategories={awardCategories}
+          projects={projects}
+          year={this.props.params.year}
+        />
         {Object.keys(votesByProjectAndCategory).map((categoryKey) => {
           let votesByProject = votesByProjectAndCategory[categoryKey];
 
@@ -67,7 +75,14 @@ class ManageAwardCategories extends Component {
                     let project = projects[projectKey];
                     return (
                       <li key={projectKey}>
-                        {project.name} • {votesByProject[projectKey]}
+                        <a
+                          href={`/years/${this.props.params.year}/projects/${projectKey}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {project.name}
+                        </a>{' '}
+                        • {votesByProject[projectKey]}
                       </li>
                     );
                   })}

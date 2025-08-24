@@ -337,6 +337,14 @@ class ProjectList extends Component {
     if (prevProps.year !== this.props.year || prevProps.auth !== this.props.auth) {
       this.updateMyVotesCount();
     }
+
+    // Reset region selection if region toggle is hidden
+    if (
+      prevProps.groupsList !== this.props.groupsList &&
+      !this.shouldShowRegionToggle()
+    ) {
+      this.setState({selectedRegion: 'all'});
+    }
   }
 
   calculateRegionCounts() {
@@ -396,6 +404,32 @@ class ProjectList extends Component {
         myVotes: userVotes.length,
       },
     }));
+  }
+
+  shouldShowRegionToggle() {
+    const {groupsList} = this.props;
+    if (!groupsList) return false;
+
+    // Check if there are any groups defined for this year
+    const hasGroups = Object.keys(groupsList).length > 0;
+
+    // Check if any groups have region-related names
+    const hasRegionGroups = Object.values(groupsList).some(
+      (group) =>
+        group &&
+        group.name &&
+        (group.name.toLowerCase().includes('west') ||
+          group.name.toLowerCase().includes('east') ||
+          group.name.toLowerCase().includes('europe') ||
+          group.name.toLowerCase().includes('california') ||
+          group.name.toLowerCase().includes('seattle') ||
+          group.name.toLowerCase().includes('new york') ||
+          group.name.toLowerCase().includes('boston') ||
+          group.name.toLowerCase().includes('london') ||
+          group.name.toLowerCase().includes('berlin'))
+    );
+
+    return hasGroups && hasRegionGroups;
   }
 
   componentWillUnmount() {
@@ -461,39 +495,47 @@ class ProjectList extends Component {
             My Votes <span className="count">{myVotesCount || 0}</span>
           </Link> */}
 
-          <div className="RegionToggle" role="tablist" aria-label="Region toggle">
-            <button
-              className={this.state.selectedRegion === 'all' ? 'active' : ''}
-              onClick={() => this.setState({selectedRegion: 'all'})}
-            >
-              All Projects <span className="count">{allProjectsCount || 0}</span>
-            </button>
-            <button
-              className={this.state.selectedRegion === 'west' ? 'active' : ''}
-              onClick={() => this.setState({selectedRegion: 'west'})}
-            >
-              West Coast <span className="count">{westCoastCount || 0}</span>
-            </button>
-            <button
-              className={this.state.selectedRegion === 'east' ? 'active' : ''}
-              onClick={() => this.setState({selectedRegion: 'east'})}
-            >
-              East Coast <span className="count">{eastCoastCount || 0}</span>
-            </button>
-            <button
-              className={this.state.selectedRegion === 'europe' ? 'active' : ''}
-              onClick={() => this.setState({selectedRegion: 'europe'})}
-            >
-              Europe <span className="count">{europeCount || 0}</span>
-            </button>
-            <button
-              className={this.state.selectedRegion === 'my-votes' ? 'active' : ''}
-              onClick={() => this.setState({selectedRegion: 'my-votes'})}
-            >
-              My Votes{' '}
-              <span className="count">{this.state.regionCounts.myVotes || 0}</span>
-            </button>
-          </div>
+          {this.shouldShowRegionToggle() ? (
+            <div className="RegionToggle" role="tablist" aria-label="Region toggle">
+              <button
+                className={this.state.selectedRegion === 'all' ? 'active' : ''}
+                onClick={() => this.setState({selectedRegion: 'all'})}
+              >
+                All Projects <span className="count">{allProjectsCount || 0}</span>
+              </button>
+              <button
+                className={this.state.selectedRegion === 'west' ? 'active' : ''}
+                onClick={() => this.setState({selectedRegion: 'west'})}
+              >
+                West Coast <span className="count">{westCoastCount || 0}</span>
+              </button>
+              <button
+                className={this.state.selectedRegion === 'east' ? 'active' : ''}
+                onClick={() => this.setState({selectedRegion: 'east'})}
+              >
+                East Coast <span className="count">{eastCoastCount || 0}</span>
+              </button>
+              <button
+                className={this.state.selectedRegion === 'europe' ? 'active' : ''}
+                onClick={() => this.setState({selectedRegion: 'europe'})}
+              >
+                Europe <span className="count">{europeCount || 0}</span>
+              </button>
+              <button
+                className={this.state.selectedRegion === 'my-votes' ? 'active' : ''}
+                onClick={() => this.setState({selectedRegion: 'my-votes'})}
+              >
+                My Votes{' '}
+                <span className="count">{this.state.regionCounts.myVotes || 0}</span>
+              </button>
+            </div>
+          ) : (
+            <div className="RegionToggle" role="tablist" aria-label="Region toggle">
+              <button className="active">
+                All Projects <span className="count">{allProjectsCount || 0}</span>
+              </button>
+            </div>
+          )}
         </div>
         <div className="Project-controls-right">
           {this.state.isWide && (
@@ -526,6 +568,7 @@ class ProjectList extends Component {
       projectList,
       userList,
       groupsList,
+      year,
     } = this.props;
     if (!groupsList) {
       groupsList = {};

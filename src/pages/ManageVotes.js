@@ -132,14 +132,26 @@ class ManageAwardCategories extends Component {
 
     voteList = mapObject(voteList);
     let votesByProjectAndCategory = {};
+
+    // Calculate unique voters for participation rate
+    const uniqueVoters = new Set();
+
     voteList.forEach((v) => {
       let projectKey = v.project;
       let categoryKey = v.awardCategory;
+
+      // Track unique voters using the creator field
+      if (v.creator) {
+        uniqueVoters.add(v.creator);
+      }
+
       votesByProjectAndCategory[categoryKey] =
         votesByProjectAndCategory[categoryKey] || {};
       let votesByProject = votesByProjectAndCategory[categoryKey];
       votesByProject[projectKey] = (votesByProject[projectKey] || 0) + 1;
     });
+
+    const uniqueVotersCount = uniqueVoters.size;
 
     return (
       <div className="admin-page">
@@ -152,7 +164,8 @@ class ManageAwardCategories extends Component {
           data={votesByProjectAndCategory}
           awardCategories={awardCategories}
           projects={projects}
-          userCount={Object.keys(this.props.userList || {}).length}
+          uniqueVotersCount={uniqueVotersCount}
+          totalEmployees={432}
         />
         <VoteTable
           data={votesByProjectAndCategory}

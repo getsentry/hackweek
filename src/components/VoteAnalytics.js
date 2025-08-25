@@ -1,17 +1,31 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 
-const VoteAnalytics = ({data, awardCategories, projects, userCount}) => {
+const VoteAnalytics = ({
+  data,
+  awardCategories,
+  projects,
+  uniqueVotersCount,
+  totalEmployees,
+}) => {
   // Calculate total votes cast across all categories
   const totalVotesCast = Object.values(data).reduce((total, categoryVotes) => {
     return total + Object.values(categoryVotes).reduce((sum, votes) => sum + votes, 0);
   }, 0);
 
-  // Calculate total possible votes (each user gets 5 votes)
-  const totalPossibleVotes = userCount * 5;
+  // Calculate total possible votes (each employee gets 5 votes)
+  const totalPossibleVotes = totalEmployees * 5;
 
-  // Calculate participation percentage
+  // Calculate participation percentage based on unique voters vs total employees
   const participationPercentage =
+    totalEmployees > 0 ? ((uniqueVotersCount / totalEmployees) * 100).toFixed(1) : 0;
+
+  // Calculate average votes per participant
+  const averageVotesPerParticipant =
+    uniqueVotersCount > 0 ? (totalVotesCast / uniqueVotersCount).toFixed(1) : 0;
+
+  // Calculate voting completion rate (votes cast vs possible votes)
+  const votingCompletionRate =
     totalPossibleVotes > 0 ? ((totalVotesCast / totalPossibleVotes) * 100).toFixed(1) : 0;
 
   // Calculate votes per category
@@ -35,8 +49,13 @@ const VoteAnalytics = ({data, awardCategories, projects, userCount}) => {
       <h3>Vote Analytics Dashboard</h3>
       <div className="analytics-grid">
         <div className="analytics-card">
-          <div className="analytics-value">{totalVotesCast}</div>
-          <div className="analytics-label">Total Votes Cast</div>
+          <div className="analytics-value">{uniqueVotersCount}</div>
+          <div className="analytics-label">
+            Active Voters
+            <div className="analytics-subtext">
+              {uniqueVotersCount} of {totalEmployees} employees
+            </div>
+          </div>
         </div>
 
         <div className="analytics-card">
@@ -44,7 +63,27 @@ const VoteAnalytics = ({data, awardCategories, projects, userCount}) => {
           <div className="analytics-label">
             Participation Rate
             <div className="analytics-subtext">
-              {totalVotesCast} / {totalPossibleVotes} possible votes
+              Employees who have cast at least one vote
+            </div>
+          </div>
+        </div>
+
+        <div className="analytics-card">
+          <div className="analytics-value">{totalVotesCast}</div>
+          <div className="analytics-label">
+            Total Votes Cast
+            <div className="analytics-subtext">
+              {averageVotesPerParticipant} avg per participant
+            </div>
+          </div>
+        </div>
+
+        <div className="analytics-card">
+          <div className="analytics-value">{votingCompletionRate}%</div>
+          <div className="analytics-label">
+            Voting Completion
+            <div className="analytics-subtext">
+              {totalVotesCast} of {totalPossibleVotes} possible votes
             </div>
           </div>
         </div>
@@ -65,7 +104,8 @@ VoteAnalytics.propTypes = {
   data: PropTypes.object.isRequired,
   awardCategories: PropTypes.object.isRequired,
   projects: PropTypes.object.isRequired,
-  userCount: PropTypes.number.isRequired,
+  uniqueVotersCount: PropTypes.number.isRequired,
+  totalEmployees: PropTypes.number.isRequired,
 };
 
 export default VoteAnalytics;

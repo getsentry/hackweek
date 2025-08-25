@@ -21,6 +21,7 @@ class ManageAwardCategories extends Component {
     projects: PropTypes.object,
     voteList: PropTypes.object,
     userList: PropTypes.object,
+    groups: PropTypes.object,
     firebase: PropTypes.object,
   };
 
@@ -35,7 +36,7 @@ class ManageAwardCategories extends Component {
   }
 
   handleExportCSV() {
-    const {projects, userList} = this.props;
+    const {projects, userList, groups} = this.props;
 
     const csvEscape = (value) => {
       const str = String(value == null ? '' : value);
@@ -46,6 +47,7 @@ class ManageAwardCategories extends Component {
     const headers = [
       'Project Link',
       'Project Name',
+      'Group',
       'Involved Individuals',
       'Judge 1',
       'Judge 2',
@@ -80,10 +82,17 @@ class ManageAwardCategories extends Component {
 
       const involvedIndividuals = projectMembers.join(', ');
 
+      // Get group name instead of group ID
+      const groupName =
+        project.group && groups && groups[project.group]
+          ? groups[project.group].name
+          : project.group || '';
+
       // Create row with project info and judge columns (all set to 1 as requested)
       const row = [
         projectLink,
         projectName,
+        groupName,
         involvedIndividuals,
         1, // Judge 1
         1, // Judge 2

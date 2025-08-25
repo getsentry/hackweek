@@ -6,11 +6,13 @@ import {compose} from 'redux';
 import {firebaseConnect, isLoaded, pathToJS, dataToJS} from 'react-redux-firebase';
 
 import {mapObject, orderedPopulatedDataToJS} from '../helpers';
+import {slugify} from '../utils';
 
 import VoteTable from '../components/VoteTable';
 import '../components/VoteTable.css';
 import VoteAnalytics from '../components/VoteAnalytics';
 import '../components/VoteAnalytics.css';
+import Button from '../components/Button';
 
 class ManageAwardCategories extends Component {
   static propTypes = {
@@ -18,6 +20,7 @@ class ManageAwardCategories extends Component {
     awardCategories: PropTypes.object,
     projects: PropTypes.object,
     voteList: PropTypes.object,
+    userList: PropTypes.object,
     firebase: PropTypes.object,
   };
 
@@ -32,47 +35,67 @@ class ManageAwardCategories extends Component {
   }
 
   handleExportCSV() {
-    const {awardCategories, voteList, projects} = this.props;
-
-    // Build votesByProjectAndCategory in the same way as render()
-    let normalizedVoteList = mapObject(voteList);
-    let votesByProjectAndCategory = {};
-    normalizedVoteList.forEach((v) => {
-      let projectKey = v.project;
-      let categoryKey = v.awardCategory;
-      votesByProjectAndCategory[categoryKey] =
-        votesByProjectAndCategory[categoryKey] || {};
-      let votesByProject = votesByProjectAndCategory[categoryKey];
-      votesByProject[projectKey] = (votesByProject[projectKey] || 0) + 1;
-    });
+    const {projects, userList} = this.props;
 
     const csvEscape = (value) => {
       const str = String(value == null ? '' : value);
       return '"' + str.replace(/"/g, '""') + '"';
     };
 
-    const rows = [['Category', 'Project', 'Votes']];
+    // New CSV format with judge columns
+    const headers = [
+      'Project Link',
+      'Project Name',
+      'Involved Individuals',
+      'Judge 1',
+      'Judge 2',
+      'Judge 3',
+      'Judge 4',
+      'Judge 5',
+      'Judge 6',
+      'Judge 7',
+      'Total Votes',
+    ];
 
-    Object.keys(votesByProjectAndCategory).forEach((categoryKey) => {
-      const categoryName =
-        (awardCategories[categoryKey] && awardCategories[categoryKey].name) ||
-        categoryKey;
-      const votesByProject = votesByProjectAndCategory[categoryKey];
+    const rows = [headers];
 
-      Object.keys(votesByProject)
-        .sort((a, b) => {
-          return votesByProject[a] < votesByProject[b]
-            ? 1
-            : votesByProject[a] > votesByProject[b]
-            ? -1
-            : 0;
+    // Get all projects and create rows (exclude ideas)
+    Object.keys(projects || {}).forEach((projectKey) => {
+      const project = projects[projectKey];
+      if (!project || project.isIdea) return;
+
+      const projectName = project.name || projectKey;
+
+      // Generate project link
+      const projectLink = `https://hackweek.getsentry.net/years/${
+        this.props.params.year
+      }/projects/${projectKey}/${slugify(projectName)}`;
+
+      // Get team members' full names
+      const projectMembers = Object.keys(project.members || {})
+        .map((memberKey) => {
+          return userList && userList[memberKey] ? userList[memberKey].displayName : null;
         })
-        .forEach((projectKey) => {
-          const projectName =
-            (projects[projectKey] && projects[projectKey].name) || projectKey;
-          const votes = votesByProject[projectKey];
-          rows.push([categoryName, projectName, votes]);
-        });
+        .filter((member) => member !== null);
+
+      const involvedIndividuals = projectMembers.join(', ');
+
+      // Create row with project info and judge columns (all set to 1 as requested)
+      const row = [
+        projectLink,
+        projectName,
+        involvedIndividuals,
+        1, // Judge 1
+        1, // Judge 2
+        1, // Judge 3
+        1, // Judge 4
+        1, // Judge 5
+        1, // Judge 6
+        1, // Judge 7
+        1, // Total Votes
+      ];
+
+      rows.push(row);
     });
 
     const csvContent = rows.map((row) => row.map(csvEscape).join(',')).join('\n');
@@ -111,6 +134,11 @@ class ManageAwardCategories extends Component {
 
     return (
       <div className="admin-page">
+        <div style={{marginBottom: '20px'}}>
+          <Button onClick={this.handleExportCSV} priority="secondary" size="md">
+            Export CSV
+          </Button>
+        </div>
         <VoteAnalytics
           data={votesByProjectAndCategory}
           awardCategories={awardCategories}

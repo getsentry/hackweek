@@ -302,7 +302,6 @@ class ProjectList extends Component {
     this.state = {
       groupFilter: null,
       isWide: typeof window !== 'undefined' ? window.innerWidth >= 640 : true,
-      showIdeasTab: false, // Add this line to hide the Ideas tab
       showMyStuffTab: false, // Add this line to hide the My Stuff tab
       selectedGroup: 'all', // Default to All Projects
       groupCountsById: {}, // { [groupId]: count }
@@ -402,20 +401,12 @@ class ProjectList extends Component {
       ? 'my-projects'
       : showMyVotes
       ? 'my-votes'
-      : query.show || 'ideas';
+      : query.show || 'projects';
     const currentView = (this.state.isWide ? viewStyle || query.view : 'list') || 'list';
 
     return (
       <div className="Project-controls">
         <div className="Project-controls-left">
-          {this.state.showIdeasTab && (
-            <Link
-              className={`Control-pill ${currentShow === 'ideas' ? 'active' : ''}`}
-              to={{pathname, query: {...query, show: 'ideas'}}}
-            >
-              Ideas <span className="count">{ideaCount || 0}</span>
-            </Link>
-          )}
           {/* <Link
             className={`Control-pill ${currentShow === 'projects' ? 'active' : ''}`}
             to={{pathname, query: {...query, show: 'projects'}}}
@@ -442,27 +433,12 @@ class ProjectList extends Component {
               {(() => {
                 const groupsList = this.props.groupsList || {};
                 const allProjects = mapObject(this.props.projectList) || [];
-                const {auth, year} = this.props;
-                let filtered = allProjects;
-                if (showProjects) {
-                  filtered = allProjects.filter((p) => !p.isIdea);
-                } else if (showIdeas) {
-                  filtered = allProjects.filter((p) => p.isIdea);
-                } else if (showMyProjects) {
-                  filtered = allProjects.filter((p) =>
-                    Object.keys(p.members || {}).includes(auth && auth.uid)
-                  );
-                } else if (showMyVotes) {
-                  const userVotes = year
-                    ? getAuthUserVotes(auth && auth.uid, year.votes)
-                    : [];
-                  filtered = allProjects.filter((project) =>
-                    userVotes.some((vote) => vote.project === project.key)
-                  );
-                }
-                const displayAllCount = filtered.length;
+                // Generate tabs from ALL non-idea projects so they remain stable
+                const baseProjects = allProjects.filter((p) => !p.isIdea);
+                const displayAllCount = baseProjects.length;
+                const ideasCount = allProjects.filter((p) => p.isIdea).length;
                 const countsByGroup = {};
-                filtered.forEach((p) => {
+                baseProjects.forEach((p) => {
                   if (p.group) countsByGroup[p.group] = (countsByGroup[p.group] || 0) + 1;
                 });
                 const groupEntries = Object.keys(countsByGroup)
@@ -495,6 +471,14 @@ class ProjectList extends Component {
                     >
                       My Votes{' '}
                       <span className="count">{this.state.myVotesCount || 0}</span>
+                    </button>
+                    <button
+                      className={
+                        this.state.selectedGroup === 'ideas-only' ? 'active' : ''
+                      }
+                      onClick={() => this.setState({selectedGroup: 'ideas-only'})}
+                    >
+                      Ideas <span className="count">{ideasCount}</span>
                     </button>
                   </>
                 );
@@ -544,7 +528,8 @@ class ProjectList extends Component {
     if (!groupsList) {
       groupsList = {};
     }
-    let projects = mapObject(projectList);
+    const allProjects = mapObject(projectList);
+    let renderedProjects = allProjects;
 
     // Apply group filtering for closed years
     if (this.state.selectedGroup !== 'all') {
@@ -552,11 +537,13 @@ class ProjectList extends Component {
         const userVotes = this.props.year
           ? getAuthUserVotes(auth.uid, this.props.year.votes)
           : [];
-        projects = projects.filter((project) =>
+        renderedProjects = renderedProjects.filter((project) =>
           userVotes.some((vote) => vote.project === project.key)
         );
+      } else if (this.state.selectedGroup === 'ideas-only') {
+        renderedProjects = renderedProjects.filter((project) => project.isIdea);
       } else {
-        projects = projects.filter(
+        renderedProjects = renderedProjects.filter(
           (project) => project.group === this.state.selectedGroup
         );
       }
@@ -565,7 +552,7 @@ class ProjectList extends Component {
     let winningProjects = [];
     let otherProjects = [];
 
-    projects.forEach((p) => {
+    renderedProjects.forEach((p) => {
       if (mapObject(awardList).find((award) => award.project === p.key)) {
         winningProjects.push(p);
       } else {
@@ -581,16 +568,16 @@ class ProjectList extends Component {
     // Get projects the user has voted on
     let myVotedProjects = [];
     if (userVotes.length > 0) {
-      myVotedProjects = projects.filter((project) =>
+      myVotedProjects = renderedProjects.filter((project) =>
         userVotes.some((vote) => vote.project === project.key)
       );
     }
 
     if (this.state.groupFilter) {
       if (this.state.groupFilter.value === '') {
-        projects = projects.filter((project) => !project.group);
+        renderedProjects = renderedProjects.filter((project) => !project.group);
       } else {
-        projects = projects.filter(
+        renderedProjects = renderedProjects.filter(
           (project) => project.group === this.state.groupFilter.value
         );
       }
@@ -598,10 +585,14 @@ class ProjectList extends Component {
 
     // Filter logic for closed years
     const {show: showParam, view: viewParam} = this.props.location.query;
-    const showIdeas = !showParam || showParam === 'ideas';
-    const showProjects = showParam === 'projects';
+    let showIdeas = showParam === 'ideas';
+    let showProjects = !showParam || showParam === 'projects';
     const showMyProjects = showParam === 'my-projects';
     const showMyVotes = showParam === 'my-votes';
+    if (this.state.selectedGroup === 'ideas-only') {
+      showIdeas = true;
+      showProjects = false;
+    }
     let viewStyle = viewParam === 'grid' ? 'grid' : 'list';
     if (!this.state.isWide) viewStyle = 'list';
 
@@ -609,7 +600,7 @@ class ProjectList extends Component {
     let projectIdeas = [];
     let actualProjects = [];
     let myProjects = [];
-    projects.forEach((p) => {
+    renderedProjects.forEach((p) => {
       if (Object.keys(p.members || {}).includes(auth.uid)) myProjects.push(p);
       if (p.isIdea) projectIdeas.push(p);
       else actualProjects.push(p);
@@ -918,7 +909,8 @@ class ProjectList extends Component {
       return this.renderClosedYear();
     }
 
-    let projects = mapObject(projectList);
+    const allProjects = mapObject(projectList);
+    let renderedProjects = allProjects;
 
     // Apply group filtering
     if (this.state.selectedGroup !== 'all') {
@@ -926,11 +918,13 @@ class ProjectList extends Component {
         const userVotes = this.props.year
           ? getAuthUserVotes(auth.uid, this.props.year.votes)
           : [];
-        projects = projects.filter((project) =>
+        renderedProjects = renderedProjects.filter((project) =>
           userVotes.some((vote) => vote.project === project.key)
         );
+      } else if (this.state.selectedGroup === 'ideas-only') {
+        renderedProjects = renderedProjects.filter((project) => project.isIdea);
       } else {
-        projects = projects.filter(
+        renderedProjects = renderedProjects.filter(
           (project) => project.group === this.state.selectedGroup
         );
       }
@@ -940,7 +934,7 @@ class ProjectList extends Component {
     let projectIdeas = [];
     let otherProjects = [];
     let myProjects = [];
-    projects.forEach((p) => {
+    renderedProjects.forEach((p) => {
       if (Object.keys(p.members || {}).includes(auth.uid)) myProjects.push(p);
       if (p.isIdea) projectIdeas.push(p);
       else if (p.needHelp) projectsLFH.push(p);
@@ -948,10 +942,14 @@ class ProjectList extends Component {
     });
 
     const {show: showParam, view: viewParam} = this.props.location.query;
-    const showIdeas = !showParam || showParam === 'ideas';
-    const showProjects = showParam === 'projects';
+    let showIdeas = showParam === 'ideas';
+    let showProjects = !showParam || showParam === 'projects';
     const showMyProjects = showParam === 'my-projects';
     const showMyVotes = showParam === 'my-votes';
+    if (this.state.selectedGroup === 'ideas-only') {
+      showIdeas = true;
+      showProjects = false;
+    }
     let viewStyle = viewParam === 'grid' ? 'grid' : 'list';
     if (!this.state.isWide) viewStyle = 'list';
     let userVotes = this.props.year
@@ -962,7 +960,7 @@ class ProjectList extends Component {
     // Get projects the user has voted on
     let myVotedProjects = [];
     if (userVotes.length > 0) {
-      myVotedProjects = projects.filter((project) =>
+      myVotedProjects = renderedProjects.filter((project) =>
         userVotes.some((vote) => vote.project === project.key)
       );
     }

@@ -15,7 +15,7 @@ const Header = ({onLogin, onLogout, isAuthenticated, user, showMicroTimer = true
         <div className="header-title-logo-container">
           <img src={logoSentry} alt="Sentry Logo" className="header-logo" />
           <h3 className="header-title">
-            <Link to="/projects?show=projects">#HACKWEEK</Link>
+            <Link to="/projects">#HACKWEEK</Link>
           </h3>
         </div>
         {showMicroTimer && (

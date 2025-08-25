@@ -304,14 +304,10 @@ class ProjectList extends Component {
       isWide: typeof window !== 'undefined' ? window.innerWidth >= 640 : true,
       showIdeasTab: false, // Add this line to hide the Ideas tab
       showMyStuffTab: false, // Add this line to hide the My Stuff tab
-      selectedRegion: 'all', // Default to All Projects
-      regionCounts: {
-        westCoast: 0,
-        eastCoast: 0,
-        europe: 0,
-        allProjects: 0,
-        myVotes: 0,
-      },
+      selectedGroup: 'all', // Default to All Projects
+      groupCountsById: {}, // { [groupId]: count }
+      allProjectsCount: 0,
+      myVotesCount: 0,
     };
   }
 
@@ -330,7 +326,7 @@ class ProjectList extends Component {
       prevProps.projectList !== this.props.projectList ||
       prevProps.groupsList !== this.props.groupsList
     ) {
-      this.calculateRegionCounts();
+      this.calculateGroupCounts();
     }
 
     // Update myVotes count when year or auth changes
@@ -339,57 +335,26 @@ class ProjectList extends Component {
     }
 
     // Reset region selection if region toggle is hidden
-    if (
-      prevProps.groupsList !== this.props.groupsList &&
-      !this.shouldShowRegionToggle()
-    ) {
-      this.setState({selectedRegion: 'all'});
+    if (prevProps.groupsList !== this.props.groupsList && !this.shouldShowGroupToggle()) {
+      this.setState({selectedGroup: 'all'});
     }
   }
 
-  calculateRegionCounts() {
-    const {projectList, groupsList} = this.props;
-    if (!projectList || !groupsList) return;
+  calculateGroupCounts() {
+    const {projectList} = this.props;
+    if (!projectList) return;
 
     const projects = mapObject(projectList);
-    const westCoast = projects.filter((project) => {
-      const group = groupsList[project.group];
-      return (
-        group &&
-        (group.name.toLowerCase().includes('west') ||
-          group.name.toLowerCase().includes('california') ||
-          group.name.toLowerCase().includes('seattle'))
-      );
-    }).length;
-
-    const eastCoast = projects.filter((project) => {
-      const group = groupsList[project.group];
-      return (
-        group &&
-        (group.name.toLowerCase().includes('east') ||
-          group.name.toLowerCase().includes('new york') ||
-          group.name.toLowerCase().includes('boston'))
-      );
-    }).length;
-
-    const europe = projects.filter((project) => {
-      const group = groupsList[project.group];
-      return (
-        group &&
-        (group.name.toLowerCase().includes('europe') ||
-          group.name.toLowerCase().includes('london') ||
-          group.name.toLowerCase().includes('berlin'))
-      );
-    }).length;
+    const groupCountsById = {};
+    projects.forEach((project) => {
+      if (project.group) {
+        groupCountsById[project.group] = (groupCountsById[project.group] || 0) + 1;
+      }
+    });
 
     this.setState({
-      regionCounts: {
-        westCoast,
-        eastCoast,
-        europe,
-        allProjects: projects.length,
-        myVotes: 0, // This will be updated separately since it depends on user votes
-      },
+      groupCountsById,
+      allProjectsCount: projects.length,
     });
   }
 
@@ -398,38 +363,18 @@ class ProjectList extends Component {
     if (!year || !auth) return;
 
     const userVotes = year ? getAuthUserVotes(auth.uid, year.votes) : [];
-    this.setState((prevState) => ({
-      regionCounts: {
-        ...prevState.regionCounts,
-        myVotes: userVotes.length,
-      },
-    }));
+    this.setState({
+      myVotesCount: userVotes.length,
+    });
   }
 
-  shouldShowRegionToggle() {
+  shouldShowGroupToggle() {
     const {groupsList} = this.props;
     if (!groupsList) return false;
 
-    // Check if there are any groups defined for this year
+    // Show toggle when there are any groups
     const hasGroups = Object.keys(groupsList).length > 0;
-
-    // Check if any groups have region-related names
-    const hasRegionGroups = Object.values(groupsList).some(
-      (group) =>
-        group &&
-        group.name &&
-        (group.name.toLowerCase().includes('west') ||
-          group.name.toLowerCase().includes('east') ||
-          group.name.toLowerCase().includes('europe') ||
-          group.name.toLowerCase().includes('california') ||
-          group.name.toLowerCase().includes('seattle') ||
-          group.name.toLowerCase().includes('new york') ||
-          group.name.toLowerCase().includes('boston') ||
-          group.name.toLowerCase().includes('london') ||
-          group.name.toLowerCase().includes('berlin'))
-    );
-
-    return hasGroups && hasRegionGroups;
+    return hasGroups;
   }
 
   componentWillUnmount() {
@@ -446,9 +391,6 @@ class ProjectList extends Component {
     myProjectsCount,
     myVotesCount,
     viewStyle,
-    westCoastCount,
-    eastCoastCount,
-    europeCount,
     allProjectsCount,
   }) {
     const {pathname, query} = this.props.location;
@@ -495,42 +437,71 @@ class ProjectList extends Component {
             My Votes <span className="count">{myVotesCount || 0}</span>
           </Link> */}
 
-          {this.shouldShowRegionToggle() ? (
-            <div className="RegionToggle" role="tablist" aria-label="Region toggle">
-              <button
-                className={this.state.selectedRegion === 'all' ? 'active' : ''}
-                onClick={() => this.setState({selectedRegion: 'all'})}
-              >
-                All Projects <span className="count">{allProjectsCount || 0}</span>
-              </button>
-              <button
-                className={this.state.selectedRegion === 'west' ? 'active' : ''}
-                onClick={() => this.setState({selectedRegion: 'west'})}
-              >
-                West Coast <span className="count">{westCoastCount || 0}</span>
-              </button>
-              <button
-                className={this.state.selectedRegion === 'east' ? 'active' : ''}
-                onClick={() => this.setState({selectedRegion: 'east'})}
-              >
-                East Coast <span className="count">{eastCoastCount || 0}</span>
-              </button>
-              <button
-                className={this.state.selectedRegion === 'europe' ? 'active' : ''}
-                onClick={() => this.setState({selectedRegion: 'europe'})}
-              >
-                Europe <span className="count">{europeCount || 0}</span>
-              </button>
-              <button
-                className={this.state.selectedRegion === 'my-votes' ? 'active' : ''}
-                onClick={() => this.setState({selectedRegion: 'my-votes'})}
-              >
-                My Votes{' '}
-                <span className="count">{this.state.regionCounts.myVotes || 0}</span>
-              </button>
+          {this.shouldShowGroupToggle() ? (
+            <div className="RegionToggle" role="tablist" aria-label="Group toggle">
+              {(() => {
+                const groupsList = this.props.groupsList || {};
+                const allProjects = mapObject(this.props.projectList) || [];
+                const {auth, year} = this.props;
+                let filtered = allProjects;
+                if (showProjects) {
+                  filtered = allProjects.filter((p) => !p.isIdea);
+                } else if (showIdeas) {
+                  filtered = allProjects.filter((p) => p.isIdea);
+                } else if (showMyProjects) {
+                  filtered = allProjects.filter((p) =>
+                    Object.keys(p.members || {}).includes(auth && auth.uid)
+                  );
+                } else if (showMyVotes) {
+                  const userVotes = year
+                    ? getAuthUserVotes(auth && auth.uid, year.votes)
+                    : [];
+                  filtered = allProjects.filter((project) =>
+                    userVotes.some((vote) => vote.project === project.key)
+                  );
+                }
+                const displayAllCount = filtered.length;
+                const countsByGroup = {};
+                filtered.forEach((p) => {
+                  if (p.group) countsByGroup[p.group] = (countsByGroup[p.group] || 0) + 1;
+                });
+                const groupEntries = Object.keys(countsByGroup)
+                  .map((groupId) => ({
+                    id: groupId,
+                    name: (groupsList[groupId] && groupsList[groupId].name) || 'Unknown',
+                    count: countsByGroup[groupId] || 0,
+                  }))
+                  .sort((a, b) => ('' + a.name).localeCompare(b.name));
+                return (
+                  <>
+                    <button
+                      className={this.state.selectedGroup === 'all' ? 'active' : ''}
+                      onClick={() => this.setState({selectedGroup: 'all'})}
+                    >
+                      All Projects <span className="count">{displayAllCount}</span>
+                    </button>
+                    {groupEntries.map((g) => (
+                      <button
+                        key={g.id}
+                        className={this.state.selectedGroup === g.id ? 'active' : ''}
+                        onClick={() => this.setState({selectedGroup: g.id})}
+                      >
+                        {g.name} <span className="count">{g.count}</span>
+                      </button>
+                    ))}
+                    <button
+                      className={this.state.selectedGroup === 'my-votes' ? 'active' : ''}
+                      onClick={() => this.setState({selectedGroup: 'my-votes'})}
+                    >
+                      My Votes{' '}
+                      <span className="count">{this.state.myVotesCount || 0}</span>
+                    </button>
+                  </>
+                );
+              })()}
             </div>
           ) : (
-            <div className="RegionToggle" role="tablist" aria-label="Region toggle">
+            <div className="RegionToggle" role="tablist" aria-label="Group toggle">
               <button className="active">
                 All Projects <span className="count">{allProjectsCount || 0}</span>
               </button>
@@ -575,45 +546,18 @@ class ProjectList extends Component {
     }
     let projects = mapObject(projectList);
 
-    // Apply region filtering for closed years
-    if (this.state.selectedRegion !== 'all') {
-      if (this.state.selectedRegion === 'west') {
-        projects = projects.filter((project) => {
-          const group = groupsList[project.group];
-          return (
-            group &&
-            (group.name.toLowerCase().includes('west') ||
-              group.name.toLowerCase().includes('california') ||
-              group.name.toLowerCase().includes('seattle'))
-          );
-        });
-      } else if (this.state.selectedRegion === 'east') {
-        projects = projects.filter((project) => {
-          const group = groupsList[project.group];
-          return (
-            group &&
-            (group.name.toLowerCase().includes('east') ||
-              group.name.toLowerCase().includes('new york') ||
-              group.name.toLowerCase().includes('boston'))
-          );
-        });
-      } else if (this.state.selectedRegion === 'europe') {
-        projects = projects.filter((project) => {
-          const group = groupsList[project.group];
-          return (
-            group &&
-            (group.name.toLowerCase().includes('europe') ||
-              group.name.toLowerCase().includes('london') ||
-              group.name.toLowerCase().includes('berlin'))
-          );
-        });
-      } else if (this.state.selectedRegion === 'my-votes') {
-        // Filter for projects the user has voted on
+    // Apply group filtering for closed years
+    if (this.state.selectedGroup !== 'all') {
+      if (this.state.selectedGroup === 'my-votes') {
         const userVotes = this.props.year
           ? getAuthUserVotes(auth.uid, this.props.year.votes)
           : [];
         projects = projects.filter((project) =>
           userVotes.some((vote) => vote.project === project.key)
+        );
+      } else {
+        projects = projects.filter(
+          (project) => project.group === this.state.selectedGroup
         );
       }
     }
@@ -683,10 +627,7 @@ class ProjectList extends Component {
           myProjectsCount: myProjects.length,
           myVotesCount: userVotes.length,
           viewStyle,
-          westCoastCount: this.state.regionCounts.westCoast,
-          eastCoastCount: this.state.regionCounts.eastCoast,
-          europeCount: this.state.regionCounts.europe,
-          allProjectsCount: this.state.regionCounts.allProjects,
+          allProjectsCount: this.state.allProjectsCount,
         })}
 
         {showIdeas && projectIdeas.length > 0 && (
@@ -979,61 +920,22 @@ class ProjectList extends Component {
 
     let projects = mapObject(projectList);
 
-    // Apply region filtering
-    if (this.state.selectedRegion !== 'all') {
-      if (this.state.selectedRegion === 'west') {
-        projects = projects.filter((project) => {
-          // Filter for West Coast projects - you can customize this logic
-          const group = groupsList[project.group];
-          return (
-            group &&
-            (group.name.toLowerCase().includes('west') ||
-              group.name.toLowerCase().includes('california') ||
-              group.name.toLowerCase().includes('seattle'))
-          );
-        });
-      } else if (this.state.selectedRegion === 'east') {
-        projects = projects.filter((project) => {
-          // Filter for East Coast projects
-          const group = groupsList[project.group];
-          return (
-            group &&
-            (group.name.toLowerCase().includes('east') ||
-              group.name.toLowerCase().includes('new york') ||
-              group.name.toLowerCase().includes('boston'))
-          );
-        });
-      } else if (this.state.selectedRegion === 'europe') {
-        projects = projects.filter((project) => {
-          // Filter for Europe projects
-          const group = groupsList[project.group];
-          return (
-            group &&
-            (group.name.toLowerCase().includes('europe') ||
-              group.name.toLowerCase().includes('london') ||
-              group.name.toLowerCase().includes('berlin'))
-          );
-        });
-      } else if (this.state.selectedRegion === 'my-votes') {
-        // Filter for projects the user has voted on
+    // Apply group filtering
+    if (this.state.selectedGroup !== 'all') {
+      if (this.state.selectedGroup === 'my-votes') {
         const userVotes = this.props.year
           ? getAuthUserVotes(auth.uid, this.props.year.votes)
           : [];
         projects = projects.filter((project) =>
           userVotes.some((vote) => vote.project === project.key)
         );
-      }
-    }
-
-    if (this.state.groupFilter) {
-      if (this.state.groupFilter.value === '') {
-        projects = projects.filter((project) => !project.group);
       } else {
         projects = projects.filter(
-          (project) => project.group === this.state.groupFilter.value
+          (project) => project.group === this.state.selectedGroup
         );
       }
     }
+
     let projectsLFH = [];
     let projectIdeas = [];
     let otherProjects = [];
@@ -1071,7 +973,7 @@ class ProjectList extends Component {
     const hasAnyMyVotes = myVotedProjects.length > 0;
 
     let emptyState = null;
-    if ((showMyVotes || this.state.selectedRegion === 'my-votes') && !hasAnyMyVotes) {
+    if ((showMyVotes || this.state.selectedGroup === 'my-votes') && !hasAnyMyVotes) {
       emptyState = (
         <div className="alert alert-block alert-info">
           No votes cast yet! Start voting on projects to see them here.
@@ -1109,10 +1011,7 @@ class ProjectList extends Component {
           myProjectsCount: myProjects.length,
           myVotesCount: userVotes.length,
           viewStyle,
-          westCoastCount: this.state.regionCounts.westCoast,
-          eastCoastCount: this.state.regionCounts.eastCoast,
-          europeCount: this.state.regionCounts.europe,
-          allProjectsCount: this.state.regionCounts.allProjects,
+          allProjectsCount: this.state.allProjectsCount,
         })}
 
         {emptyState}

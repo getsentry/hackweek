@@ -25,6 +25,7 @@
     "react-router-scroll": "^0.4.4",
     "react-scripts": "^5.0.1",
     "react-select": "^5.10.1",
+    "recharts": "^2.8.0",
     "redux": "^3.7.2",
     "summarize-markdown": "^0.3.1"
   },

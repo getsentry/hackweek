@@ -1,0 +1,49 @@
+#tab-navigation {
+  margin-bottom: 42px;
+  border-bottom: 2px solid #e9ecef;
+  padding-left: 0;
+}
+
+#tab-navigation li {
+  margin-bottom: -2px;
+}
+
+#tab-navigation li a {
+  border: none;
+  border-radius: 0;
+  padding: 12px 20px;
+  color: #666;
+  background: transparent;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+#tab-navigation li a:hover {
+  background: #f8f9fa;
+  color: #333;
+  border-color: transparent;
+}
+
+#tab-navigation li.active a {
+  color: #333;
+  background: transparent;
+  border-color: transparent;
+  font-weight: 600;
+}
+
+#tab-navigation li.active a:after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #007bff;
+}
+
+#tab-navigation li.active a:hover {
+  background: transparent;
+  border-color: transparent;
+}

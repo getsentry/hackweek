@@ -8,7 +8,8 @@ import {firebaseConnect, isLoaded, pathToJS} from 'react-redux-firebase';
 
 import Layout from '../components/Layout';
 import PageHeader from '../components/PageHeader';
-import YearCard from '../components/YearCard';
+import TabNavigation from '../components/TabNavigation';
+import YearTimeline from '../components/YearTimeline';
 import {mapObject, orderedPopulatedDataToJS} from '../helpers';
 
 class Admin extends Component {
@@ -26,16 +27,16 @@ class Admin extends Component {
     let {yearList} = this.props;
     if (!isLoaded(yearList)) return <div className="loading-indocator">Loading...</div>;
 
+    const tabs = [
+      {to: '/admin', label: 'Years', index: true},
+      {to: '/admin/analytics', label: 'Analytics'},
+    ];
+
     return (
       <Layout>
         <PageHeader title="admin" />
-        <div className="year-cards-grid">
-          {mapObject(yearList)
-            .sort((a, b) => b.key - a.key)
-            .map((year) => (
-              <YearCard key={year.key} year={year.key} to={`/admin/years/${year.key}`} />
-            ))}
-        </div>
+        <TabNavigation tabs={tabs} />
+        {this.props.children || <YearTimeline years={mapObject(yearList)} />}
       </Layout>
     );
   }

@@ -6,7 +6,7 @@ import {compose} from 'redux';
 import {firebaseConnect, isLoaded, pathToJS} from 'react-redux-firebase';
 
 import Layout from '../components/Layout';
-import ListLink from '../components/ListLink';
+import TabNavigation from '../components/TabNavigation';
 import {orderedPopulatedDataToJS} from '../helpers';
 
 class ManageYear extends Component {
@@ -26,20 +26,18 @@ class ManageYear extends Component {
 
     let yearKey = this.props.params.year;
 
+    const tabs = [
+      {to: `/admin/years/${yearKey}`, label: 'Overview', index: true},
+      {to: `/admin/years/${yearKey}/award-categories`, label: 'Award Categories'},
+      {to: `/admin/years/${yearKey}/awards`, label: 'Awards'},
+      {to: `/admin/years/${yearKey}/votes`, label: 'Votes'},
+      {to: `/admin/years/${yearKey}/groups`, label: 'Groups'},
+    ];
+
     return (
       <Layout>
         <h2>Hackweek {yearKey}</h2>
-        <ul className="nav nav-tabs" style={{marginBottom: 20}}>
-          <ListLink to={`/admin/years/${yearKey}`} index={true}>
-            Overview
-          </ListLink>
-          <ListLink to={`/admin/years/${yearKey}/award-categories`}>
-            Award Categories
-          </ListLink>
-          <ListLink to={`/admin/years/${yearKey}/awards`}>Awards</ListLink>
-          <ListLink to={`/admin/years/${yearKey}/votes`}>Votes</ListLink>
-          <ListLink to={`/admin/years/${yearKey}/groups`}>Groups</ListLink>
-        </ul>
+        <TabNavigation tabs={tabs} />
         {this.props.children}
       </Layout>
     );

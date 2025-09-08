@@ -2,7 +2,7 @@ import React, {useState, useEffect} from 'react';
 import './styles.css';
 
 const calculateTimeLeft = () => {
-  const hackweekDate = new Date('2025-08-18T00:00:00');
+  const hackweekDate = new Date('2026-08-17T00:00:00');
   const difference = hackweekDate - new Date();
 
   if (difference > 0) {
@@ -32,7 +32,7 @@ const MicroCountdownTimer = () => {
     return <h3 className="micro-countdown">VOTE NOW!!</h3>;
   }
 
-  return <h3 className="micro-countdown">{timeLeft.days} days away</h3>;
+  return <h3 className="micro-countdown">{timeLeft.days} day till hackweek</h3>;
 };
 
 export default MicroCountdownTimer;

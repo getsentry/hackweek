@@ -14,7 +14,7 @@ class CountdownTimer extends Component {
   };
 
   static defaultProps = {
-    targetDate: '2025-08-18T00:00:00',
+    targetDate: '2026-08-17T00:00:00',
   };
 
   state = {

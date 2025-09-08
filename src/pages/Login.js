@@ -11,68 +11,24 @@ import InfoSection from '../components/InfoSection';
 import './styles.css';
 
 const Login = ({firebase, auth, profile, router}) => {
-  // Compute if hackweek has started and countdown to Friday 9 AM PT
-  const HACKWEEK_START_ISO = '2025-08-18T00:00:00';
+  // Compute if hackweek has started and countdown to August 17th 2026
+  const HACKWEEK_START_ISO = '2026-08-17T00:00:00';
 
-  const getMsUntilFriday9PT = () => {
+  const getMsUntilHackweek = () => {
     const now = new Date();
-    const laNow = new Date(
-      now.toLocaleString('en-US', {timeZone: 'America/Los_Angeles'})
-    );
-
-    // Determine upcoming Friday 9:00:00 in LA time
-    const laTarget = new Date(laNow.getTime());
-    const laDay = laNow.getDay(); // 0=Sun ... 5=Fri
-    let daysUntilFriday = (5 - laDay + 7) % 7;
-    // If it's Friday and past 9 AM, move to next Friday
-    const isFriday = daysUntilFriday === 0;
-    laTarget.setDate(laNow.getDate() + daysUntilFriday);
-    laTarget.setHours(9, 0, 0, 0);
-    if (
-      isFriday &&
-      (laNow.getHours() > 9 ||
-        (laNow.getHours() === 9 && (laNow.getMinutes() > 0 || laNow.getSeconds() > 0)))
-    ) {
-      laTarget.setDate(laTarget.getDate() + 7);
-    }
-
-    // Convert LA wall time target to actual instant by adjusting with offset between local and LA now
-    const offsetDeltaMs = now.getTime() - laNow.getTime();
-    const targetInstantMs = laTarget.getTime() + offsetDeltaMs;
-    const diff = targetInstantMs - now.getTime();
+    const hackweekStart = new Date(HACKWEEK_START_ISO);
+    const diff = hackweekStart.getTime() - now.getTime();
     return diff > 0 ? diff : 0;
   };
 
   const getHasHackStarted = () => new Date() >= new Date(HACKWEEK_START_ISO);
 
-  const [msUntilFridayPT, setMsUntilFridayPT] = useState(getMsUntilFriday9PT());
+  const [msUntilHackweek, setMsUntilHackweek] = useState(getMsUntilHackweek());
   const [hasHackStarted, setHasHackStarted] = useState(getHasHackStarted());
-
-  const getNextFriday9amPT = () => {
-    const now = new Date();
-    const laNow = new Date(
-      now.toLocaleString('en-US', {timeZone: 'America/Los_Angeles'})
-    );
-    const laTarget = new Date(laNow.getTime());
-    const laDay = laNow.getDay(); // 0=Sun ... 6=Sat
-    const daysUntilFriday = (5 - laDay + 7) % 7; // 5 = Friday
-    laTarget.setDate(laNow.getDate() + daysUntilFriday);
-    laTarget.setHours(9, 0, 0, 0);
-    if (
-      daysUntilFriday === 0 &&
-      (laNow.getHours() > 9 ||
-        (laNow.getHours() === 9 && (laNow.getMinutes() > 0 || laNow.getSeconds() > 0)))
-    ) {
-      laTarget.setDate(laTarget.getDate() + 7);
-    }
-    const offsetDeltaMs = now.getTime() - laNow.getTime();
-    const targetInstantMs = laTarget.getTime() + offsetDeltaMs;
-    return new Date(targetInstantMs);
-  };
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setMsUntilFridayPT(getMsUntilFriday9PT());
+      setMsUntilHackweek(getMsUntilHackweek());
       setHasHackStarted(getHasHackStarted());
     }, 1000);
     return () => clearInterval(interval);
@@ -139,7 +95,7 @@ const Login = ({firebase, auth, profile, router}) => {
           <section className="hero-section">
             <div className="hero-content">
               <h1>HACK TIME!!!</h1>
-              <CountdownTimer targetDate={getNextFriday9amPT()} />
+              <CountdownTimer targetDate={new Date(HACKWEEK_START_ISO)} />
               <p className="hero-subtitle">until video submission deadline</p>
             </div>
           </section>

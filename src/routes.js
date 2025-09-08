@@ -22,7 +22,7 @@ import {loginRequired} from './auth';
 
 export default (
   <Route path="/" component={App}>
-    <IndexRedirect to={`/projects`} />
+    <IndexRedirect to={`/years`} />
     <Route path="/login" component={Login} />
     <Route path="/projects" component={loginRequired(ProjectList)} />
     <Route path="/new-project" component={loginRequired(NewProject)} />

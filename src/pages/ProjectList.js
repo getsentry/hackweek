@@ -396,12 +396,12 @@ class ProjectList extends Component {
     const currentShow = showIdeas
       ? 'ideas'
       : showProjects
-      ? 'projects'
-      : showMyProjects
-      ? 'my-projects'
-      : showMyVotes
-      ? 'my-votes'
-      : query.show || 'projects';
+        ? 'projects'
+        : showMyProjects
+          ? 'my-projects'
+          : showMyVotes
+            ? 'my-votes'
+            : query.show || 'projects';
     const currentView = (this.state.isWide ? viewStyle || query.view : 'list') || 'list';
 
     return (
@@ -486,9 +486,29 @@ class ProjectList extends Component {
             </div>
           ) : (
             <div className="RegionToggle" role="tablist" aria-label="Group toggle">
-              <button className="active">
-                All Projects <span className="count">{allProjectsCount || 0}</span>
-              </button>
+              {(() => {
+                const allProjects = mapObject(this.props.projectList) || [];
+                const ideasCount = allProjects.filter((p) => p.isIdea).length;
+                const nonIdeaCount = allProjects.length - ideasCount;
+                return (
+                  <>
+                    <button
+                      className={this.state.selectedGroup === 'all' ? 'active' : ''}
+                      onClick={() => this.setState({selectedGroup: 'all'})}
+                    >
+                      All Projects <span className="count">{nonIdeaCount}</span>
+                    </button>
+                    <button
+                      className={
+                        this.state.selectedGroup === 'ideas-only' ? 'active' : ''
+                      }
+                      onClick={() => this.setState({selectedGroup: 'ideas-only'})}
+                    >
+                      Ideas <span className="count">{ideasCount}</span>
+                    </button>
+                  </>
+                );
+              })()}
             </div>
           )}
         </div>

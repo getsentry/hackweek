@@ -88,6 +88,12 @@
   font-size: 0.8em;
 }
 
+.Project-nomination-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 /* Member List Styles */
 .Project-member-list {
   list-style: none;

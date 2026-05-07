@@ -7,6 +7,7 @@ import Login from './pages/Login';
 import NewProject from './pages/NewProject';
 import ProjectList from './pages/ProjectList';
 import ProjectDetails from './pages/ProjectDetails';
+import VotingPage from './pages/VotingPage';
 import YearList from './pages/YearList';
 
 import Admin from './pages/Admin';
@@ -25,6 +26,7 @@ export default (
     <IndexRedirect to={`/years`} />
     <Route path="/login" component={Login} />
     <Route path="/projects" component={loginRequired(ProjectList)} />
+    <Route path="/voting" component={loginRequired(VotingPage)} />
     <Route path="/new-project" component={loginRequired(NewProject)} />
     <Route path="/projects/:projectKey" component={loginRequired(ProjectDetails)} />
     <Route
@@ -33,6 +35,7 @@ export default (
     />
     <Route path="/years" component={loginRequired(YearList)} />
     <Route path="/years/:year/projects" component={loginRequired(ProjectList)} />
+    <Route path="/years/:year/voting" component={loginRequired(VotingPage)} />
     <Route
       path="/years/:year/projects/:projectKey"
       component={loginRequired(ProjectDetails)}

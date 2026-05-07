@@ -17,10 +17,14 @@ import Layout from '../components/Layout';
 import MediaObject from '../components/MediaObject';
 import PageHeader from '../components/PageHeader';
 import {customStyles} from '../components/SelectComponents';
-
-function getVoteKey(uid, awardCategoryKey) {
-  return `${uid}:${awardCategoryKey}`;
-}
+import {
+  findExistingVoteForCategory,
+  findProjectByKey,
+  getGroupedAwardCategoryOptions,
+  getProjectNominationValues,
+  getVoteKey,
+  isProjectMember as isProjectMemberHelper,
+} from '../voting';
 
 function Awards({awards, awardCategories}) {
   return awards && awards.length ? (
@@ -38,6 +42,31 @@ function Awards({awards, awardCategories}) {
   ) : null;
 }
 
+function NominatedAwardCategories({project, awardCategories}) {
+  const categoriesByKey = awardCategories.reduce((result, category) => {
+    result[category.key] = category;
+    return result;
+  }, {});
+  const nominatedCategories = getProjectNominationValues(project)
+    .map((categoryKey) => categoriesByKey[categoryKey])
+    .filter((category) => category != null);
+
+  if (!nominatedCategories.length) return null;
+
+  return (
+    <div className="Project-meta" key="nominated-award-categories">
+      <span className="Project-meta-title">Nominated For</span>
+      <div className="Project-nomination-list">
+        {nominatedCategories.map((category) => (
+          <span className="Tag Tag--vote" key={category.key}>
+            {category.name}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 class ProjectVote extends Component {
   static propTypes = {
     awardCategoryList: PropTypes.array,
@@ -48,6 +77,7 @@ class ProjectVote extends Component {
     voteList: PropTypes.object,
     auth: PropTypes.object,
     projectList: PropTypes.object,
+    project: PropTypes.object,
     params: PropTypes.object,
   };
 
@@ -60,25 +90,16 @@ class ProjectVote extends Component {
 
   findExistingVoteForCategory = (awardCategoryKey) => {
     const {voteList, auth, params} = this.props;
-    const currentProjectKey = params.projectKey;
-
     if (!voteList || !auth) {
       return null;
     }
 
-    const votesArray = Object.keys(voteList).map((key) => ({
-      ...voteList[key],
-      key,
-    }));
-
-    const existingVote = votesArray.find(
-      (vote) =>
-        vote.creator === auth.uid &&
-        vote.awardCategory === awardCategoryKey &&
-        vote.project !== currentProjectKey
+    return findExistingVoteForCategory(
+      voteList,
+      auth.uid,
+      awardCategoryKey,
+      params.projectKey
     );
-
-    return existingVote;
   };
 
   onChangeVote = (choice) => {
@@ -90,11 +111,7 @@ class ProjectVote extends Component {
 
       if (existingVote) {
         const {projectList, awardCategoryList} = this.props;
-        const existingProject = projectList
-          ? Object.values(projectList).find(
-              (project) => project.key === existingVote.project
-            )
-          : null;
+        const existingProject = findProjectByKey(projectList, existingVote.project);
         const categoryName = awardCategoryList
           ? awardCategoryList.find((cat) => cat.key === awardCategory)?.name
           : 'Unknown Category';
@@ -129,17 +146,19 @@ class ProjectVote extends Component {
   };
 
   render() {
-    let {awardCategoryList} = this.props;
+    let {awardCategoryList, project} = this.props;
 
-    let awardCategoryOptions = mapObject(awardCategoryList)
-      .sort((a, b) => ('' + a.name).localeCompare(b.name))
-      .map((awardCategory) => ({
-        value: awardCategory.key,
-        label: awardCategory.name,
-      }));
+    let awardCategoryOptions = getGroupedAwardCategoryOptions(
+      awardCategoryList,
+      project
+    );
+    let flatAwardCategoryOptions = awardCategoryOptions.reduce(
+      (options, group) => options.concat(group.options || []),
+      []
+    );
 
     let selectedOption = this.state.userVote
-      ? awardCategoryOptions.find((option) => option.value === this.state.userVote)
+      ? flatAwardCategoryOptions.find((option) => option.value === this.state.userVote)
       : null;
 
     return (
@@ -153,7 +172,7 @@ class ProjectVote extends Component {
               value={selectedOption}
               isMulti={false}
               options={awardCategoryOptions}
-              disabled={this.props.disabled}
+              isDisabled={this.props.disabled}
               onChange={this.onChangeVote}
               menuAnchor="right"
             />
@@ -221,7 +240,10 @@ class ProjectDetails extends Component {
       .filter((vote) => vote.creator === auth.uid && vote.project === params.projectKey);
     userVote = userVote.length ? userVote[0] : null;
 
-    if (prevState.userVote === null && userVote !== null) {
+    const prevVoteKey = this.state.userVote ? this.state.userVote.key : null;
+    const nextVoteKey = userVote ? userVote.key : null;
+
+    if (prevVoteKey !== nextVoteKey) {
       this.setState({userVote});
     }
   }
@@ -267,7 +289,7 @@ class ProjectDetails extends Component {
   };
 
   isProjectMember() {
-    return (this.props.project.members || {}).hasOwnProperty(this.props.auth.uid);
+    return isProjectMemberHelper(this.props.project, this.props.auth.uid);
   }
   render() {
     let {
@@ -468,6 +490,10 @@ class ProjectDetails extends Component {
                   <dd>{group?.name}</dd>
                 </dl>
               </div>
+              <NominatedAwardCategories
+                project={project}
+                awardCategories={awardCategories}
+              />
               {year.votingEnabled ? (
                 <ProjectVote
                   key={this.state.userVote && this.state.userVote.awardCategory}
@@ -480,6 +506,7 @@ class ProjectDetails extends Component {
                   onDelete={this.onDeleteUserVote}
                   voteList={this.props.voteList}
                   auth={this.props.auth}
+                  project={project}
                   projectList={this.props.projects}
                   params={this.props.params}
                 />

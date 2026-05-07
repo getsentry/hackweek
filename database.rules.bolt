@@ -56,9 +56,12 @@ type Project {
     year: String,
     group: GroupRef | Null,
     videoUrl: String | Null,
+    nominatedAwardCategory1: AwardCategoryRef | Null,
+    nominatedAwardCategory2: AwardCategoryRef | Null,
 
     validate() {
-        prior(this.members) == null || prior(this.members[auth.uid]) != null || isAdmin()
+        (prior(this.members) == null || prior(this.members[auth.uid]) != null || isAdmin()) &&
+        (this.nominatedAwardCategory1 == null || this.nominatedAwardCategory2 == null || this.nominatedAwardCategory1 != this.nominatedAwardCategory2)
     }
 }
 

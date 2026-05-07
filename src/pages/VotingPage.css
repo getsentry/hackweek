@@ -1,0 +1,316 @@
+.VotingPage {
+  padding-bottom: 2rem;
+}
+
+.VotingPage-empty {
+  margin-top: 1rem;
+}
+
+.VotingSearch {
+  margin: 1rem 0 0.25rem;
+}
+
+.VotingSearch-input {
+  width: 100%;
+}
+
+.VotingGroupFilter {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin: 0.75rem 0 0.25rem;
+  background: var(--color-gray400);
+  border-radius: 10px;
+  padding: 2px;
+}
+
+.VotingGroupFilter button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+  color: var(--color-gray300);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.VotingGroupFilter button:hover {
+  background: var(--color-gray200);
+  color: var(--color-gray300);
+}
+
+.VotingGroupFilter button.active {
+  background: var(--color-blurple);
+  color: white;
+}
+
+.VotingGroupFilter button .count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5em;
+  width: max-content;
+  height: 1.5em;
+  margin-left: 0.5em;
+  padding: 0 0.25em;
+  border-radius: 0.75em;
+  background: var(--color-gray300);
+  color: #ffffff;
+  font-size: 1.25rem;
+}
+
+.VotingGroupFilter button.active .count {
+  background: white;
+  color: var(--color-blurple);
+}
+
+.VotingSection {
+  border-bottom: 1px solid var(--color-gray400);
+  padding: 1.25rem 0;
+}
+
+.VotingSection-header {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--color-gray100);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.VotingSection-title {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.VotingSection-title h3 {
+  margin: 0;
+  font-size: 1.5em;
+  font-weight: 700;
+}
+
+.VotingSection-count,
+.VotingSection-voted {
+  color: var(--color-gray300);
+  font-size: 0.9em;
+  font-weight: 600;
+}
+
+.VotingSection-voted {
+  color: var(--color-blurple);
+}
+
+.VotingSection-caret {
+  width: 12px;
+  height: 12px;
+  border-left: 3px solid var(--color-blurple);
+  border-top: 3px solid var(--color-blurple);
+  transform: rotate(45deg);
+  transition: transform 160ms ease;
+  flex: 0 0 auto;
+}
+
+.VotingSection[data-collapsed='true'] .VotingSection-caret {
+  transform: rotate(-135deg);
+}
+
+.VotingGrid {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.VotingCard {
+  background: white;
+  border: 1px solid var(--color-gray400);
+  border-radius: 8px;
+  min-height: 250px;
+  padding: 1rem;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  cursor: pointer;
+  transition:
+    min-height 200ms ease,
+    box-shadow 0.15s ease,
+    transform 0.05s ease;
+}
+
+.VotingCard--videoOpen {
+  grid-column: 1 / -1;
+  grid-column-start: 1;
+  aspect-ratio: 16 / 9;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  cursor: default;
+}
+
+.VotingCard:hover,
+.VotingCard:focus {
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+  outline: none;
+}
+
+.VotingCard-tags,
+.VotingCard-members {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.VotingCard-title {
+  margin: 0;
+  font-size: 1.2em;
+}
+
+.VotingCard-summary {
+  color: var(--color-gray300);
+  flex: 1 1 auto;
+  line-height: 1.3;
+  margin: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+}
+
+.VotingCard-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: auto;
+}
+
+.VotingCard-voteAction {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-left: auto;
+}
+
+.VotingCard-moveTooltip {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 3;
+  width: max-content;
+  max-width: 220px;
+  padding: 0.45rem 0.6rem;
+  color: white;
+  background: #1d1127;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(4px);
+  transition: opacity 80ms ease, transform 80ms ease;
+}
+
+.VotingCard-voteAction:hover .VotingCard-moveTooltip,
+.VotingCard-voteAction:focus-within .VotingCard-moveTooltip {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.VotingCard-categoryPicker {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.VotingCard-videoFrame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 16 / 9;
+  background: black;
+  overflow: hidden;
+}
+
+.VotingCard-videoOverlay {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  z-index: 2;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.VotingCard-videoTitle {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  max-width: calc(100% - 56px);
+  color: white;
+  background: rgba(29, 17, 39, 0.82);
+  border-radius: 8px;
+  font-size: 1.2em;
+  line-height: 1.2;
+}
+
+.VotingCard-videoClose {
+  appearance: none;
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 8px;
+  color: white;
+  background: rgba(29, 17, 39, 0.82);
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.VotingCard-videoEmbed,
+.VotingCard-videoEmbed iframe,
+.VotingCard-videoEmbed video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 16 / 9;
+}
+
+.VotingCard-videoEmbed iframe,
+.VotingCard-videoEmbed video {
+  border: 0;
+  background: black;
+}
+
+@media (max-width: 639px) {
+  .VotingGroupFilter {
+    display: flex;
+  }
+
+  .VotingSection-header {
+    align-items: flex-start;
+  }
+
+  .VotingGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .VotingCard--videoOpen {
+    grid-column: auto;
+  }
+}

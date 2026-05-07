@@ -17,6 +17,11 @@ import {humanizeBytes} from '../utils';
 import Button from '../components/Button';
 import PageHeader from '../components/PageHeader';
 import {
+  getAwardCategoryOptions,
+  getAwardCategorySelectionValues,
+  getProjectNominationSelectValue,
+} from '../voting';
+import {
   MultiValueContainer,
   MultiValueLabel,
   MultiValueRemove,
@@ -28,6 +33,7 @@ class EditProject extends Component {
     userList: PropTypes.object,
     project: PropTypes.object,
     groupsList: PropTypes.object,
+    awardCategoryList: PropTypes.object,
   };
 
   static contextTypes = {
@@ -39,7 +45,14 @@ class EditProject extends Component {
     this.state = {loaded: false, pendingUploads: [], saving: false};
   }
 
-  componentWillReceiveProps({auth, location, project, groupsList, userList}) {
+  componentWillReceiveProps({
+    auth,
+    location,
+    project,
+    groupsList,
+    userList,
+    awardCategoryList,
+  }) {
     if (project === null) {
       this.context.router.push('/');
     }
@@ -48,8 +61,14 @@ class EditProject extends Component {
       isLoaded(project) &&
       isLoaded(groupsList) &&
       isLoaded(userList) &&
+      isLoaded(awardCategoryList) &&
       !this.state.loaded
     ) {
+      const nominatedAwardCategories = getProjectNominationSelectValue(
+        project,
+        awardCategoryList
+      );
+
       this.setState({
         loaded: true,
         name: project.name,
@@ -62,6 +81,7 @@ class EditProject extends Component {
         needHelp: project.needHelp || false,
         needHelpComments: project.needHelpComments || '',
         isIdea: (!isClaim && project.isIdea) || false,
+        awardCategories: nominatedAwardCategories,
         team:
           isClaim && project.isIdea
             ? [
@@ -93,6 +113,9 @@ class EditProject extends Component {
     this.setState({saving: true});
 
     let {firebase, params, project} = this.props;
+    const nominationValues = getAwardCategorySelectionValues(
+      this.state.awardCategories
+    );
 
     firebase
       .update(`/years/${params.year || currentYear}/projects/${params.projectKey}`, {
@@ -104,6 +127,12 @@ class EditProject extends Component {
         videoUrl: this.state.videoUrl || '',
         needHelp: !this.state.isIdea && this.state.needHelp,
         needHelpComments: this.state.needHelpComments,
+        nominatedAwardCategory1: !this.state.isIdea
+          ? nominationValues[0] || null
+          : null,
+        nominatedAwardCategory2: !this.state.isIdea
+          ? nominationValues[1] || null
+          : null,
       })
       .then((snapshot) => {
         let updates = {};
@@ -229,8 +258,13 @@ class EditProject extends Component {
     this.setState({group});
   };
 
+  onChangeAwardCategories = (awardCategories) => {
+    this.setState({awardCategories: (awardCategories || []).slice(0, 2)});
+  };
+
   render() {
-    let {firebase, params, project, userList, groupsList} = this.props;
+    let {firebase, params, project, userList, groupsList, awardCategoryList} =
+      this.props;
     if (!this.state.loaded) return <div className="loading-indocator">Loading...</div>;
     if (project === null) return <Layout />;
 
@@ -243,6 +277,8 @@ class EditProject extends Component {
       value: groupKey,
       label: group.name,
     }));
+
+    let awardCategoryOptions = getAwardCategoryOptions(awardCategoryList);
 
     const isClaim = 'claim' in (this.props.location?.query || {});
 
@@ -337,6 +373,24 @@ class EditProject extends Component {
                   onChange={this.onChangeTeam}
                   components={{MultiValueLabel, MultiValueContainer, MultiValueRemove}}
                 />
+              </div>
+              <div className="form-group">
+                <label>Award Categories</label>
+                <Select
+                  styles={customStyles}
+                  name="awardCategories"
+                  value={this.state.awardCategories}
+                  isMulti={true}
+                  options={awardCategoryOptions}
+                  onChange={this.onChangeAwardCategories}
+                  components={{MultiValueLabel, MultiValueContainer, MultiValueRemove}}
+                  isOptionDisabled={() =>
+                    (this.state.awardCategories || []).length >= 2
+                  }
+                />
+                <div className="help-block help-text">
+                  Choose up to two award categories this project is aiming for.
+                </div>
               </div>
 
               <h3>Looking for Help?</h3>
@@ -453,11 +507,21 @@ export default compose(
       populates: [],
       storeAs: 'groupsList',
     },
+    {
+      path: `/years/${props.params.year || currentYear}/awardCategories`,
+      queryParams: ['orderByChild=name'],
+      populates: [],
+      storeAs: 'editProjectAwardCategoryList',
+    },
   ]),
   connect(({firebase}) => ({
     auth: pathToJS(firebase, 'auth'),
     project: orderedPopulatedDataToJS(firebase, 'project'),
     userList: orderedPopulatedDataToJS(firebase, 'userList'),
     groupsList: orderedPopulatedDataToJS(firebase, 'groupsList'),
+    awardCategoryList: orderedPopulatedDataToJS(
+      firebase,
+      'editProjectAwardCategoryList'
+    ),
   }))
 )(EditProject);

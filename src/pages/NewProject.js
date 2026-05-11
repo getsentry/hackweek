@@ -15,10 +15,6 @@ import {slugify} from '../utils';
 import Button from '../components/Button';
 import PageHeader from '../components/PageHeader';
 import {
-  getAwardCategoryOptions,
-  getAwardCategorySelectionValues,
-} from '../voting';
-import {
   MultiValueContainer,
   MultiValueLabel,
   MultiValueRemove,
@@ -30,7 +26,6 @@ class NewProject extends Component {
     auth: PropTypes.object,
     userList: PropTypes.object,
     groupsList: PropTypes.object,
-    awardCategoryList: PropTypes.object,
   };
 
   static contextTypes = {
@@ -42,7 +37,6 @@ class NewProject extends Component {
     this.state = {
       team: null,
       needHelp: false,
-      awardCategories: [],
     };
   }
 
@@ -63,9 +57,6 @@ class NewProject extends Component {
     e.preventDefault();
 
     let {auth, firebase} = this.props;
-    const nominationValues = getAwardCategorySelectionValues(
-      this.state.awardCategories
-    );
 
     firebase
       .push(`/years/${currentYear}/projects`, {
@@ -75,8 +66,6 @@ class NewProject extends Component {
         needHelpComments: this.state.needHelpComments || '',
         isIdea: this.state.isIdea || false,
         ...(!this.state.isIdea && this.state.group && {group: this.state.group.value}),
-        nominatedAwardCategory1: !this.state.isIdea ? nominationValues[0] || null : null,
-        nominatedAwardCategory2: !this.state.isIdea ? nominationValues[1] || null : null,
         year: currentYear,
         ts: Date.now(),
         creator: auth.uid,
@@ -125,18 +114,9 @@ class NewProject extends Component {
     this.setState({group});
   };
 
-  onChangeAwardCategories = (awardCategories) => {
-    this.setState({awardCategories: (awardCategories || []).slice(0, 2)});
-  };
-
   render() {
-    let {auth, userList, groupsList, awardCategoryList} = this.props;
-    if (
-      !isLoaded(auth) ||
-      !isLoaded(userList) ||
-      !isLoaded(groupsList) ||
-      !isLoaded(awardCategoryList)
-    )
+    let {auth, userList, groupsList} = this.props;
+    if (!isLoaded(auth) || !isLoaded(userList) || !isLoaded(groupsList))
       return <div className="loading-indocator">Loading...</div>;
 
     let teamOptions = mapObject(userList, (user, userKey) => ({
@@ -148,8 +128,6 @@ class NewProject extends Component {
       value: groupKey,
       label: group.name,
     }));
-
-    let awardCategoryOptions = getAwardCategoryOptions(awardCategoryList);
 
     return (
       <Layout>
@@ -221,24 +199,6 @@ class NewProject extends Component {
                 />
               </div>
               <div className="form-group">
-                <label>Award Categories</label>
-                <Select
-                  styles={customStyles}
-                  name="awardCategories"
-                  value={this.state.awardCategories}
-                  isMulti={true}
-                  options={awardCategoryOptions}
-                  onChange={this.onChangeAwardCategories}
-                  components={{MultiValueLabel, MultiValueContainer, MultiValueRemove}}
-                  isOptionDisabled={() =>
-                    (this.state.awardCategories || []).length >= 2
-                  }
-                />
-                <div className="help-block help-text">
-                  Choose up to two award categories this project is aiming for.
-                </div>
-              </div>
-              <div className="form-group">
                 <div className="checkbox">
                   <input
                     type="checkbox"
@@ -301,20 +261,10 @@ export default compose(
       populates: [],
       storeAs: 'groupsList',
     },
-    {
-      path: `/years/${currentYear}/awardCategories`,
-      queryParams: ['orderByChild=name'],
-      populates: [],
-      storeAs: 'newProjectAwardCategoryList',
-    },
   ]),
   connect(({firebase}) => ({
     auth: pathToJS(firebase, 'auth'),
     userList: orderedPopulatedDataToJS(firebase, 'userList'),
     groupsList: orderedPopulatedDataToJS(firebase, 'groupsList'),
-    awardCategoryList: orderedPopulatedDataToJS(
-      firebase,
-      'newProjectAwardCategoryList'
-    ),
   }))
 )(NewProject);

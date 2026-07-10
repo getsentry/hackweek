@@ -32,7 +32,9 @@ const MicroCountdownTimer = () => {
     return <h3 className="micro-countdown">VOTE NOW!!</h3>;
   }
 
-  return <h3 className="micro-countdown">{timeLeft.days} day till hackweek</h3>;
+  return <h3 className="micro-countdown">
+    {timeLeft.days} {timeLeft.days === 1 ? "day" : "days"} till hackweek
+  </h3>
 };
 
 export default MicroCountdownTimer;

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "@sentry/react": "^6.7.1",
+    "@sentry/react": "^10.68.0",
     "@sentry/tracing": "^6.7.1",
     "bootstrap": "3",
     "canvas-confetti": "^1.9.3",

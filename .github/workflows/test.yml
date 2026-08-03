@@ -1,48 +1,39 @@
 name: Test
+
 on:
   pull_request:
 
 jobs:
-  build:
-    name: Build
+  verify:
+    name: Verify
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Cache node modules
-        id: cache-npm
-        uses: actions/cache@v3
-        env:
-          cache-name: cache-node-modules
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          # npm cache files are stored in `~/.npm` on Linux/macOS
-          path: ~/.npm
-          key: ${{ runner.os }}-build-${{ env.cache-name }}-${{ hashFiles('**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-build-${{ env.cache-name }}-
-            ${{ runner.os }}-build-
-            ${{ runner.os }}-
+          node-version: 24.19.0
+          cache: npm
 
-      - if: ${{ steps.cache-npm.outputs.cache-hit == 'false' }}
-        name: List the state of node modules
-        continue-on-error: true
-        run: npm list
+      - name: Install dependencies
+        run: npm ci
 
-      - name: Install Dependencies
-        run: npm install
+      - name: Generate Worker binding types
+        run: npm run cf-typegen
 
-      - name: Build
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test in workerd
+        run: npm test
+
+      - name: Build Worker and static assets
         run: npm run build
-
-      - name: Bind Config
-        run: npm run bind-version
-
-      - name: Test
-        run: npm test -- --testResultsProcessor="jest-junit" --coverage
-
-      - name: Publish Test Report
-        uses: mikepenz/action-junit-report@v3
-        if: always() # always run even if the previous step fails
-        with:
-          report_paths: '**/junit.xml'

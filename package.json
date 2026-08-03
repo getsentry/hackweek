@@ -2,68 +2,41 @@
   "name": "hackweek",
   "version": "0.1.0",
   "private": true,
-  "dependencies": {
-    "@sentry/react": "^6.7.1",
-    "@sentry/tracing": "^6.7.1",
-    "bootstrap": "3",
-    "canvas-confetti": "^1.9.3",
-    "firebase": "^7.24.0",
-    "firebase-bolt": "^0.8",
-    "framer-motion": "^4.1.17",
-    "idx": "^2.5.6",
-    "marked": "^0.3.6",
-    "moment": "^2.29.1",
-    "react": "^16.14.0",
-    "react-bootstrap": "^0.31.5",
-    "react-dom": "^16.14.0",
-    "react-dropzone": "^4.2.1",
-    "react-google-button": "^0.4.0",
-    "react-gravatar": "^2.6.3",
-    "react-redux": "^5.1.2",
-    "react-redux-firebase": "^1.5.1",
-    "react-router": "^3.2.6",
-    "react-router-scroll": "^0.4.4",
-    "react-scripts": "^5.0.1",
-    "react-select": "^5.10.1",
-    "recharts": "^2.8.0",
-    "redux": "^3.7.2",
-    "summarize-markdown": "^0.3.1"
-  },
+  "type": "module",
   "scripts": {
-    "start": "npm run bind-version && react-scripts start",
-    "bind-version": "echo \"{\\\"version\\\": \\\"$(git rev-parse HEAD)\\\"}\" > src/version.json",
-    "build": "npm run bind-version && react-scripts build",
-    "deploy": "npm run bind-version && NODE_ENV=production firebase deploy --only hosting,database --project hackweek-34e1d",
-    "deploy-dev": "npm run bind-version && NODE_ENV=production firebase deploy -P dev",
-    "predeploy": "npm run bind-version && NODE_ENV=production react-scripts build",
-    "test": "react-scripts test --env=jsdom",
-    "eject": "react-scripts eject"
+    "dev": "vp dev",
+    "start": "vp dev",
+    "typecheck": "tsc -b",
+    "format:check": "vp fmt --check .",
+    "lint": "vp lint src/app src/worker test vite.config.ts vitest.config.ts --deny-warnings",
+    "test": "vp test run --config vitest.config.ts",
+    "build": "vp build",
+    "preview": "vp preview",
+    "cf-typegen": "wrangler types worker-configuration.d.ts",
+    "db:migrate:local": "wrangler d1 migrations apply hackweek-db --local"
+  },
+  "dependencies": {
+    "hono": "^4.12.34",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
   },
   "devDependencies": {
-    "@types/react-select": "^5.0.0",
-    "jest-junit": "^3.1.0"
+    "@cloudflare/vite-plugin": "^1.50.0",
+    "@cloudflare/vitest-pool-workers": "^0.20.1",
+    "@types/node": "^26.1.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.5",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.0",
+    "vite-plus": "^0.2.7",
+    "vitest": "^4.1.10",
+    "wrangler": "^4.118.0"
   },
-  "jest-junit": {
-    "suiteName": "jest tests",
-    "output": "./junit.xml",
-    "classNameTemplate": "{classname}-{title}",
-    "titleTemplate": "{classname}-{title}",
-    "ancestorSeparator": " › ",
-    "usePathForSuiteName": "true"
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
+  "engines": {
+    "node": ">=24.11.0"
   },
   "volta": {
-    "node": "16.15.1"
+    "node": "24.19.0"
   }
 }

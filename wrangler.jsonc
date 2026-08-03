@@ -1,0 +1,27 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "hackweek",
+  "main": "./src/worker/index.ts",
+  "compatibility_date": "2026-08-03",
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"],
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "hackweek-db",
+      "database_id": "local",
+      "migrations_dir": "migrations",
+    },
+  ],
+  "r2_buckets": [
+    {
+      "binding": "ATTACHMENTS",
+      "bucket_name": "hackweek-attachments-local",
+    },
+  ],
+  "observability": {
+    "enabled": true,
+  },
+}

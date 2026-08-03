@@ -1,3 +1,10 @@
+import {Redirect, Route, Switch} from 'wouter';
+
+import {AppLayout, PageState} from './components/AppLayout';
+import {EditProjectPage, NewProjectPage} from './routes/ProjectEditorPage';
+import {ProjectDetailsPage} from './routes/ProjectDetailsPage';
+import {ProjectsPage} from './routes/ProjectsPage';
+import {YearsPage} from './routes/YearsPage';
 import {useSession} from './session';
 
 export function App() {
@@ -8,7 +15,6 @@ export function App() {
       <AuthState title="Checking your pass" detail="Validating Cloudflare Access…" />
     );
   }
-
   if (session.status === 'unauthenticated') {
     return (
       <AuthState
@@ -17,7 +23,6 @@ export function App() {
       />
     );
   }
-
   if (session.status === 'forbidden') {
     return (
       <AuthState
@@ -26,7 +31,6 @@ export function App() {
       />
     );
   }
-
   if (session.status === 'error') {
     return (
       <AuthState
@@ -37,44 +41,40 @@ export function App() {
   }
 
   return (
-    <main className="shell">
-      <div className="aurora auroraOne" />
-      <div className="aurora auroraTwo" />
-      <section className="hero" aria-labelledby="page-title">
-        <div className="eyebrow">
-          <span className="statusDot statusDot--ready" aria-hidden="true" />
-          Signed in as {session.user.displayName}
-        </div>
-        <p className="year">Hackweek</p>
-        <h1 id="page-title">
-          Make room for
-          <span>the improbable.</span>
-        </h1>
-        <p className="lede">
-          One week to step outside the roadmap, follow an idea, and build something worth
-          showing the whole company.
-        </p>
-        <div className="foundation" aria-label="Session authorization">
-          <span>{session.user.email}</span>
-          <span>{session.user.role === 'admin' ? 'Administrator' : 'Member'}</span>
-        </div>
-      </section>
-      <aside className="dispatch" aria-label="Hackweek dispatch">
-        <span className="dispatchNumber">02</span>
-        <p>Identity verified</p>
-        <small>Roles are enforced by the Worker.</small>
-      </aside>
-    </main>
+    <AppLayout user={session.user}>
+      <Switch>
+        <Route path="/years" component={YearsPage} />
+        <Route path="/years/:yearId/projects/new" component={NewProjectPage} />
+        <Route
+          path="/years/:yearId/projects/:projectId/edit"
+          component={EditProjectPage}
+        />
+        <Route path="/years/:yearId/projects/:projectId" component={ProjectDetailsPage} />
+        <Route path="/years/:yearId/projects">
+          <ProjectsPage isAdmin={session.user.role === 'admin'} />
+        </Route>
+        <Route path="/">
+          <Redirect to="/years" />
+        </Route>
+        <Route>
+          <PageState
+            title="Lost in the archive"
+            detail="That route does not exist."
+            tone="error"
+          />
+        </Route>
+      </Switch>
+    </AppLayout>
   );
 }
 
 function AuthState({title, detail}: {title: string; detail: string}) {
   return (
-    <main className="shell authShell">
+    <main className="authShell">
       <section className="authState" aria-live="polite">
-        <p className="year">Hackweek Access</p>
+        <p className="kicker">Hackweek Access</p>
         <h1>{title}</h1>
-        <p className="lede">{detail}</p>
+        <p>{detail}</p>
       </section>
     </main>
   );

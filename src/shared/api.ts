@@ -3,7 +3,10 @@ export type ApiErrorCode =
   | 'AUTH_INVALID'
   | 'AUTH_FORBIDDEN'
   | 'AUTH_CONFIG_INVALID'
-  | 'VALIDATION_FAILED';
+  | 'VALIDATION_FAILED'
+  | 'NOT_FOUND'
+  | 'CONFLICT'
+  | 'STORAGE_FAILED';
 
 export interface ApiErrorResponse {
   error: {

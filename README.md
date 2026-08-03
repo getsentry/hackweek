@@ -21,7 +21,11 @@ The official Cloudflare Vite plugin runs the API Worker in `workerd` and serves
 the SPA with Workers Static Assets. Local D1 and R2 data live under `.wrangler/`;
 no remote Cloudflare resources are required.
 
-The health endpoint is available at `http://localhost:5173/api/health`.
+The health endpoint is available at `http://localhost:5173/api/health`. The authenticated
+SPA provides year archives, project and idea browsing, project/team editing, administrator
+group controls, and private project attachments. See
+[`docs/architecture/projects.md`](docs/architecture/projects.md) for the intentional legacy
+behavior and R2 key/access model.
 
 ### Cloudflare Access
 

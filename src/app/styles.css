@@ -47,6 +47,23 @@ body::before {
   max-width: 66rem;
 }
 
+.authShell {
+  place-items: center;
+}
+
+.authState {
+  z-index: 2;
+  max-width: 58rem;
+  padding: clamp(2rem, 6vw, 5rem);
+  border: 1px solid rgba(248, 243, 232, 0.25);
+  background: rgba(19, 15, 28, 0.76);
+}
+
+.authState h1 {
+  margin-top: 1.5rem;
+  font-size: clamp(4rem, 11vw, 9rem);
+}
+
 .eyebrow {
   display: inline-flex;
   gap: 0.65rem;

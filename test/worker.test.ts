@@ -2,13 +2,20 @@ import {env, SELF} from 'cloudflare:test';
 import {describe, expect, it} from 'vitest';
 
 import {tableNames} from '../src/worker/db/schema';
+import {signAccessToken} from './auth/fixture';
 
 describe('Cloudflare application foundation', () => {
-  it('serves the health API from the Worker', async () => {
+  it('serves the health API from the Worker without authentication', async () => {
     const response = await SELF.fetch('https://hackweek.test/api/health');
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ok: true});
+  });
+
+  it('requires authentication for protected APIs', async () => {
+    const response = await SELF.fetch('https://hackweek.test/api/session');
+
+    expect(response.status).toBe(401);
   });
 
   it('applies the normalized schema to local D1', async () => {
@@ -50,6 +57,18 @@ describe('Cloudflare application foundation', () => {
         .bind('vote-3', 'vote-3', '2026', 'member', 'project-1', 'category-1')
         .run(),
     ).rejects.toThrow('users cannot vote for their own project');
+  });
+
+  it('synchronizes a valid Access identity into D1', async () => {
+    const token = await signAccessToken({email: 'foundation@sentry.io'});
+    const response = await SELF.fetch('https://hackweek.test/api/session', {
+      headers: {'Cf-Access-Jwt-Assertion': token},
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      user: {email: 'foundation@sentry.io', role: 'member'},
+    });
   });
 
   it('uses the private local R2 binding', async () => {

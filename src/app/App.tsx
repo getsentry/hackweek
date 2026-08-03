@@ -1,34 +1,40 @@
-import {useEffect, useState} from 'react';
-
-interface HealthResponse {
-  ok: boolean;
-}
-
-type PlatformStatus = 'checking' | 'ready' | 'unavailable';
+import {useSession} from './session';
 
 export function App() {
-  const [status, setStatus] = useState<PlatformStatus>('checking');
+  const session = useSession();
 
-  useEffect(() => {
-    const controller = new AbortController();
+  if (session.status === 'loading') {
+    return (
+      <AuthState title="Checking your pass" detail="Validating Cloudflare Access…" />
+    );
+  }
 
-    fetch('/api/health', {signal: controller.signal})
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`Health check failed with ${response.status}`);
-        }
+  if (session.status === 'unauthenticated') {
+    return (
+      <AuthState
+        title="Access required"
+        detail="Sign in through the company Cloudflare Access page, then reload Hackweek."
+      />
+    );
+  }
 
-        return response.json() as Promise<HealthResponse>;
-      })
-      .then((result) => setStatus(result.ok ? 'ready' : 'unavailable'))
-      .catch((error) => {
-        if (!(error instanceof DOMException && error.name === 'AbortError')) {
-          setStatus('unavailable');
-        }
-      });
+  if (session.status === 'forbidden') {
+    return (
+      <AuthState
+        title="Workspace only"
+        detail="This Hackweek is limited to authorized company accounts."
+      />
+    );
+  }
 
-    return () => controller.abort();
-  }, []);
+  if (session.status === 'error') {
+    return (
+      <AuthState
+        title="Gate unavailable"
+        detail="The identity service could not be reached."
+      />
+    );
+  }
 
   return (
     <main className="shell">
@@ -36,8 +42,8 @@ export function App() {
       <div className="aurora auroraTwo" />
       <section className="hero" aria-labelledby="page-title">
         <div className="eyebrow">
-          <span className={`statusDot statusDot--${status}`} aria-hidden="true" />
-          Platform {status}
+          <span className="statusDot statusDot--ready" aria-hidden="true" />
+          Signed in as {session.user.displayName}
         </div>
         <p className="year">Hackweek</p>
         <h1 id="page-title">
@@ -48,17 +54,28 @@ export function App() {
           One week to step outside the roadmap, follow an idea, and build something worth
           showing the whole company.
         </p>
-        <div className="foundation" aria-label="Platform foundation">
-          <span>React</span>
-          <span>Hono</span>
-          <span>Cloudflare Workers</span>
+        <div className="foundation" aria-label="Session authorization">
+          <span>{session.user.email}</span>
+          <span>{session.user.role === 'admin' ? 'Administrator' : 'Member'}</span>
         </div>
       </section>
       <aside className="dispatch" aria-label="Hackweek dispatch">
-        <span className="dispatchNumber">01</span>
-        <p>Foundation online</p>
-        <small>The next edition is taking shape.</small>
+        <span className="dispatchNumber">02</span>
+        <p>Identity verified</p>
+        <small>Roles are enforced by the Worker.</small>
       </aside>
+    </main>
+  );
+}
+
+function AuthState({title, detail}: {title: string; detail: string}) {
+  return (
+    <main className="shell authShell">
+      <section className="authState" aria-live="polite">
+        <p className="year">Hackweek Access</p>
+        <h1>{title}</h1>
+        <p className="lede">{detail}</p>
+      </section>
     </main>
   );
 }

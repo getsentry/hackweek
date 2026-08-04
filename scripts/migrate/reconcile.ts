@@ -1,4 +1,6 @@
 import {execFileSync} from 'node:child_process';
+import {mkdtempSync, rmSync, writeFileSync} from 'node:fs';
+import {tmpdir} from 'node:os';
 import path from 'node:path';
 
 import {
@@ -29,31 +31,33 @@ export function transformedCounts(data: MigrationData): Record<EntityName, numbe
 }
 
 export function destinationCounts(options: ImportOptions, data: MigrationData) {
-  const query = entityNames
-    .flatMap((name) => [
-      `SELECT json_object('entity','${name}','kind','all','count',COUNT(*)) row FROM ${tables[name]}`,
-      sourceCountQuery(name, data),
-    ])
-    .join('; ');
-  const output = execFileSync(
-    process.execPath,
-    [
-      path.resolve('node_modules/wrangler/bin/wrangler.js'),
-      'd1',
-      'execute',
-      options.databaseName,
-      options.destination === 'local' ? '--local' : '--remote',
-      '--command',
-      query,
-      '--json',
-      ...(options.environment ? ['--env', options.environment] : []),
-      ...(options.destination === 'local' && options.persistTo
-        ? ['--persist-to', options.persistTo]
-        : []),
-      ...(options.config ? ['--config', options.config] : []),
-    ],
-    {cwd: process.cwd(), encoding: 'utf8'},
-  );
+  const directory = mkdtempSync(path.join(tmpdir(), 'hackweek-reconcile-'));
+  const sqlFile = path.join(directory, 'counts.sql');
+  writeFileSync(sqlFile, destinationCountSql(data), {mode: 0o600});
+  let output: string;
+  try {
+    output = execFileSync(
+      process.execPath,
+      [
+        path.resolve('node_modules/wrangler/bin/wrangler.js'),
+        'd1',
+        'execute',
+        options.databaseName,
+        options.destination === 'local' ? '--local' : '--remote',
+        '--file',
+        sqlFile,
+        '--json',
+        ...(options.environment ? ['--env', options.environment] : []),
+        ...(options.destination === 'local' && options.persistTo
+          ? ['--persist-to', options.persistTo]
+          : []),
+        ...(options.config ? ['--config', options.config] : []),
+      ],
+      {cwd: process.cwd(), encoding: 'utf8'},
+    );
+  } finally {
+    rmSync(directory, {recursive: true, force: true});
+  }
   const parsed = JSON.parse(output) as Array<{
     results: Array<{row: string}>;
   }>;
@@ -65,9 +69,20 @@ export function destinationCounts(options: ImportOptions, data: MigrationData) {
       kind: 'all' | 'source';
       count: number;
     };
-    (value.kind === 'all' ? counts : sourceCounts)[value.entity] = value.count;
+    const target = value.kind === 'all' ? counts : sourceCounts;
+    target[value.entity] = (target[value.entity] ?? 0) + value.count;
   }
   return {counts, sourceCounts};
+}
+
+export function destinationCountSql(data: MigrationData) {
+  return `${entityNames
+    .flatMap((name) => [
+      `SELECT json_object('entity','${name}','kind','all','count',COUNT(*)) row FROM ${tables[name]}`,
+      ...sourceCountQueries(name, data),
+    ])
+    .map((statement) => `${statement};`)
+    .join('\n')}\n`;
 }
 
 export function reconcileCounts(report: MigrationReport) {
@@ -85,11 +100,15 @@ export function reconcileCounts(report: MigrationReport) {
   }
 }
 
-function sourceCountQuery(name: EntityName, data: MigrationData) {
+function sourceCountQueries(name: EntityName, data: MigrationData) {
   const rows = data[name] as unknown as Array<Record<string, unknown>>;
   if (!rows.length) {
-    return `SELECT json_object('entity','${name}','kind','source','count',0) row`;
+    return [`SELECT json_object('entity','${name}','kind','source','count',0) row`];
   }
+  return chunks(rows, 100).map((chunk) => sourceCountQuery(name, chunk));
+}
+
+function sourceCountQuery(name: EntityName, rows: Array<Record<string, unknown>>) {
   const column =
     name === 'projectMembers' || name === 'projectNominations'
       ? null
@@ -100,22 +119,28 @@ function sourceCountQuery(name: EntityName, data: MigrationData) {
           : 'source_id';
   const sourceProperty =
     name === 'years' ? 'id' : name === 'users' ? 'sourceUid' : 'sourceId';
-  const predicate = column
-    ? `${column} IN (${rows.map((row) => quote(row[sourceProperty])).join(',')})`
-    : name === 'projectMembers'
-      ? rows
-          .map(
-            (row) =>
-              `(project_id=${quote(row.projectId)} AND user_id=${quote(row.userId)})`,
-          )
-          .join(' OR ')
-      : rows
-          .map(
-            (row) =>
-              `(project_id=${quote(row.projectId)} AND award_category_id=${quote(row.awardCategoryId)})`,
-          )
-          .join(' OR ');
-  return `SELECT json_object('entity','${name}','kind','source','count',COUNT(*)) row FROM ${tables[name]} WHERE ${predicate}`;
+  if (column) {
+    const values = rows.map((row) => `(${quote(row[sourceProperty])})`).join(',');
+    return `WITH expected(value) AS (VALUES ${values})
+      SELECT json_object('entity','${name}','kind','source','count',COUNT(*)) row
+      FROM ${tables[name]} destination JOIN expected ON destination.${column}=expected.value`;
+  }
+  const secondColumn = name === 'projectMembers' ? 'user_id' : 'award_category_id';
+  const secondProperty = name === 'projectMembers' ? 'userId' : 'awardCategoryId';
+  const values = rows
+    .map((row) => `(${quote(row.projectId)},${quote(row[secondProperty])})`)
+    .join(',');
+  return `WITH expected(project_id, related_id) AS (VALUES ${values})
+    SELECT json_object('entity','${name}','kind','source','count',COUNT(*)) row
+    FROM ${tables[name]} destination JOIN expected
+      ON destination.project_id=expected.project_id
+      AND destination.${secondColumn}=expected.related_id`;
+}
+
+function chunks<T>(values: T[], size: number) {
+  return Array.from({length: Math.ceil(values.length / size)}, (_, index) =>
+    values.slice(index * size, (index + 1) * size),
+  );
 }
 
 function quote(value: unknown) {

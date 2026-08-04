@@ -5,6 +5,7 @@ import {describe, expect, it} from 'vitest';
 import {migrationSql} from '../../scripts/migrate/import';
 import {
   assertExplicitDestination,
+  destinationCountSql,
   transformedCounts,
 } from '../../scripts/migrate/reconcile';
 import {
@@ -79,6 +80,56 @@ describe('Firebase migration transformation', () => {
     );
   });
 
+  it('accepts legacy empty collections and awards without custom names', async () => {
+    const database = await fixture('database.json');
+    const root = database as {
+      years: Record<
+        string,
+        {
+          votes: unknown;
+          awards: Record<string, {name: string}> | string;
+        }
+      >;
+    };
+    root.years['2024'].votes = '';
+    const award = Object.values(
+      root.years['2024'].awards as Record<string, {name: string}>,
+    )[0];
+    award.name = '';
+
+    const result = await transformFirebaseExport(root);
+
+    expect(result.issues.filter((entry) => entry.severity === 'error')).toEqual([]);
+    expect(result.data.votes).toEqual([]);
+    expect(result.data.awards).toHaveLength(1);
+    expect(result.data.awards[0].name).toBe('Impact');
+  });
+
+  it('reports and omits legacy votes that conflict with current eligibility', async () => {
+    const database = await fixture('database.json');
+    const root = database as {
+      years: Record<
+        string,
+        {
+          votes: Record<string, {creator: string; project: string}>;
+        }
+      >;
+    };
+    const vote = Object.values(root.years['2024'].votes)[0];
+    vote.creator = 'user-member';
+    vote.project = 'project-history';
+
+    const result = await transformFirebaseExport(root);
+
+    expect(result.data.votes).toEqual([]);
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({
+        severity: 'warning',
+        code: 'IGNORED_LEGACY_SELF_VOTE',
+      }),
+    );
+  });
+
   it('creates stable upsert SQL so reruns cannot duplicate source rows', async () => {
     const result = await transformFirebaseExport(await fixture('database.json'));
     const first = migrationSql(result.data);
@@ -88,6 +139,33 @@ describe('Firebase migration transformation', () => {
     expect(first).toContain('ON CONFLICT(id) DO UPDATE');
     expect(first).toContain('ON CONFLICT(project_id, user_id) DO UPDATE');
     expect(first).toContain("'project-history'");
+  });
+
+  it('writes production-sized reconciliation queries to SQL without huge command arguments', async () => {
+    const result = await transformFirebaseExport(await fixture('database.json'));
+    result.data.users = Array.from({length: 700}, (_, index) => ({
+      ...result.data.users[0],
+      id: `user-${index}`,
+      sourceUid: `source-user-${index}`,
+    }));
+    result.data.projectMembers = Array.from({length: 1_400}, (_, index) => ({
+      projectId: `project-${index}`,
+      userId: `user-${index}`,
+      joinedAt: '1970-01-01T00:00:00.000Z',
+    }));
+
+    const query = destinationCountSql(result.data);
+
+    expect(query.length).toBeGreaterThan(50_000);
+    expect(query).toContain('WITH expected(value) AS (VALUES');
+    expect(query).toContain('WITH expected(project_id, related_id) AS (VALUES');
+    expect(query).toContain("'source-user-699'");
+    expect(
+      query
+        .split(';\n')
+        .filter((statement) => statement.includes("'kind','source'"))
+        .every((statement) => statement.length < 25_000),
+    ).toBe(true);
   });
 
   it('rejects traversal and requires explicit staging confirmation', () => {

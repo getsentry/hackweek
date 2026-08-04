@@ -371,6 +371,22 @@ export async function transformFirebaseExport(
         issue(issues, 'error', 'MISSING_REFERENCE', at, missing.join(', '));
         continue;
       }
+      const project = data.projects.find(
+        (row) => row.id === projectId && row.yearId === yearId,
+      );
+      const isProjectMember = data.projectMembers.some(
+        (row) => row.projectId === projectId && row.userId === creatorId,
+      );
+      if (project?.creatorId === creatorId || isProjectMember) {
+        issue(
+          issues,
+          'warning',
+          'IGNORED_LEGACY_SELF_VOTE',
+          at,
+          'vote conflicts with current eligibility rules and was not imported',
+        );
+        continue;
+      }
       data.votes.push({
         id: voteId,
         sourceId: voteId,
@@ -390,8 +406,8 @@ export async function transformFirebaseExport(
       const creatorId = text(award?.creator);
       const projectId = text(award?.project);
       const categoryId = text(award?.awardCategory);
-      if (!award || !text(award.name) || !creatorId || !projectId || !categoryId) {
-        issue(issues, 'error', 'INVALID_RECORD', at, 'name and references are required');
+      if (!award || !creatorId || !projectId || !categoryId) {
+        issue(issues, 'error', 'INVALID_RECORD', at, 'references are required');
         continue;
       }
       const missing = [
@@ -409,7 +425,11 @@ export async function transformFirebaseExport(
         yearId,
         projectId,
         categoryId,
-        name: text(award.name)!,
+        name:
+          text(award.name) ??
+          data.awardCategories.find(
+            (category) => category.id === categoryId && category.yearId === yearId,
+          )!.name,
         creatorId,
         createdAt: timestamp(award.ts),
       });
@@ -498,7 +518,8 @@ function object(value: unknown): JsonObject | null {
 }
 
 function entries(value: unknown, at: string, issues: MigrationIssue[]) {
-  if (value === undefined || value === null) return [] as Array<[string, unknown]>;
+  if (value === undefined || value === null || value === '')
+    return [] as Array<[string, unknown]>;
   const record = object(value);
   if (!record) {
     issue(issues, 'error', 'INVALID_COLLECTION', at, 'expected an object map');

@@ -24,6 +24,7 @@ interface Arguments {
   databaseName: string;
   bucketName: string;
   config?: string;
+  persistTo?: string;
 }
 
 async function main() {
@@ -87,6 +88,7 @@ function destination(args: Arguments): ImportOptions {
     bucketName: args.bucketName,
     environment: args.environment,
     config: args.config,
+    persistTo: args.persistTo,
   };
 }
 
@@ -122,6 +124,7 @@ function parseArguments(argv: string[]): Arguments {
     databaseName: flags.get('database-name') ?? 'hackweek-db',
     bucketName: flags.get('bucket-name') ?? 'hackweek-attachments-local',
     config: flags.get('config'),
+    persistTo: flags.get('persist-to'),
   };
 }
 

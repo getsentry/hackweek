@@ -14,10 +14,6 @@
 .dev.vars*
 !.dev.vars.example
 
-# legacy Firebase local state
-.firebase
-firebase-debug.log*
-
 # local environment
 .env
 .env.*
@@ -33,9 +29,9 @@ yarn-error.log*
 # operator-provided migration exports and generated reports
 /migration-input/
 /migration-output/
-/firebase-export/
-/firebase-storage-export/
-*.firebase-export.json
+/source-database-export/
+/source-storage-export/
+*.source-export.json
 *.migration-report.json
 
 # generated reports and TypeScript state

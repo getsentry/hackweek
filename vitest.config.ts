@@ -28,6 +28,7 @@ export default defineConfig({
     })),
   ],
   test: {
+    maxWorkers: 1,
     include: ['test/**/*.test.ts'],
     exclude: ['test/migration/**'],
     setupFiles: ['./test/setup.ts'],

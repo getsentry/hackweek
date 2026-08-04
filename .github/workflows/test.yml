@@ -2,6 +2,7 @@ name: Test
 
 on:
   pull_request:
+  workflow_call:
 
 jobs:
   verify:
@@ -17,8 +18,8 @@ jobs:
           node-version: 24.19.0
           cache: npm
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install dependencies deterministically
+        run: npm ci --no-audit --no-fund
 
       - name: Generate Worker binding types
         run: npm run cf-typegen
@@ -32,8 +33,14 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Test in workerd
+      - name: Apply D1 migrations to clean local state
+        run: rm -rf .wrangler/state && npm run db:migrate:local
+
+      - name: Test Worker, frontend, migration, and video contracts
         run: npm test
 
       - name: Build Worker and static assets
         run: npm run build
+
+      - name: Run seeded local cutover-readiness journey
+        run: npm run test:readiness

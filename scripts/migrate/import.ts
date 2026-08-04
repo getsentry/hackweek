@@ -13,6 +13,7 @@ export interface ImportOptions {
   bucketName: string;
   environment?: string;
   config?: string;
+  persistTo?: string;
 }
 
 export async function importMigration(
@@ -41,6 +42,7 @@ export async function importMigration(
             media.storageFile,
             ...(media.mediaType ? ['--content-type', media.mediaType] : []),
             ...environmentArgs(options),
+            ...persistenceArgs(options),
           ],
           options.config,
         );
@@ -72,6 +74,7 @@ export async function importMigration(
         sqlFile,
         '--yes',
         ...environmentArgs(options),
+        ...persistenceArgs(options),
       ],
       options.config,
     );
@@ -197,6 +200,12 @@ function destinationFlag(destination: Destination) {
 function environmentArgs(options: ImportOptions) {
   return options.destination === 'staging' && options.environment
     ? ['--env', options.environment]
+    : [];
+}
+
+function persistenceArgs(options: ImportOptions) {
+  return options.destination === 'local' && options.persistTo
+    ? ['--persist-to', options.persistTo]
     : [];
 }
 

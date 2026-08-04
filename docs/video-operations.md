@@ -1,5 +1,7 @@
 # Video operations
 
+See [`screening.md`](screening.md) for presenter controls, state, day-of checks, Meet-style validation, and incident handling. See [`staging.md`](staging.md) for the remote evidence gate.
+
 The video platform has two deliberately different modes:
 
 - `STREAM_MODE=fake` is for local application development and tests. It exercises authorization, D1 state, webhooks, jobs, and client contracts. It does **not** accept bytes, transcode, make HLS, or claim playback works.
@@ -46,6 +48,8 @@ To exercise a webhook fixture, preserve the JSON body byte-for-byte and compute 
 
 ## Staging Stream configuration
 
+Resource/binding/Access setup and credential boundaries are documented in [`cloudflare-setup.md`](cloudflare-setup.md). Do not configure production or treat local fake results as remote evidence.
+
 Create a least-privilege Cloudflare API token with Stream read/write for the staging account, then configure Worker secrets/vars:
 
 ```sh
@@ -88,6 +92,8 @@ Cloudflare's current documented contract differs from the original reel transcri
 - MP4 downloads must first be generated and may be `inprogress` before they are ready.
 
 ### Required staging validation
+
+Record the release SHA, deployment URL, video/project IDs, relevant workflow runs, and pass/fail evidence outside Git. These are manual remote checks; none are proven by `npm run test:readiness`.
 
 1. Confirm an unauthenticated request is blocked by Access.
 2. Upload a video larger than 200 MB with tus, interrupt it, and confirm resume.

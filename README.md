@@ -1,22 +1,17 @@
 # Sentry Hackweek
 
-The Hackweek application is migrating to a Cloudflare-native modular monolith:
-a React + TypeScript SPA and one Hono Worker backed by D1 and R2.
+Hackweek is an internal React + TypeScript application served by one Hono Cloudflare Worker. Cloudflare Access authenticates users, D1 owns application data and roles, private R2 stores attachments, and Cloudflare Stream handles direct resumable demo-video ingest and protected playback. The UI preserves the recognizable Sentry `#HACKWEEK` identity and archive hierarchy.
 
 ## Requirements
 
-- Node.js 24.11 or newer
+- Node.js 24.11 or newer (the repository pins 24.19 through Volta and CI)
 - npm 11 or newer
 
-## Local development
-
-Install dependencies, configure the loopback-only browser identity, reset disposable
-local state, import the synthetic historical fixture, and start the app:
+## Deterministic local start
 
 ```bash
-npm install
+npm ci
 cp .dev.vars.example .dev.vars
-npm run cf-typegen
 rm -rf .wrangler/state
 npm run db:migrate:local
 npm run migrate:local -- \
@@ -26,21 +21,9 @@ npm run migrate:local -- \
 npm run dev
 ```
 
-Open `http://localhost:5173`. The first `/api/session` request creates the configured
-identity as a D1 **member**. The official Cloudflare Vite plugin runs the API Worker in
-`workerd` and serves the SPA with Workers Static Assets. Local D1 and R2 data live under
-`.wrangler/`; no remote Cloudflare resources are required. The health endpoint is
-`http://localhost:5173/api/health`.
+Open `http://localhost:5173`. The fixture is synthetic; it seeds the 2024 archive, `Historical Telescope`, `Idea Compass`, an attachment, a ballot, and an award. The official Cloudflare Vite plugin runs the API in workerd and serves Workers Static Assets. D1/R2 state remains under ignored `.wrangler/`; no account or remote credential is needed.
 
-`AUTH_MODE=local` is explicit and accepts requests only when their URL hostname is
-`localhost`, `127.0.0.1`, or `::1`. It rejects LAN/public hostnames, missing identity
-values, non-company email domains, Access settings, and signed-key settings. Do not put
-roles or credentials in `.dev.vars`: request headers, cookies, query parameters, and JWTs
-cannot change the configured local identity or its role. Changing `.dev.vars` requires
-restarting `npm run dev`.
-
-D1 is the only role authority. To promote the configured identity in disposable local D1,
-first open the app once so the user exists, stop the dev server, then run:
+`AUTH_MODE=local` accepts only exact loopback URLs and the fixed `.dev.vars` identity. It rejects LAN/public hosts, client-provided roles, Access variables, signed-key variables, and non-company email domains. The first `/api/session` request creates a **member**. To test RBAC, open the app once, stop the server, promote only the disposable local row, and restart:
 
 ```bash
 npx wrangler d1 execute hackweek-db --local --command \
@@ -48,37 +31,19 @@ npx wrangler d1 execute hackweek-db --local --command \
 npm run dev
 ```
 
-Refresh the browser; `/api/session` will now return the D1-backed `admin` role. Resetting
-`.wrangler/state` removes this promotion. If you change the example subject or email,
-change both predicates in the SQL command to match. Never use this local command against a
-remote database.
+Resetting `.wrangler/state` removes the promotion. Never run that command with `--remote`.
 
-The SPA provides year archives, project and idea browsing, project/team editing,
-administrator group controls, and private project attachments. See
-[`docs/architecture/projects.md`](docs/architecture/projects.md) for the intentional legacy
-behavior and R2 key/access model, and [`docs/migration.md`](docs/migration.md) for full
-migration rehearsal and reconciliation instructions.
+## Local readiness and quality gates
 
-### Authentication modes
+```bash
+npm run verify
+```
 
-All APIs except `/api/health` pass through one explicitly selected authentication mode:
+`verify` generates deterministic binding types, typechecks, formats, lints, runs Worker/frontend/migration/player tests, builds the Worker and SPA, then performs an isolated seeded local readiness journey. The journey uses temporary D1/R2 state and proves member/admin RBAC, archives, migrated team/media, voting/admin analytics, migration reconciliation, fake tus provisioning, ready-only screening order, and the fake-playback boundary. It deletes its state afterward.
 
-- `access` — required for staging/production. It verifies a Cloudflare Access application
-  JWT from `Cf-Access-Jwt-Assertion` using `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, and
-  `ALLOWED_EMAIL_DOMAIN`. Local identity and key-set variables are rejected.
-- `local` — browser development only, configured by ignored `.dev.vars` as shown above.
-  It requires a complete fixed identity and a loopback request URL; it is never selected
-  because Access configuration is absent.
-- `local-signed` — signed fixture testing only. It still requires a valid RS256 JWT,
-  Access-style issuer/audience settings, and an explicit public JWKS. The deterministic
-  private test key stays under `test/auth/` and is not part of browser setup.
+Local fake Stream does **not** accept video bytes, transcode, create HLS, prove Access, or prove Stream. Real Access/Stream/R2 bindings require the separately approved staging gate in [`docs/staging.md`](docs/staging.md).
 
-The Access verifier checks signature, issuer, audience, time claims, application token
-type, subject, and exact company email domain. Unknown modes and contradictory or missing
-configuration fail closed. D1, not Access claims or frontend state, owns administrator
-roles.
-
-## Quality gates
+Useful focused commands:
 
 ```bash
 npm run typecheck
@@ -86,7 +51,23 @@ npm run format:check
 npm run lint
 npm test
 npm run build
+npm run test:readiness
 ```
 
-See [`docs/architecture/toolchain.md`](docs/architecture/toolchain.md) for the
-Vite+ compatibility evidence and selected toolchain.
+## Authentication modes
+
+- `access` — staging/production only. Verifies Cloudflare Access RS256 JWT signature, issuer, audience, time, application token type, subject, and exact company domain.
+- `local` — explicit loopback-only development identity; D1 remains the sole role authority.
+- `local-signed` — deterministic RS256 test fixtures only.
+
+Unknown, missing, or contradictory configuration fails closed. All APIs except `/api/health`, the authenticated Stream webhook, and service-token video job routes pass through the shared identity boundary.
+
+## Documentation
+
+- [`docs/architecture.md`](docs/architecture.md) — system boundaries, data model, security, and legacy feature inventory
+- [`docs/cloudflare-setup.md`](docs/cloudflare-setup.md) — Access, Worker, D1, R2, Stream, bindings, and secrets
+- [`docs/migration.md`](docs/migration.md) — export validation, dry runs, import, reconciliation, and rehearsals
+- [`docs/video-operations.md`](docs/video-operations.md) — direct uploads, lifecycle, loudness, protected playback, and Drive archive
+- [`docs/screening.md`](docs/screening.md) — screening controls, state, browser/Meet checks, and failure handling
+- [`docs/staging.md`](docs/staging.md) — manual staging gate and evidence checklist
+- [`docs/cutover.md`](docs/cutover.md) — operator-assisted production cutover, rollback, and decommission follow-up

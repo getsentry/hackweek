@@ -1,0 +1,45 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "hackweek",
+  "main": "./src/worker/index.ts",
+  "compatibility_date": "2026-08-03",
+  "assets": {
+    "directory": "./dist/client",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "env": {
+    "staging": {
+      "name": "hackweek-staging",
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "hackweek-db",
+          "database_id": "00000000-0000-0000-0000-000000000000",
+          "migrations_dir": "migrations"
+        }
+      ],
+      "r2_buckets": [
+        {
+          "binding": "ATTACHMENTS",
+          "bucket_name": "replace-me-hackweek-staging"
+        }
+      ],
+      "vars": {
+        "AUTH_MODE": "access",
+        "ACCESS_TEAM_DOMAIN": "https://replace-me.cloudflareaccess.com",
+        "ACCESS_AUD": "REPLACE_ME_ACCESS_AUD",
+        "ALLOWED_EMAIL_DOMAIN": "sentry.io",
+        "STREAM_MODE": "real",
+        "STREAM_ACCOUNT_ID": "REPLACE_ME_STREAM_ACCOUNT_ID",
+        "STREAM_ALLOWED_ORIGIN": "replace-me.example.invalid",
+        "STREAM_DELIVERY_HOST": "replace-me.cloudflarestream.com",
+        "R2_ACCOUNT_ID": "REPLACE_ME_R2_ACCOUNT_ID",
+        "R2_BUCKET_NAME": "replace-me-hackweek-staging"
+      },
+      "observability": {
+        "enabled": true
+      }
+    }
+  }
+}

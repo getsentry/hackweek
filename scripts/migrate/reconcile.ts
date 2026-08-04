@@ -47,6 +47,9 @@ export function destinationCounts(options: ImportOptions, data: MigrationData) {
       query,
       '--json',
       ...(options.environment ? ['--env', options.environment] : []),
+      ...(options.destination === 'local' && options.persistTo
+        ? ['--persist-to', options.persistTo]
+        : []),
       ...(options.config ? ['--config', options.config] : []),
     ],
     {cwd: process.cwd(), encoding: 'utf8'},

@@ -1,0 +1,34 @@
+name: Archive videos to Drive
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: video-archive
+  cancel-in-progress: false
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.19.0
+          cache: npm
+      - run: npm ci
+      - name: Install rclone
+        run: curl https://rclone.org/install.sh | sudo bash
+      - name: Configure Drive and archive ready videos
+        run: |
+          mkdir -p ~/.config/rclone
+          printf '%s' "$RCLONE_CONFIG" > ~/.config/rclone/rclone.conf
+          npx tsx scripts/archive-to-drive.ts
+        env:
+          VIDEO_API_URL: ${{ secrets.VIDEO_API_URL }}
+          VIDEO_SERVICE_TOKEN: ${{ secrets.VIDEO_SERVICE_TOKEN }}
+          RCLONE_CONFIG: ${{ secrets.RCLONE_CONFIG }}
+          RCLONE_DRIVE_DESTINATION: ${{ vars.RCLONE_DRIVE_DESTINATION }}

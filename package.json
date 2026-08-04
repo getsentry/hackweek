@@ -9,8 +9,8 @@
     "typecheck": "tsc -b",
     "format:check": "vp fmt --check .",
     "lint": "vp lint src/app src/worker scripts test vite.config.ts vitest.config.ts vitest.migration.config.ts --deny-warnings",
-    "test": "vp test run --config vitest.config.ts && vp test run --config vitest.app.config.ts && vp test run --config vitest.migration.config.ts",
-    "test:worker": "vp test run --config vitest.config.ts",
+    "test": "node scripts/run-worker-tests.mjs && vp test run --config vitest.app.config.ts && vp test run --config vitest.migration.config.ts",
+    "test:worker": "node scripts/run-worker-tests.mjs",
     "test:app": "vp test run --config vitest.app.config.ts",
     "build": "vp build",
     "preview": "vp preview",
@@ -20,7 +20,9 @@
     "migrate:dry-run": "tsx scripts/migrate/cli.ts dry-run",
     "migrate:local": "tsx scripts/migrate/cli.ts import --target local",
     "migrate:staging": "tsx scripts/migrate/cli.ts import --target staging",
-    "migrate:reconcile": "tsx scripts/migrate/cli.ts reconcile"
+    "migrate:reconcile": "tsx scripts/migrate/cli.ts reconcile",
+    "video:measure": "tsx scripts/measure-loudness.ts",
+    "video:archive": "tsx scripts/archive-to-drive.ts"
   },
   "dependencies": {
     "@fontsource/rubik": "^5.3.0",

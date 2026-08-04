@@ -5,3 +5,11 @@ LOCAL_AUTH_SUBJECT="local-browser-user"
 LOCAL_AUTH_EMAIL="developer@sentry.io"
 LOCAL_AUTH_NAME="Local Developer"
 ALLOWED_EMAIL_DOMAIN="sentry.io"
+
+# The local adapter issues direct-upload fixtures and protected-playback contracts.
+# It does not transcode, generate HLS, or move video bytes.
+STREAM_MODE="fake"
+STREAM_ALLOWED_ORIGIN="localhost"
+STREAM_DELIVERY_HOST="customer-fake.cloudflarestream.com"
+STREAM_WEBHOOK_SECRET="replace-with-a-local-signing-secret"
+VIDEO_SERVICE_TOKEN="replace-with-a-local-job-token"

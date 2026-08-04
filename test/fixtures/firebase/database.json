@@ -1,0 +1,94 @@
+{
+  "users": {
+    "user-admin": {
+      "admin": true,
+      "avatarUrl": "https://example.invalid/admin.png",
+      "displayName": "Synthetic Admin",
+      "email": "admin@example.invalid"
+    },
+    "user-member": {
+      "admin": false,
+      "avatarUrl": "https://example.invalid/member.png",
+      "displayName": "Synthetic Member",
+      "email": "member@example.invalid"
+    },
+    "user-voter": {
+      "admin": false,
+      "avatarUrl": "https://example.invalid/voter.png",
+      "displayName": "Synthetic Voter",
+      "email": "voter@example.invalid"
+    }
+  },
+  "years": {
+    "2024": {
+      "votingEnabled": true,
+      "submissionsClosed": true,
+      "groups": {
+        "group-orbit": {
+          "name": "Orbit",
+          "year": "2024",
+          "creator": "user-admin",
+          "ts": 1704067200000
+        }
+      },
+      "awardCategories": {
+        "category-impact": {
+          "name": "Impact",
+          "creator": "user-admin",
+          "ts": 1704067200000
+        }
+      },
+      "projects": {
+        "project-history": {
+          "creator": "user-admin",
+          "name": "Historical Telescope",
+          "summary": "A fully synthetic migration rehearsal project.",
+          "repository": "https://example.invalid/repository",
+          "ts": 1704153600000,
+          "isIdea": false,
+          "needHelp": false,
+          "needHelpComments": "",
+          "year": "2024",
+          "group": "group-orbit",
+          "nominatedAwardCategory1": "category-impact",
+          "members": {
+            "user-admin": {"ts": 1704153600000},
+            "user-member": {"ts": 1704153600000}
+          },
+          "media": {
+            "media-poster": {
+              "name": "poster.txt",
+              "path": "projects/project-history/media/media-poster/poster.txt",
+              "ts": 1704153600000
+            }
+          }
+        },
+        "idea-compass": {
+          "creator": "user-member",
+          "name": "Idea Compass",
+          "summary": "Synthetic idea without media or video.",
+          "ts": 1704240000000,
+          "isIdea": true,
+          "year": "2024"
+        }
+      },
+      "votes": {
+        "user-voter:category-impact": {
+          "creator": "user-voter",
+          "project": "project-history",
+          "awardCategory": "category-impact",
+          "ts": 1704326400000
+        }
+      },
+      "awards": {
+        "award-impact": {
+          "creator": "user-admin",
+          "project": "project-history",
+          "name": "Impact winner",
+          "awardCategory": "category-impact",
+          "ts": 1704412800000
+        }
+      }
+    }
+  }
+}

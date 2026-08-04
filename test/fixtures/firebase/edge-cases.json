@@ -1,0 +1,34 @@
+{
+  "users": {
+    "known-user": {
+      "displayName": "Known Synthetic User",
+      "email": "known@example.invalid"
+    }
+  },
+  "years": {
+    "2023": {
+      "groups": {
+        "valid-group": {
+          "name": "Valid group",
+          "creator": "known-user",
+          "ts": 1
+        }
+      },
+      "projects": {
+        "valid-project": {
+          "creator": "known-user",
+          "name": "Valid despite bad neighbor",
+          "group": "missing-group",
+          "year": "2023",
+          "ts": 2
+        },
+        "invalid-project": {
+          "creator": "missing-user",
+          "name": "Invalid relationship",
+          "year": "2023",
+          "ts": 3
+        }
+      }
+    }
+  }
+}

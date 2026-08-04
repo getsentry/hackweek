@@ -30,6 +30,14 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# operator-provided migration exports and generated reports
+/migration-input/
+/migration-output/
+/firebase-export/
+/firebase-storage-export/
+*.firebase-export.json
+*.migration-report.json
+
 # generated reports and TypeScript state
 junit.xml
 *.tsbuildinfo

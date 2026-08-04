@@ -1,5 +1,13 @@
 import {importJWK, SignJWT, type JWTPayload} from 'jose';
 
+export const localBrowserAuthBindings = {
+  AUTH_MODE: 'local',
+  ALLOWED_EMAIL_DOMAIN: 'sentry.io',
+  LOCAL_AUTH_SUBJECT: 'local-browser-user',
+  LOCAL_AUTH_EMAIL: 'developer@sentry.io',
+  LOCAL_AUTH_NAME: 'Local Developer',
+} as const;
+
 export const localAuthBindings = {
   AUTH_MODE: 'local-signed',
   ACCESS_TEAM_DOMAIN: 'https://hackweek-local.cloudflareaccess.com',

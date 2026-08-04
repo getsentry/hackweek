@@ -18,11 +18,14 @@ export interface AuthVariables {
 }
 
 export interface AuthBindings {
-  ACCESS_AUD: string;
-  ACCESS_TEAM_DOMAIN: string;
+  ACCESS_AUD?: string;
+  ACCESS_TEAM_DOMAIN?: string;
   ALLOWED_EMAIL_DOMAIN: string;
   AUTH_MODE?: string;
   LOCAL_ACCESS_JWKS?: string;
+  LOCAL_AUTH_EMAIL?: string;
+  LOCAL_AUTH_NAME?: string;
+  LOCAL_AUTH_SUBJECT?: string;
 }
 
 export class AuthenticationError extends Error {
@@ -68,6 +71,17 @@ export async function verifyAccessIdentity(
   env: AuthBindings,
 ): Promise<AccessIdentity> {
   const config = readAuthConfig(env);
+  if (config.mode === 'local') {
+    if (!isLoopbackHostname(new URL(request.url).hostname)) {
+      throw new AuthenticationError(
+        'AUTH_FORBIDDEN',
+        'Local authentication is restricted to loopback hosts',
+        403,
+      );
+    }
+    return config.identity;
+  }
+
   const token = request.headers.get(ACCESS_JWT_HEADER);
   if (!token) {
     throw new AuthenticationError(
@@ -100,11 +114,51 @@ export async function verifyAccessIdentity(
 }
 
 function readAuthConfig(env: AuthBindings) {
-  const audience = env.ACCESS_AUD?.trim();
-  const allowedEmailDomain = env.ALLOWED_EMAIL_DOMAIN?.trim().toLowerCase();
-  const rawIssuer = env.ACCESS_TEAM_DOMAIN?.trim();
+  const authMode = env.AUTH_MODE ?? 'access';
+  const allowedEmailDomain = readAllowedEmailDomain(env.ALLOWED_EMAIL_DOMAIN);
+  const localIdentityConfigured = [
+    env.LOCAL_AUTH_SUBJECT,
+    env.LOCAL_AUTH_EMAIL,
+    env.LOCAL_AUTH_NAME,
+  ].some((value) => value !== undefined);
 
-  if (!audience || !allowedEmailDomain || !rawIssuer) {
+  if (authMode === 'local') {
+    if (
+      env.ACCESS_AUD !== undefined ||
+      env.ACCESS_TEAM_DOMAIN !== undefined ||
+      env.LOCAL_ACCESS_JWKS !== undefined
+    ) {
+      throw new AuthenticationError(
+        'AUTH_CONFIG_INVALID',
+        'Access configuration cannot be used in local authentication mode',
+        500,
+      );
+    }
+    return {
+      mode: authMode,
+      identity: localIdentityFromConfig(env, allowedEmailDomain),
+    } as const;
+  }
+
+  if (authMode !== 'access' && authMode !== 'local-signed') {
+    throw new AuthenticationError(
+      'AUTH_CONFIG_INVALID',
+      'Authentication mode is invalid',
+      500,
+    );
+  }
+
+  if (localIdentityConfigured) {
+    throw new AuthenticationError(
+      'AUTH_CONFIG_INVALID',
+      'Local identity configuration cannot be used in signed authentication modes',
+      500,
+    );
+  }
+
+  const audience = env.ACCESS_AUD?.trim();
+  const issuer = readAccessIssuer(env.ACCESS_TEAM_DOMAIN);
+  if (!audience) {
     throw new AuthenticationError(
       'AUTH_CONFIG_INVALID',
       'Cloudflare Access authentication is not configured',
@@ -112,9 +166,51 @@ function readAuthConfig(env: AuthBindings) {
     );
   }
 
-  let issuer: string;
+  if (authMode === 'access' && env.LOCAL_ACCESS_JWKS !== undefined) {
+    throw new AuthenticationError(
+      'AUTH_CONFIG_INVALID',
+      'Local authentication keys cannot be used in Access mode',
+      500,
+    );
+  }
+
+  if (authMode === 'local-signed' && !env.LOCAL_ACCESS_JWKS?.trim()) {
+    throw new AuthenticationError(
+      'AUTH_CONFIG_INVALID',
+      'Local signed authentication requires an explicit key set',
+      500,
+    );
+  }
+
+  return {
+    mode: authMode,
+    audience,
+    allowedEmailDomain,
+    issuer,
+    localJwks:
+      authMode === 'local-signed' ? parseLocalJwks(env.LOCAL_ACCESS_JWKS!) : undefined,
+  } as const;
+}
+
+function readAllowedEmailDomain(value: string | undefined) {
+  const domain = value?.trim().toLowerCase();
+  if (
+    !domain ||
+    domain.length > 253 ||
+    !domain.split('.').every((label) => /^(?!-)[a-z0-9-]+(?<!-)$/.test(label))
+  ) {
+    throw new AuthenticationError(
+      'AUTH_CONFIG_INVALID',
+      'Allowed email domain is invalid',
+      500,
+    );
+  }
+  return domain;
+}
+
+function readAccessIssuer(value: string | undefined) {
   try {
-    const issuerUrl = new URL(rawIssuer);
+    const issuerUrl = new URL(value?.trim() ?? '');
     if (
       issuerUrl.protocol !== 'https:' ||
       !issuerUrl.hostname.endsWith('.cloudflareaccess.com') ||
@@ -124,7 +220,7 @@ function readAuthConfig(env: AuthBindings) {
     ) {
       throw new Error('invalid issuer');
     }
-    issuer = issuerUrl.origin;
+    return issuerUrl.origin;
   } catch {
     throw new AuthenticationError(
       'AUTH_CONFIG_INVALID',
@@ -132,38 +228,67 @@ function readAuthConfig(env: AuthBindings) {
       500,
     );
   }
+}
 
-  const authMode = env.AUTH_MODE ?? 'access';
-  if (authMode !== 'access' && authMode !== 'local-signed') {
+function localIdentityFromConfig(env: AuthBindings, allowedDomain: string) {
+  const subject = env.LOCAL_AUTH_SUBJECT?.trim();
+  const email = env.LOCAL_AUTH_EMAIL?.trim().toLowerCase();
+  const displayName = env.LOCAL_AUTH_NAME?.trim();
+  if (
+    !subject ||
+    subject.length > 255 ||
+    !/^[a-zA-Z0-9._:@/-]+$/.test(subject) ||
+    !email ||
+    email.length > 254 ||
+    !isValidEmailAddress(email) ||
+    !displayName ||
+    displayName.length > 100 ||
+    Array.from(displayName).some((character) => {
+      const code = character.charCodeAt(0);
+      return code <= 31 || code === 127;
+    })
+  ) {
     throw new AuthenticationError(
       'AUTH_CONFIG_INVALID',
-      'Authentication mode is invalid',
+      'Local authentication identity is invalid',
       500,
     );
   }
 
-  if (authMode === 'access' && env.LOCAL_ACCESS_JWKS) {
+  assertAllowedEmail(email, allowedDomain);
+  return {subject, email, displayName, avatarUrl: null};
+}
+
+function isLoopbackHostname(hostname: string) {
+  return (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '[::1]' ||
+    hostname === '::1'
+  );
+}
+
+function isValidEmailAddress(email: string) {
+  const at = email.lastIndexOf('@');
+  const localPart = at === -1 ? '' : email.slice(0, at);
+  return (
+    at > 0 &&
+    email.indexOf('@') === at &&
+    localPart.length <= 64 &&
+    /^[a-z0-9.!#$%&'*+/=?^_`{|}~-]+$/.test(localPart)
+  );
+}
+
+function assertAllowedEmail(email: string, allowedDomain: string) {
+  const at = email.lastIndexOf('@');
+  const domain = at === -1 ? '' : email.slice(at + 1);
+  if (!isValidEmailAddress(email) || domain !== allowedDomain) {
     throw new AuthenticationError(
-      'AUTH_CONFIG_INVALID',
-      'Local authentication keys cannot be used in Access mode',
-      500,
+      'AUTH_FORBIDDEN',
+      'Email domain is not authorized',
+      403,
     );
   }
-
-  if (authMode === 'local-signed' && !env.LOCAL_ACCESS_JWKS) {
-    throw new AuthenticationError(
-      'AUTH_CONFIG_INVALID',
-      'Local signed authentication requires an explicit key set',
-      500,
-    );
-  }
-
-  let localJwks: ReturnType<typeof parseLocalJwks> | undefined;
-  if (authMode === 'local-signed') {
-    localJwks = parseLocalJwks(env.LOCAL_ACCESS_JWKS!);
-  }
-
-  return {audience, allowedEmailDomain, issuer, localJwks};
 }
 
 function parseLocalJwks(value: string) {
@@ -208,15 +333,8 @@ function identityFromPayload(payload: JWTPayload, allowedDomain: string): Access
   }
 
   const email = payload.email.trim().toLowerCase();
+  assertAllowedEmail(email, allowedDomain);
   const at = email.lastIndexOf('@');
-  const domain = at === -1 ? '' : email.slice(at + 1);
-  if (!email || domain !== allowedDomain) {
-    throw new AuthenticationError(
-      'AUTH_FORBIDDEN',
-      'Email domain is not authorized',
-      403,
-    );
-  }
 
   const displayName =
     typeof payload.name === 'string' && payload.name.trim().length > 0

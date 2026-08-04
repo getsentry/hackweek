@@ -2,8 +2,9 @@ import {env, SELF} from 'cloudflare:test';
 import {decodeJwt} from 'jose';
 import {beforeEach, describe, expect, it} from 'vitest';
 
-import {verifyAccessIdentity} from '../../src/worker/middleware/auth';
-import {localAuthBindings, signAccessToken} from './fixture';
+import app from '../../src/worker';
+import {type AuthBindings, verifyAccessIdentity} from '../../src/worker/middleware/auth';
+import {localAuthBindings, localBrowserAuthBindings, signAccessToken} from './fixture';
 
 const endpoint = 'https://hackweek.test/api/session';
 
@@ -151,6 +152,181 @@ describe('Cloudflare Access authentication', () => {
       verifyAccessIdentity(request, {...localAuthBindings, AUTH_MODE: 'access'}),
     ).rejects.toMatchObject({code: 'AUTH_CONFIG_INVALID'});
   });
+
+  it('rejects a local identity configured alongside production Access', async () => {
+    const request = new Request(endpoint, {
+      headers: {'Cf-Access-Jwt-Assertion': await signAccessToken()},
+    });
+
+    await expect(
+      verifyAccessIdentity(request, {
+        ...localAuthBindings,
+        AUTH_MODE: 'access',
+        LOCAL_ACCESS_JWKS: undefined,
+        LOCAL_AUTH_SUBJECT: 'local-browser-user',
+        LOCAL_AUTH_EMAIL: 'developer@sentry.io',
+        LOCAL_AUTH_NAME: 'Local Developer',
+      }),
+    ).rejects.toMatchObject({code: 'AUTH_CONFIG_INVALID'});
+  });
+});
+
+describe('local browser authentication', () => {
+  it.each([
+    'http://localhost:5173/api/session',
+    'http://127.0.0.1:5173/api/session',
+    'http://[::1]:5173/api/session',
+  ])('creates a D1 member for a browser request to %s', async (url) => {
+    const response = await fetchLocal(url);
+
+    expect(response.status).toBe(200);
+    const body = await response.json<{
+      user: {id: string; email: string; displayName: string; role: string};
+    }>();
+    expect(body.user).toMatchObject({
+      email: 'developer@sentry.io',
+      displayName: 'Local Developer',
+      role: 'member',
+    });
+    expect(
+      await env.DB.prepare(
+        'SELECT access_subject, email, is_admin FROM users WHERE id = ?',
+      )
+        .bind(body.user.id)
+        .first(),
+    ).toEqual({
+      access_subject: 'local-browser-user',
+      email: 'developer@sentry.io',
+      is_admin: 0,
+    });
+  });
+
+  it.each([
+    'https://hackweek.test/api/session',
+    'http://192.168.1.20:5173/api/session',
+    'http://127.0.0.2:5173/api/session',
+  ])('rejects local mode on non-loopback request URL %s', async (url) => {
+    const response = await fetchLocal(url, {headers: {Host: 'localhost'}});
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({error: {code: 'AUTH_FORBIDDEN'}});
+    expect(await env.DB.prepare('SELECT COUNT(*) AS count FROM users').first()).toEqual({
+      count: 0,
+    });
+  });
+
+  it.each([
+    ['missing subject', {LOCAL_AUTH_SUBJECT: undefined}],
+    ['missing email', {LOCAL_AUTH_EMAIL: undefined}],
+    ['missing name', {LOCAL_AUTH_NAME: undefined}],
+    ['missing allowed domain', {ALLOWED_EMAIL_DOMAIN: undefined}],
+    ['blank subject', {LOCAL_AUTH_SUBJECT: '  '}],
+    ['invalid subject', {LOCAL_AUTH_SUBJECT: 'local user'}],
+    ['malformed email', {LOCAL_AUTH_EMAIL: 'developer@@sentry.io'}],
+    ['blank name', {LOCAL_AUTH_NAME: '  '}],
+  ])('rejects %s local identity configuration', async (_name, override) => {
+    const response = await fetchLocal('http://localhost:5173/api/session', {}, override);
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toMatchObject({
+      error: {code: 'AUTH_CONFIG_INVALID'},
+    });
+  });
+
+  it('rejects a local identity outside the allowed email domain', async () => {
+    const response = await fetchLocal(
+      'http://localhost:5173/api/session',
+      {},
+      {LOCAL_AUTH_EMAIL: 'developer@sentry.io.attacker.example'},
+    );
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({error: {code: 'AUTH_FORBIDDEN'}});
+  });
+
+  it.each([
+    ['Access audience', {ACCESS_AUD: 'hackweek-local'}],
+    [
+      'Access issuer',
+      {ACCESS_TEAM_DOMAIN: 'https://hackweek-local.cloudflareaccess.com'},
+    ],
+    ['signed key set', {LOCAL_ACCESS_JWKS: localAuthBindings.LOCAL_ACCESS_JWKS}],
+  ])('rejects contradictory local and %s configuration', async (_name, override) => {
+    const response = await fetchLocal('http://localhost:5173/api/session', {}, override);
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toMatchObject({
+      error: {code: 'AUTH_CONFIG_INVALID'},
+    });
+  });
+
+  it('does not select local identity implicitly when the mode is absent', async () => {
+    const response = await fetchLocal(
+      'http://localhost:5173/api/session',
+      {},
+      {AUTH_MODE: undefined},
+    );
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toMatchObject({
+      error: {code: 'AUTH_CONFIG_INVALID'},
+    });
+  });
+
+  it('rejects unknown modes instead of falling back to local identity', async () => {
+    const response = await fetchLocal(
+      'http://localhost:5173/api/session',
+      {},
+      {AUTH_MODE: 'development'},
+    );
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toMatchObject({
+      error: {code: 'AUTH_CONFIG_INVALID'},
+    });
+  });
+
+  it('ignores attempted identity and role escalation from the client', async () => {
+    const response = await fetchLocal(
+      'http://localhost:5173/api/session?email=admin@sentry.io&role=admin',
+      {
+        headers: {
+          Cookie: 'email=admin@sentry.io; role=admin; is_admin=1',
+          'Cf-Access-Authenticated-User-Email': 'admin@sentry.io',
+          'Cf-Access-Jwt-Assertion': await signAccessToken({
+            email: 'admin@sentry.io',
+            role: 'admin',
+          }),
+          'X-User-Role': 'admin',
+        },
+      },
+      {LOCAL_AUTH_IS_ADMIN: 'true'},
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      user: {email: 'developer@sentry.io', role: 'member'},
+    });
+    const admin = await fetchLocal('http://localhost:5173/api/admin/session?role=admin', {
+      headers: {'X-User-Role': 'admin'},
+    });
+    expect(admin.status).toBe(403);
+  });
+
+  it('uses only the synchronized D1 role for local administrator access', async () => {
+    const memberSession = await fetchLocal('http://localhost:5173/api/session');
+    const member = await memberSession.json<{user: {id: string}}>();
+
+    await env.DB.prepare('UPDATE users SET is_admin = 1 WHERE id = ?')
+      .bind(member.user.id)
+      .run();
+    const response = await fetchLocal('http://localhost:5173/api/admin/session');
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      user: {email: 'developer@sentry.io', role: 'admin'},
+    });
+  });
 });
 
 describe('D1-backed authorization and profile', () => {
@@ -239,6 +415,19 @@ describe('D1-backed authorization and profile', () => {
 
 function fetchSession(token: string) {
   return SELF.fetch(endpoint, {headers: {'Cf-Access-Jwt-Assertion': token}});
+}
+
+function fetchLocal(
+  url: string,
+  init: RequestInit = {},
+  override: Partial<AuthBindings> & {LOCAL_AUTH_IS_ADMIN?: string} = {},
+) {
+  return app.request(url, init, {
+    DB: env.DB,
+    ATTACHMENTS: env.ATTACHMENTS,
+    ...localBrowserAuthBindings,
+    ...override,
+  });
 }
 
 function base64Url(value: object) {

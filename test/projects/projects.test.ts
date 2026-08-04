@@ -56,7 +56,13 @@ describe('project and history APIs', () => {
 
     expect(years.status).toBe(200);
     expect(years.body.years).toContainEqual(
-      expect.objectContaining({id: yearId, projectCount: 1, ideaCount: 1, groupCount: 1}),
+      expect.objectContaining({
+        id: yearId,
+        projectCount: 1,
+        ideaCount: 1,
+        groupCount: 1,
+        participantCount: 1,
+      }),
     );
     expect(page.status).toBe(200);
     expect(page.body.projects).toHaveLength(1);

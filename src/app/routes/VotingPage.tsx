@@ -15,14 +15,14 @@ export function VotingPage() {
       <Link className="backLink" href={`/years/${yearId}/projects`}>
         ← Projects
       </Link>
-      <header className="operationsHero">
+      <header className="operationsHero pageHeader">
         <div>
-          <p className="kicker">Ballot / {yearId}</p>
-          <h1>Cast the signal.</h1>
+          <p className="kicker">Hackweek {yearId}</p>
+          <h1>vote for projects</h1>
         </div>
         <p>
-          One vote per category. A later choice moves your vote; your own projects are
-          unavailable.
+          choose one project per award category. choosing again moves your vote; you
+          cannot vote for your own project.
         </p>
       </header>
       <QueryState loading={query.isLoading} error={query.error}>

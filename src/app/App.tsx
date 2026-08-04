@@ -15,9 +15,7 @@ export function App() {
   const session = useSession();
 
   if (session.status === 'loading') {
-    return (
-      <AuthState title="Checking your pass" detail="Validating Cloudflare Access…" />
-    );
+    return <AuthState title="Loading Hackweek" detail="checking your Sentry account…" />;
   }
   if (session.status === 'unauthenticated') {
     return (
@@ -38,7 +36,7 @@ export function App() {
   if (session.status === 'error') {
     return (
       <AuthState
-        title="Gate unavailable"
+        title="Hackweek unavailable"
         detail="The identity service could not be reached."
       />
     );

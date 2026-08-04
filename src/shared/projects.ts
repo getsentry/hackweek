@@ -10,6 +10,7 @@ export interface YearSummary {
   projectCount: number;
   ideaCount: number;
   groupCount: number;
+  participantCount: number;
 }
 
 export interface GroupSummary {

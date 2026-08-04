@@ -60,7 +60,10 @@ export async function listYears(db: D1Database): Promise<YearSummary[]> {
       `SELECT y.id, y.voting_enabled, y.submissions_closed,
         SUM(CASE WHEN p.status = 'active' AND p.kind = 'project' THEN 1 ELSE 0 END) project_count,
         SUM(CASE WHEN p.status = 'active' AND p.kind = 'idea' THEN 1 ELSE 0 END) idea_count,
-        (SELECT COUNT(*) FROM groups g WHERE g.year_id = y.id) group_count
+        (SELECT COUNT(*) FROM groups g WHERE g.year_id = y.id) group_count,
+        (SELECT COUNT(DISTINCT pm.user_id)
+         FROM project_members pm JOIN projects participant_project ON participant_project.id = pm.project_id
+         WHERE participant_project.year_id = y.id AND participant_project.status = 'active') participant_count
        FROM years y
        LEFT JOIN projects p ON p.year_id = y.id
        GROUP BY y.id
@@ -73,6 +76,7 @@ export async function listYears(db: D1Database): Promise<YearSummary[]> {
       project_count: number;
       idea_count: number;
       group_count: number;
+      participant_count: number;
     }>();
   return results.map(mapYear);
 }
@@ -83,7 +87,10 @@ export async function getYear(db: D1Database, id: string) {
       `SELECT y.id, y.voting_enabled, y.submissions_closed,
         (SELECT COUNT(*) FROM projects p WHERE p.year_id = y.id AND p.status = 'active' AND p.kind = 'project') project_count,
         (SELECT COUNT(*) FROM projects p WHERE p.year_id = y.id AND p.status = 'active' AND p.kind = 'idea') idea_count,
-        (SELECT COUNT(*) FROM groups g WHERE g.year_id = y.id) group_count
+        (SELECT COUNT(*) FROM groups g WHERE g.year_id = y.id) group_count,
+        (SELECT COUNT(DISTINCT pm.user_id)
+         FROM project_members pm JOIN projects participant_project ON participant_project.id = pm.project_id
+         WHERE participant_project.year_id = y.id AND participant_project.status = 'active') participant_count
        FROM years y WHERE y.id = ?`,
     )
     .bind(id)
@@ -94,6 +101,7 @@ export async function getYear(db: D1Database, id: string) {
       project_count: number;
       idea_count: number;
       group_count: number;
+      participant_count: number;
     }>();
   if (!row) {
     throw new ServiceError('NOT_FOUND', 'Year not found', 404);
@@ -557,6 +565,7 @@ function mapYear(row: {
   project_count: number;
   idea_count: number;
   group_count: number;
+  participant_count: number;
 }): YearSummary {
   return {
     id: row.id,
@@ -565,6 +574,7 @@ function mapYear(row: {
     projectCount: row.project_count,
     ideaCount: row.idea_count,
     groupCount: row.group_count,
+    participantCount: row.participant_count,
   };
 }
 

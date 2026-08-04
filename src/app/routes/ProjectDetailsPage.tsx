@@ -47,7 +47,7 @@ export function ProjectDetailsPage() {
                 {project.data.project.needsHelp && <span>Looking for help</span>}
               </div>
               <h1>{project.data.project.name}</h1>
-              <p>Proposed by {project.data.project.creator.displayName}</p>
+              <p>created by {project.data.project.creator.displayName}</p>
             </div>
             <div className="detailActions">
               {project.data.project.permissions.canClaim && (
@@ -91,8 +91,8 @@ export function ProjectDetailsPage() {
           )}
           <div className="detailLayout">
             <article className="projectNarrative">
-              <p className="kicker">The proposition</p>
-              <h2>What are we making?</h2>
+              <p className="kicker">project summary</p>
+              <h2>about this project</h2>
               <p>{project.data.project.summary}</p>
               {project.data.project.repository && (
                 <a
@@ -106,7 +106,7 @@ export function ProjectDetailsPage() {
               )}
               {project.data.project.needsHelp && (
                 <aside className="helpCallout">
-                  <strong>Co-conspirators wanted</strong>
+                  <strong>this project is looking for help</strong>
                   <p>
                     {project.data.project.helpDetails ||
                       'Reach out to the team to find out how you can help.'}
@@ -115,11 +115,11 @@ export function ProjectDetailsPage() {
               )}
             </article>
             <aside className="teamPanel">
-              <p className="kicker">The crew</p>
+              <p className="kicker">team</p>
               <h2>
                 {project.data.project.members.length
-                  ? `${project.data.project.members.length} collaborators`
-                  : 'Up for grabs'}
+                  ? `${project.data.project.members.length} participants`
+                  : 'up for grabs'}
               </h2>
               <ul>
                 {project.data.project.members.map((member) => (
@@ -138,8 +138,8 @@ export function ProjectDetailsPage() {
             <section className="mediaSection">
               <header>
                 <div>
-                  <p className="kicker">Private archive</p>
-                  <h2>Project artifacts</h2>
+                  <p className="kicker">project media</p>
+                  <h2>attachments</h2>
                 </div>
                 {project.data.project.permissions.canManageMedia && (
                   <label className="uploadAction">

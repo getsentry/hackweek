@@ -66,7 +66,7 @@ export function ProjectForm({
     <form className="projectForm" onSubmit={submit}>
       <div className="formIntro">
         <span>01</span>
-        <p>Name the experiment and explain why it deserves a week.</p>
+        <p>name the project and explain what you want to make this week.</p>
       </div>
       <label className="fullField">
         <span>Name</span>
@@ -118,7 +118,7 @@ export function ProjectForm({
         <>
           <div className="formIntro">
             <span>02</span>
-            <p>Give the project a home and assemble the crew.</p>
+            <p>choose a group and add your team.</p>
           </div>
           <label>
             <span>Group</span>
@@ -173,7 +173,8 @@ export function ProjectForm({
               onChange={(event) => setNeedsHelp(event.target.checked)}
             />
             <span>
-              <strong>Send a flare</strong> This project is looking for help.
+              <strong>looking for help</strong> let everyone know this project needs more
+              people.
             </span>
           </label>
           {needsHelp && (

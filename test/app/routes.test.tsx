@@ -6,10 +6,11 @@ import {Route, Router} from 'wouter';
 import {memoryLocation} from 'wouter/memory-location';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 
-import type {ProjectDetail} from '../../src/shared/projects';
+import {AppLayout} from '../../src/app/components/AppLayout';
 import {ProjectDetailsPage} from '../../src/app/routes/ProjectDetailsPage';
 import {ProjectsPage} from '../../src/app/routes/ProjectsPage';
 import {YearsPage} from '../../src/app/routes/YearsPage';
+import type {ProjectDetail} from '../../src/shared/projects';
 
 const fetchMock = vi.fn<typeof fetch>();
 vi.stubGlobal('fetch', fetchMock);
@@ -17,6 +18,29 @@ vi.stubGlobal('fetch', fetchMock);
 afterEach(() => fetchMock.mockReset());
 
 describe('clickable project routes', () => {
+  it('renders the legacy Hackweek masthead with accessible navigation and identity', () => {
+    renderRoute(
+      <AppLayout
+        user={{
+          id: 'member',
+          email: 'member@sentry.io',
+          displayName: 'Member One',
+          avatarUrl: null,
+          role: 'admin',
+        }}
+      >
+        <main>content</main>
+      </AppLayout>,
+      '/years',
+    );
+
+    const wordmark = screen.getByRole('link', {name: 'Sentry Hackweek archives'});
+    expect(wordmark.textContent).toBe('#HACKWEEK');
+    expect(wordmark.querySelector('img')?.getAttribute('alt')).toBe('');
+    expect(screen.getByRole('navigation', {name: 'Primary navigation'})).toBeTruthy();
+    expect(screen.getByLabelText('signed in as Member One, admin')).toBeTruthy();
+  });
+
   it('renders the archive empty state accessibly', async () => {
     fetchMock.mockResolvedValue(json({years: []}));
 
@@ -25,6 +49,34 @@ describe('clickable project routes', () => {
     expect(
       await screen.findByRole('heading', {name: 'No years are in the archive yet'}),
     ).toBeTruthy();
+  });
+
+  it('uses a tracked year banner and links archive metadata to the project route', async () => {
+    fetchMock.mockResolvedValue(
+      json({
+        years: [
+          {
+            id: '2024',
+            votingEnabled: false,
+            submissionsClosed: true,
+            projectCount: 2,
+            ideaCount: 1,
+            groupCount: 1,
+            participantCount: 3,
+          },
+        ],
+      }),
+    );
+
+    renderRoute(<YearsPage />, '/years');
+
+    const banner = await screen.findByAltText('2024 Hackweek banner');
+    expect(banner.getAttribute('src')).toContain('year-2024.png');
+    expect(
+      screen
+        .getByRole('link', {name: /2024.*3 participants.*2 projects/i})
+        .getAttribute('href'),
+    ).toBe('/years/2024/projects');
   });
 
   it('moves between project and idea query state from the route controls', async () => {
@@ -40,6 +92,7 @@ describe('clickable project routes', () => {
             projectCount: 1,
             ideaCount: 1,
             groupCount: 1,
+            participantCount: 1,
           },
           groups: [{id: 'group', yearId: '2026', name: 'Orbital', projectCount: 1}],
           awards: [],
@@ -63,7 +116,9 @@ describe('clickable project routes', () => {
     });
 
     renderRoute(<ProjectsPage />, '/years/2026/projects', '/years/:yearId/projects');
-    expect(await screen.findByRole('heading', {name: 'A small machine'})).toBeTruthy();
+    const projectHeading = await screen.findByRole('heading', {name: 'A small machine'});
+    expect(projectHeading.closest('.projectCard')).toBeTruthy();
+    expect(screen.getByRole('region', {name: 'project list'})).toBeTruthy();
 
     await userEvent.click(screen.getByRole('button', {name: /Ideas/}));
 

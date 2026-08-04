@@ -24,31 +24,31 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
         />
       ) : (
         <main className="projectsPage">
-          <header className="projectsHero">
+          <header className="projectsHero pageHeader">
             <div>
               <Link className="backLink" href="/years">
-                ← Archives
+                ← archives
               </Link>
-              <p className="kicker">Field notes / {year.data.year.id}</p>
-              <h1>Experiments in public</h1>
+              <p className="kicker">Hackweek {year.data.year.id}</p>
+              <h1>projects &amp; ideas</h1>
               <p>
                 {year.data.year.submissionsClosed
-                  ? 'A finished collection, preserved as the teams left it.'
-                  : 'In progress. Rough edges and collaborators welcome.'}
+                  ? 'browse the finished projects, teams, and award winners.'
+                  : 'see what everyone is building, join a team, or share an idea.'}
               </p>
             </div>
             <div className="heroActions">
               <Link className="textAction" href={`/years/${yearId}/vote`}>
-                Open ballot
+                vote
               </Link>
               {isAdmin && (
                 <Link className="textAction" href={`/admin/years/${yearId}`}>
-                  Manage year
+                  manage year
                 </Link>
               )}
               {!year.data.year.submissionsClosed && (
                 <Link className="primaryAction" href={`/years/${yearId}/projects/new`}>
-                  Propose a project <span>↗</span>
+                  add project <span>+</span>
                 </Link>
               )}
             </div>
@@ -103,9 +103,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
             <section className="emptyState">
               <span>∅</span>
               <h2>No {kind === 'idea' ? 'ideas' : 'projects'} found</h2>
-              <p>
-                Try another group or be the first to put something strange on the board.
-              </p>
+              <p>try another group or add the first {kind} for this Hackweek.</p>
             </section>
           ) : (
             <section className="projectGrid" aria-label={`${kind} list`}>

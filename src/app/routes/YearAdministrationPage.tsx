@@ -9,10 +9,10 @@ export function YearAdministrationPage() {
   const create = useCreateYear();
   return (
     <main className="operationsPage">
-      <header className="operationsHero">
+      <header className="operationsHero pageHeader">
         <div>
-          <p className="kicker">Control room</p>
-          <h1>Open a year.</h1>
+          <p className="kicker">Hackweek admin</p>
+          <h1>create a year</h1>
         </div>
         <p>
           Create a stable four-digit year, then configure its groups, categories, ballot,

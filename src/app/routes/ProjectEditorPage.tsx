@@ -11,8 +11,8 @@ export function NewProjectPage() {
   const save = useSaveProject();
   return (
     <EditorShell
-      title="Put it on the board"
-      detail="A good proposal is specific enough to start and strange enough to matter."
+      title="add a project"
+      detail="share what you want to build and who you want to build it with."
     >
       <ProjectForm
         yearId={yearId}
@@ -42,11 +42,11 @@ export function EditProjectPage() {
     <QueryState loading={project.isLoading} error={project.error}>
       {project.data && (
         <EditorShell
-          title={claim ? 'Take the baton' : 'Refine the experiment'}
+          title={claim ? 'claim this idea' : 'edit project'}
           detail={
             claim
-              ? 'Turn this open idea into a real team project.'
-              : 'Keep the project record useful for collaborators and future archaeologists.'
+              ? 'turn this open idea into a team project.'
+              : 'keep the project details useful for your team and everyone following along.'
           }
         >
           <ProjectForm
@@ -80,7 +80,7 @@ function EditorShell({
   return (
     <main className="editorPage">
       <header>
-        <p className="kicker">Project registry</p>
+        <p className="kicker">Hackweek project</p>
         <h1>{title}</h1>
         <p>{detail}</p>
       </header>

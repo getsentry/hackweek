@@ -9,12 +9,12 @@ export function AdminAnalyticsPage() {
   return (
     <main className="operationsPage">
       <Link className="backLink" href={yearId ? `/admin/years/${yearId}` : '/years'}>
-        ← Control room
+        ← admin
       </Link>
-      <header className="operationsHero">
+      <header className="operationsHero pageHeader">
         <div>
-          <p className="kicker">Aggregate report</p>
-          <h1>Participation, counted.</h1>
+          <p className="kicker">Hackweek analytics</p>
+          <h1>participation</h1>
         </div>
         <p>
           D1 computes these totals server-side. No raw historical database is sent to this

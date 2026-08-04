@@ -46,10 +46,10 @@ export function AdminPage() {
       <Link className="backLink" href="/years">
         ← Archives
       </Link>
-      <header className="operationsHero">
+      <header className="operationsHero pageHeader">
         <div>
-          <p className="kicker">Control room / {yearId}</p>
-          <h1>Run the year.</h1>
+          <p className="kicker">Hackweek admin / {yearId}</p>
+          <h1>manage year</h1>
         </div>
         <Link className="primaryAction" href={`/admin/analytics?year=${yearId}`}>
           View analytics →
@@ -59,8 +59,8 @@ export function AdminPage() {
         {query.data && (
           <div className="adminGrid">
             <section className="controlPanel">
-              <p className="kicker">State</p>
-              <h2>Year gates</h2>
+              <p className="kicker">year settings</p>
+              <h2>submissions &amp; voting</h2>
               <label className="switchRow">
                 <span>Submissions closed</span>
                 <input
@@ -188,12 +188,9 @@ export function AdminPage() {
               </ul>
             </section>
             <section className="controlPanel controlPanel--wide">
-              <p className="kicker">Screening primitive</p>
-              <h2>Deterministic order</h2>
-              <p>
-                Order projects now; video readiness is added later. Every save replaces
-                the ordered list atomically.
-              </p>
+              <p className="kicker">demo screening</p>
+              <h2>project order</h2>
+              <p>choose the order projects will appear during the Hackweek screening.</p>
               <select
                 aria-label="Add screening project"
                 defaultValue=""

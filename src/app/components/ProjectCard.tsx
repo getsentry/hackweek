@@ -6,10 +6,10 @@ export function ProjectCard({project}: {project: ProjectSummary}) {
   return (
     <article className={`projectCard projectCard--${project.kind}`}>
       <div className="cardMeta">
-        <span>
-          {project.kind === 'idea' ? 'Open idea' : (project.group?.name ?? 'Ungrouped')}
+        <span className="tag tag--group">
+          {project.kind === 'idea' ? 'open idea' : (project.group?.name ?? 'ungrouped')}
         </span>
-        {project.needsHelp && <strong>Looking for co-conspirators</strong>}
+        {project.needsHelp && <strong className="tag tag--help">looking for help</strong>}
       </div>
       <h2>
         <Link href={`/years/${project.yearId}/projects/${project.id}`}>
@@ -20,7 +20,7 @@ export function ProjectCard({project}: {project: ProjectSummary}) {
       <footer>
         <MemberStack members={project.members} />
         <span>
-          {project.mediaCount} {project.mediaCount === 1 ? 'artifact' : 'artifacts'}
+          {project.mediaCount} {project.mediaCount === 1 ? 'attachment' : 'attachments'}
         </span>
       </footer>
     </article>
@@ -28,7 +28,7 @@ export function ProjectCard({project}: {project: ProjectSummary}) {
 }
 
 function MemberStack({members}: {members: ProjectSummary['members']}) {
-  if (!members.length) return <span className="openSeat">Unclaimed</span>;
+  if (!members.length) return <span className="openSeat">up for grabs</span>;
   return (
     <span
       className="memberStack"

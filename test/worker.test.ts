@@ -101,7 +101,7 @@ async function seedVotingFixture() {
       'voter@example.com',
       'Voter',
     ),
-    env.DB.prepare('INSERT INTO years (id) VALUES (?)').bind('2026'),
+    env.DB.prepare('INSERT INTO years (id, voting_enabled) VALUES (?, 1)').bind('2026'),
     env.DB.prepare(
       `INSERT INTO projects (id, source_id, year_id, creator_id, name)
        VALUES (?, ?, ?, ?, ?)`,

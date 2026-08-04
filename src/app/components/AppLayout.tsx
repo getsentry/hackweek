@@ -5,6 +5,7 @@ import type {SessionUser} from '../../shared/api';
 
 export function AppLayout({user, children}: {user: SessionUser; children: ReactNode}) {
   const [archivesActive] = useRoute('/years*');
+  const [adminActive] = useRoute('/admin*');
   return (
     <div className="appFrame">
       <header className="masthead">
@@ -16,6 +17,11 @@ export function AppLayout({user, children}: {user: SessionUser; children: ReactN
           <Link href="/years" className={archivesActive ? 'active' : ''}>
             Archives
           </Link>
+          {user.role === 'admin' && (
+            <Link href="/admin/years/new" className={adminActive ? 'active' : ''}>
+              Admin
+            </Link>
+          )}
         </nav>
         <div className="identity">
           <span>{user.displayName}</span>

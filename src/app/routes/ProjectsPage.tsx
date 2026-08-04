@@ -37,11 +37,21 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                   : 'In progress. Rough edges and collaborators welcome.'}
               </p>
             </div>
-            {!year.data.year.submissionsClosed && (
-              <Link className="primaryAction" href={`/years/${yearId}/projects/new`}>
-                Propose a project <span>↗</span>
+            <div className="heroActions">
+              <Link className="textAction" href={`/years/${yearId}/vote`}>
+                Open ballot
               </Link>
-            )}
+              {isAdmin && (
+                <Link className="textAction" href={`/admin/years/${yearId}`}>
+                  Manage year
+                </Link>
+              )}
+              {!year.data.year.submissionsClosed && (
+                <Link className="primaryAction" href={`/years/${yearId}/projects/new`}>
+                  Propose a project <span>↗</span>
+                </Link>
+              )}
+            </div>
           </header>
           <section className="projectControls" aria-label="Project filters">
             <div className="segmented">
@@ -73,6 +83,22 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
             )}
           </section>
           {isAdmin && <GroupManager yearId={yearId} groups={year.data.groups} />}
+          {year.data.awards.length > 0 && (
+            <section className="awardStrip" aria-label="Awards">
+              <p className="kicker">Award roll</p>
+              <div>
+                {year.data.awards.map((award) => (
+                  <Link
+                    key={award.id}
+                    href={`/years/${yearId}/projects/${award.projectId}`}
+                  >
+                    <span>{award.categoryName}</span>
+                    <strong>{award.projectName}</strong>
+                  </Link>
+                ))}
+              </div>
+            </section>
+          )}
           {!projects.data?.projects.length ? (
             <section className="emptyState">
               <span>∅</span>

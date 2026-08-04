@@ -1,9 +1,13 @@
 import {Redirect, Route, Switch} from 'wouter';
 
 import {AppLayout, PageState} from './components/AppLayout';
+import {AdminAnalyticsPage} from './routes/AdminAnalyticsPage';
+import {AdminPage} from './routes/AdminPage';
 import {EditProjectPage, NewProjectPage} from './routes/ProjectEditorPage';
 import {ProjectDetailsPage} from './routes/ProjectDetailsPage';
 import {ProjectsPage} from './routes/ProjectsPage';
+import {VotingPage} from './routes/VotingPage';
+import {YearAdministrationPage} from './routes/YearAdministrationPage';
 import {YearsPage} from './routes/YearsPage';
 import {useSession} from './session';
 
@@ -44,6 +48,24 @@ export function App() {
     <AppLayout user={session.user}>
       <Switch>
         <Route path="/years" component={YearsPage} />
+        <Route path="/admin/analytics">
+          {session.user.role === 'admin' ? (
+            <AdminAnalyticsPage />
+          ) : (
+            <Redirect to="/years" />
+          )}
+        </Route>
+        <Route path="/admin/years/new">
+          {session.user.role === 'admin' ? (
+            <YearAdministrationPage />
+          ) : (
+            <Redirect to="/years" />
+          )}
+        </Route>
+        <Route path="/admin/years/:yearId">
+          {session.user.role === 'admin' ? <AdminPage /> : <Redirect to="/years" />}
+        </Route>
+        <Route path="/years/:yearId/vote" component={VotingPage} />
         <Route path="/years/:yearId/projects/new" component={NewProjectPage} />
         <Route
           path="/years/:yearId/projects/:projectId/edit"

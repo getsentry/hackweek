@@ -42,6 +42,7 @@ describe('clickable project routes', () => {
             groupCount: 1,
           },
           groups: [{id: 'group', yearId: '2026', name: 'Orbital', projectCount: 1}],
+          awards: [],
         });
       }
       return json({

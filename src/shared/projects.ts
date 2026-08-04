@@ -1,3 +1,4 @@
+import type {AwardSummary} from './administration';
 import type {SessionUser} from './api';
 
 export type ProjectKind = 'project' | 'idea';
@@ -63,6 +64,7 @@ export interface YearsResponse {
 export interface YearResponse {
   year: YearSummary;
   groups: GroupSummary[];
+  awards: AwardSummary[];
 }
 
 export interface ProjectsResponse {

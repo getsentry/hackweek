@@ -10,6 +10,7 @@ export const tableNames = [
   'awards',
   'media',
   'project_videos',
+  'screening_order',
   'stream_events',
 ] as const;
 

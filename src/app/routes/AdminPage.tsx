@@ -190,7 +190,13 @@ export function AdminPage() {
             <section className="controlPanel controlPanel--wide">
               <p className="kicker">demo screening</p>
               <h2>project order</h2>
-              <p>choose the order projects will appear during the Hackweek screening.</p>
+              <p>
+                choose the order projects will appear during the Hackweek screening. only
+                ready videos play in the reel.
+              </p>
+              <Link className="textAction" href={`/years/${yearId}/watch`}>
+                preview ready reel
+              </Link>
               <select
                 aria-label="Add screening project"
                 defaultValue=""
@@ -213,7 +219,14 @@ export function AdminPage() {
                   return (
                     <li key={id}>
                       <span>
-                        {index + 1}. {project?.name}
+                        {index + 1}. {project?.name}{' '}
+                        <small
+                          className={`orderStatus orderStatus--${project?.videoStatus ?? 'none'}`}
+                        >
+                          {project?.videoStatus
+                            ? `video ${project.videoStatus}`
+                            : 'no video'}
+                        </small>
                       </span>
                       <div>
                         <button

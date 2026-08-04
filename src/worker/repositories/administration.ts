@@ -228,11 +228,17 @@ export async function getAdminYear(
         }>(),
       db
         .prepare(
-          `SELECT id, name FROM projects WHERE year_id = ?
-       AND kind = 'project' AND status = 'active' ORDER BY name COLLATE NOCASE, id`,
+          `SELECT p.id, p.name, pv.status video_status FROM projects p
+       LEFT JOIN project_videos pv ON pv.project_id = p.id
+       WHERE p.year_id = ? AND p.kind = 'project' AND p.status = 'active'
+       ORDER BY p.name COLLATE NOCASE, p.id`,
         )
         .bind(yearId)
-        .all<{id: string; name: string}>(),
+        .all<{
+          id: string;
+          name: string;
+          video_status: import('../../shared/videos').VideoStatus | null;
+        }>(),
       db
         .prepare(
           `SELECT n.project_id, n.award_category_id, n.position
@@ -260,7 +266,9 @@ export async function getAdminYear(
     categories: categoryResult.results.map(mapCategory),
     awards: awardResult.results.map(mapAward),
     projects: projectResult.results.map((project) => ({
-      ...project,
+      id: project.id,
+      name: project.name,
+      videoStatus: project.video_status,
       nominations: nominations.get(project.id) ?? [],
     })),
     screeningOrder: orderResult.results.map(

@@ -2,6 +2,8 @@ import {useState, type ChangeEvent} from 'react';
 import {Link, useLocation, useParams} from 'wouter';
 
 import {QueryState} from '../components/AppLayout';
+import {useProjectVideo} from '../queries/videos';
+import {ProjectVideoPanel} from '../video/ProjectVideoPanel';
 import {
   useDeleteMedia,
   useDeleteProject,
@@ -19,6 +21,7 @@ export function ProjectDetailsPage() {
   const withdraw = useDeleteProject();
   const upload = useUploadMedia(projectId);
   const removeMedia = useDeleteMedia(projectId);
+  const video = useProjectVideo(projectId);
   const [actionError, setActionError] = useState<string | null>(null);
 
   function addMedia(event: ChangeEvent<HTMLInputElement>) {
@@ -134,6 +137,15 @@ export function ProjectDetailsPage() {
               </ul>
             </aside>
           </div>
+          {project.data.project.kind === 'project' && (
+            <ProjectVideoPanel
+              projectId={projectId}
+              yearId={yearId}
+              video={video.data?.video ?? null}
+              loading={video.isLoading}
+              canManage={project.data.project.permissions.canManageMedia}
+            />
+          )}
           {project.data.project.kind === 'project' && (
             <section className="mediaSection">
               <header>

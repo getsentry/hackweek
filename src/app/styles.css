@@ -1270,6 +1270,414 @@ main {
   background: #fff;
 }
 
+/* Hackweek video submission and screening */
+.videoPanel {
+  padding: 2rem 0 2.5rem;
+  border-top: 16px solid transparent;
+  border-image: url('../assets/svgs/divider-squiggle.svg') 16 repeat;
+}
+.videoPanel > header,
+.videoStatus,
+.uploadProgress > div:first-child,
+.videoActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.videoPanel h2,
+.reelIndex h2 {
+  margin: 0;
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  letter-spacing: -0.035em;
+}
+.videoNotice,
+.videoFinePrint {
+  color: var(--muted);
+}
+.videoFinePrint {
+  max-width: 42rem;
+  font-size: 0.75rem;
+  line-height: 1.55;
+}
+.videoStatus,
+.uploadProgress {
+  padding: 1.15rem;
+  margin: 1.25rem 0;
+  border: 1px solid var(--line);
+  border-radius: 0.7rem;
+  background: var(--soft);
+}
+.videoStatus {
+  justify-content: flex-start;
+}
+.videoStatus strong,
+.videoStatus p {
+  display: block;
+  margin: 0;
+}
+.videoStatus p {
+  margin-top: 0.25rem;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+.statusDot {
+  width: 0.85rem;
+  height: 0.85rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--yellow);
+  box-shadow: 0 0 0 5px rgba(253, 184, 27, 0.16);
+}
+.videoStatus--ready .statusDot {
+  background: var(--green);
+  box-shadow: 0 0 0 5px rgba(146, 221, 0, 0.16);
+}
+.videoStatus--failed .statusDot {
+  background: var(--danger);
+  box-shadow: 0 0 0 5px rgba(217, 45, 66, 0.12);
+}
+.uploadProgress progress {
+  width: 100%;
+  height: 0.7rem;
+  margin: 0.9rem 0;
+  overflow: hidden;
+  accent-color: var(--blurple);
+  border: 0;
+  border-radius: 999px;
+}
+.uploadProgress span {
+  color: var(--blurple);
+  font-weight: 600;
+}
+.videoActions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+.watchPage {
+  width: 100%;
+  max-width: 76rem;
+  min-height: calc(100vh - 11rem);
+  padding: clamp(2.5rem, 6vw, 5rem) 1.25rem 6rem;
+  margin: 0 auto;
+}
+.watchPage--single {
+  max-width: var(--content-width);
+}
+.watchHeader {
+  display: flex;
+  gap: 2rem;
+  align-items: end;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+}
+.watchHeader h1 {
+  margin: 0;
+  font-size: clamp(2.6rem, 7vw, 5rem);
+  line-height: 0.95;
+  letter-spacing: -0.06em;
+}
+.watchHeader > p {
+  max-width: 28rem;
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+.screeningPlayer {
+  overflow: hidden;
+  color: #fff;
+  border: 1px solid #382748;
+  border-radius: 0.85rem;
+  background: #110b17;
+  box-shadow: 0 22px 55px rgba(29, 17, 39, 0.22);
+}
+.screeningPlayer:fullscreen {
+  display: grid;
+  place-content: center;
+  border: 0;
+  border-radius: 0;
+}
+.screeningPlayer:fullscreen .screeningStage {
+  width: 100vw;
+}
+.screeningStage {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 80% 15%, rgba(255, 112, 188, 0.3), transparent 19%),
+    linear-gradient(135deg, #1d1127, #4e2a9a);
+}
+.screeningStage video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  opacity: 0;
+  background: #000;
+  transition: opacity 250ms ease;
+}
+.screeningStage video.active {
+  opacity: 1;
+}
+.titleCard,
+.startCard,
+.playerError {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  padding: clamp(1.5rem, 8vw, 7rem);
+  text-align: center;
+}
+.titleCard {
+  z-index: 2;
+  opacity: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      -8deg,
+      transparent 0 25px,
+      rgba(255, 255, 255, 0.05) 26px 29px
+    ),
+    linear-gradient(135deg, #4e2a9a, #7553ff 60%, #9f77ff);
+  transition: opacity 300ms ease;
+}
+.titleCard.visible {
+  opacity: 1;
+}
+.titleCard p {
+  color: #dfd3ff;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.titleCard h2,
+.startCard h2 {
+  max-width: 13ch;
+  margin: 0.5rem 0;
+  color: #fff;
+  font-size: clamp(2.2rem, 7vw, 6.4rem);
+  line-height: 0.95;
+  letter-spacing: -0.065em;
+}
+.titleCard span {
+  color: #ffd1ea;
+  font-weight: 500;
+}
+.startCard {
+  z-index: 3;
+  background: radial-gradient(circle at 50% 35%, #4e2a9a, #1d1127 62%);
+}
+.startCard p,
+.startCard small {
+  color: #d9cae5;
+}
+.screeningMark {
+  display: grid;
+  width: clamp(3.5rem, 8vw, 6rem);
+  aspect-ratio: 1;
+  place-items: center;
+  color: var(--ink);
+  font-size: clamp(1.3rem, 3vw, 2.1rem);
+  font-weight: 700;
+  border-radius: 50%;
+  background: var(--green);
+  transform: rotate(-7deg);
+}
+.screeningStart {
+  min-width: 9rem;
+  min-height: 3.2rem;
+  margin: 1rem 0 0.6rem;
+  color: var(--ink);
+  font-weight: 700;
+  border: 0;
+  border-radius: 0.7rem;
+  background: var(--green);
+}
+.screeningStart:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(146, 221, 0, 0.25);
+}
+.playerError {
+  z-index: 4;
+  color: #fff;
+  background: rgba(29, 17, 39, 0.96);
+}
+.screeningControls {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.75rem;
+}
+.screeningControls button {
+  min-height: 2.6rem;
+  padding: 0.55rem 0.7rem;
+  color: #fff;
+  border: 1px solid #5e4a6c;
+  border-radius: 0.5rem;
+  background: #281b32;
+}
+.screeningControls button:hover:not(:disabled) {
+  border-color: #9f77ff;
+  background: #382748;
+}
+.screeningControls > div {
+  min-width: 0;
+  padding: 0 0.6rem;
+}
+.screeningControls strong,
+.screeningControls span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.screeningControls span {
+  margin-top: 0.15rem;
+  color: #ad9ab9;
+  font-size: 0.68rem;
+}
+kbd {
+  padding: 0.08rem 0.28rem;
+  margin-left: 0.3rem;
+  color: #bdaaca;
+  font: inherit;
+  font-size: 0.65rem;
+  border: 1px solid #5e4a6c;
+  border-radius: 0.25rem;
+}
+.screeningEmpty {
+  padding: clamp(2rem, 8vw, 6rem);
+  text-align: center;
+  border: 1px dashed #bdb4c8;
+  border-radius: 0.75rem;
+  background: var(--soft);
+}
+.screeningEmpty span {
+  color: var(--blurple);
+  font-size: 4rem;
+  font-weight: 700;
+}
+.screeningEmpty h2 {
+  margin: 0.5rem 0;
+}
+.screeningEmpty p {
+  color: var(--muted);
+}
+.reelIndex {
+  padding-top: 4rem;
+}
+.reelIndex ol {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  padding: 0;
+  list-style: none;
+}
+.reelIndex li {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+}
+.reelIndex li > span {
+  color: var(--blurple);
+  font-size: 1.3rem;
+  font-weight: 700;
+}
+.reelIndex a {
+  min-width: 0;
+  text-decoration: none;
+}
+.reelIndex strong,
+.reelIndex small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.reelIndex small {
+  margin-top: 0.25rem;
+  color: var(--muted);
+}
+.individualPlayer video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 0.8rem;
+  background: #110b17;
+  box-shadow: 0 18px 45px rgba(29, 17, 39, 0.2);
+}
+.orderStatus {
+  display: inline-flex;
+  padding: 0.2rem 0.45rem;
+  margin-left: 0.5rem;
+  color: var(--muted);
+  font-size: 0.65rem;
+  font-weight: 500;
+  border-radius: 999px;
+  background: var(--lavender);
+}
+.orderStatus--ready {
+  color: #305500;
+  background: #e8ffc0;
+}
+.orderStatus--failed {
+  color: #7a1426;
+  background: #fff0f2;
+}
+
+@media (max-width: 800px) {
+  .watchHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .screeningControls {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .screeningControls > div {
+    grid-column: 1 / -1;
+    grid-row: 1;
+  }
+  .screeningControls button:last-child {
+    grid-column: auto;
+  }
+  .screeningControls kbd {
+    display: none;
+  }
+  .reelIndex ol {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 560px) {
+  .videoPanel > header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .screeningControls {
+    grid-template-columns: 1fr 1fr;
+  }
+  .screeningControls button:last-child {
+    grid-column: 1 / -1;
+  }
+  .reelIndex ol {
+    grid-template-columns: 1fr;
+  }
+  .titleCard h2,
+  .startCard h2 {
+    font-size: clamp(1.8rem, 10vw, 3rem);
+  }
+}
+
 @keyframes rise {
   from {
     opacity: 0;

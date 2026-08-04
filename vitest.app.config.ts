@@ -5,7 +5,12 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: 'jsdom',
-    include: ['test/app/**/*.test.tsx'],
+    include: [
+      'test/app/**/*.test.tsx',
+      'test/player/**/*.test.ts',
+      'test/player/**/*.test.tsx',
+      'test/video-ui/**/*.test.tsx',
+    ],
     setupFiles: ['./test/app/setup.ts'],
   },
 });

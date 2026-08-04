@@ -38,6 +38,9 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
               </p>
             </div>
             <div className="heroActions">
+              <Link className="textAction" href={`/years/${yearId}/watch`}>
+                watch reel
+              </Link>
               <Link className="textAction" href={`/years/${yearId}/vote`}>
                 vote
               </Link>

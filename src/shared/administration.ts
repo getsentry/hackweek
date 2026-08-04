@@ -53,6 +53,7 @@ export interface AdminProjectSummary {
   id: string;
   name: string;
   nominations: NominationSummary[];
+  videoStatus: import('./videos').VideoStatus | null;
 }
 
 export interface ScreeningOrderItem {

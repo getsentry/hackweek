@@ -8,6 +8,7 @@ import {ProjectDetailsPage} from './routes/ProjectDetailsPage';
 import {ProjectsPage} from './routes/ProjectsPage';
 import {VotingPage} from './routes/VotingPage';
 import {YearAdministrationPage} from './routes/YearAdministrationPage';
+import {ProjectVideoWatchPage, VideoWatchPage, WatchPage} from './routes/WatchPage';
 import {YearsPage} from './routes/YearsPage';
 import {useSession} from './session';
 
@@ -64,10 +65,16 @@ export function App() {
           {session.user.role === 'admin' ? <AdminPage /> : <Redirect to="/years" />}
         </Route>
         <Route path="/years/:yearId/vote" component={VotingPage} />
+        <Route path="/years/:yearId/watch/:videoId" component={VideoWatchPage} />
+        <Route path="/years/:yearId/watch" component={WatchPage} />
         <Route path="/years/:yearId/projects/new" component={NewProjectPage} />
         <Route
           path="/years/:yearId/projects/:projectId/edit"
           component={EditProjectPage}
+        />
+        <Route
+          path="/years/:yearId/projects/:projectId/video"
+          component={ProjectVideoWatchPage}
         />
         <Route path="/years/:yearId/projects/:projectId" component={ProjectDetailsPage} />
         <Route path="/years/:yearId/projects">

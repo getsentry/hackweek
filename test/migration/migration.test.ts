@@ -168,7 +168,7 @@ describe('Firebase migration transformation', () => {
     ).toBe(true);
   });
 
-  it('rejects traversal and requires explicit staging confirmation', () => {
+  it('rejects traversal and requires explicit cloudflare confirmation', () => {
     expect(normalizeSourcePath('../secret')).toBeNull();
     expect(normalizeSourcePath('projects/p/media/m/../../secret')).toBeNull();
     expect(normalizeSourcePath('projects/p/media/m/file.png')).toBe(
@@ -180,14 +180,14 @@ describe('Firebase migration transformation', () => {
     expect(deterministicR2Key('../p', 'm/slash', 'x')).toBe(
       'projects/%2e%2e%2fp/media/m%2fslash/x',
     );
-    expect(() => assertExplicitDestination('staging', 'staging', undefined)).toThrow(
-      /--confirm/,
-    );
-    expect(() => assertExplicitDestination('staging', 'staging', 'production')).toThrow(
-      /--confirm/,
-    );
     expect(() =>
-      assertExplicitDestination('staging', 'staging', 'staging'),
+      assertExplicitDestination('cloudflare', 'cloudflare', undefined),
+    ).toThrow(/--confirm/);
+    expect(() =>
+      assertExplicitDestination('cloudflare', 'cloudflare', 'production'),
+    ).toThrow(/--confirm/);
+    expect(() =>
+      assertExplicitDestination('cloudflare', 'cloudflare', 'cloudflare'),
     ).not.toThrow();
   });
 });

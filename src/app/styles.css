@@ -141,9 +141,26 @@ input:disabled {
   background: var(--soft);
   border-color: var(--blurple);
 }
-.identity {
+.identityActions {
+  display: flex;
+  gap: 0.8rem;
+  align-items: center;
   justify-self: end;
+}
+.identity {
   text-align: right;
+}
+.textButton {
+  padding: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  background: none;
+  border: 0;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+.textButton:hover {
+  color: var(--blurple);
 }
 .identity span,
 .identity small {
@@ -1065,10 +1082,15 @@ main {
   font-size: clamp(2.5rem, 7vw, 4.5rem);
 }
 .pageState > p:last-of-type,
-.authState > p:last-child {
+.authState > p {
   padding-bottom: 2rem;
   color: var(--muted);
   line-height: 1.7;
+}
+.googleLogin {
+  display: inline-block;
+  margin-bottom: 2.5rem;
+  text-decoration: none;
 }
 .pageState--error {
   border-color: #f5a8b4;

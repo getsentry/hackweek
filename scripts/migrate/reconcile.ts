@@ -152,9 +152,9 @@ export function assertExplicitDestination(
   environment: string | undefined,
   confirmation: string | undefined,
 ) {
-  if (destination === 'staging' && (!environment || confirmation !== environment)) {
+  if (destination === 'cloudflare' && (!environment || confirmation !== environment)) {
     throw new Error(
-      'Staging requires both --env <environment> and --confirm <same-environment>',
+      'Cloudflare requires both --env <environment> and --confirm <same-environment>',
     );
   }
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import {execFileSync, spawn, type ChildProcess} from 'node:child_process';
-import {mkdtemp, rm, writeFile} from 'node:fs/promises';
+import {mkdtemp, rename, rm, stat, writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 
@@ -10,6 +10,10 @@ const state = await mkdtemp(path.join(tmpdir(), 'hackweek-readiness-'));
 const port = Number(process.env.READINESS_PORT ?? 5199);
 const origin = `http://127.0.0.1:${port}`;
 let server: ChildProcess | undefined;
+const serverLog: string[] = [];
+const rootDevVars = path.join(root, '.dev.vars');
+const savedDevVars = path.join(state, '.dev.vars.saved');
+const hadDevVars = await exists(rootDevVars);
 
 try {
   run('npx', [
@@ -53,6 +57,11 @@ try {
 
   const isolatedConfig = path.join(state, 'wrangler.readiness.json');
   await writeFile(
+    path.join(state, '.dev.vars'),
+    `AUTH_MODE="local"\nAPP_ORIGIN="${origin}"\nLOCAL_AUTH_SUBJECT="local-browser-user"\nLOCAL_AUTH_EMAIL="developer@sentry.io"\nLOCAL_AUTH_NAME="Local Developer"\nALLOWED_EMAIL_DOMAIN="sentry.io"\nSTREAM_MODE="fake"\nSTREAM_ALLOWED_ORIGIN="localhost"\nSTREAM_DELIVERY_HOST="customer-fake.cloudflarestream.com"\nSTREAM_WEBHOOK_SECRET="local-readiness-webhook-secret"\nVIDEO_SERVICE_TOKEN="local-readiness-video-service-token"\n`,
+    {mode: 0o600},
+  );
+  await writeFile(
     isolatedConfig,
     JSON.stringify({
       name: 'hackweek-readiness',
@@ -74,6 +83,7 @@ try {
       r2_buckets: [{binding: 'ATTACHMENTS', bucket_name: 'hackweek-attachments-local'}],
       vars: {
         AUTH_MODE: 'local',
+        APP_ORIGIN: origin,
         LOCAL_AUTH_SUBJECT: 'local-browser-user',
         LOCAL_AUTH_EMAIL: 'developer@sentry.io',
         LOCAL_AUTH_NAME: 'Local Developer',
@@ -85,6 +95,13 @@ try {
         VIDEO_SERVICE_TOKEN: 'local-readiness-video-service-token',
       },
     }),
+    {mode: 0o600},
+  );
+
+  if (hadDevVars) await rename(rootDevVars, savedDevVars);
+  await writeFile(
+    rootDevVars,
+    `AUTH_MODE="local"\nAPP_ORIGIN="${origin}"\nLOCAL_AUTH_SUBJECT="local-browser-user"\nLOCAL_AUTH_EMAIL="developer@sentry.io"\nLOCAL_AUTH_NAME="Local Developer"\nALLOWED_EMAIL_DOMAIN="sentry.io"\nSTREAM_MODE="fake"\nSTREAM_ALLOWED_ORIGIN="localhost"\nSTREAM_DELIVERY_HOST="customer-fake.cloudflarestream.com"\nSTREAM_WEBHOOK_SECRET="local-readiness-webhook-secret"\nVIDEO_SERVICE_TOKEN="local-readiness-video-service-token"\n`,
     {mode: 0o600},
   );
 
@@ -106,10 +123,9 @@ try {
       stdio: ['ignore', 'pipe', 'pipe'],
     },
   );
-  const log: string[] = [];
-  server.stdout?.on('data', (chunk) => log.push(String(chunk)));
-  server.stderr?.on('data', (chunk) => log.push(String(chunk)));
-  await waitForServer(log);
+  server.stdout?.on('data', (chunk) => serverLog.push(String(chunk)));
+  server.stderr?.on('data', (chunk) => serverLog.push(String(chunk)));
+  await waitForServer(serverLog);
 
   const session = await get('/api/session');
   assert(session.user.role === 'member', 'seeded local identity starts as a member');
@@ -151,7 +167,7 @@ try {
   assert(memberAdmin.status === 403, 'member cannot use admin APIs');
 
   sql(
-    "UPDATE users SET is_admin = 1, updated_at = CURRENT_TIMESTAMP WHERE access_subject = 'local-browser-user' AND email = 'developer@sentry.io'",
+    "UPDATE users SET is_admin = 1, updated_at = CURRENT_TIMESTAMP WHERE source_uid = 'local-browser-user' AND email = 'developer@sentry.io'",
   );
   const admin = await get('/api/session');
   assert(admin.user.role === 'admin', 'D1 promotion enables the admin role');
@@ -192,6 +208,8 @@ try {
   console.log('Local cutover readiness: 20 checks passed');
 } finally {
   await stopServer();
+  await rm(rootDevVars, {force: true});
+  if (hadDevVars) await rename(savedDevVars, rootDevVars);
   await rm(state, {recursive: true, force: true});
 }
 
@@ -202,6 +220,7 @@ function readinessEnv() {
     HACKWEEK_LOCAL_STATE_PATH: state,
     HACKWEEK_WRANGLER_CONFIG: path.join(state, 'wrangler.readiness.json'),
     AUTH_MODE: 'local',
+    APP_ORIGIN: origin,
     LOCAL_AUTH_SUBJECT: 'local-browser-user',
     LOCAL_AUTH_EMAIL: 'developer@sentry.io',
     LOCAL_AUTH_NAME: 'Local Developer',
@@ -259,7 +278,10 @@ async function waitForServer(log: string[]) {
     }
     try {
       const response = await fetch(`${origin}/api/health`);
-      if (response.ok) return;
+      if (response.ok) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        if (server?.exitCode === null) return;
+      }
     } catch {
       // The development server is still starting.
     }
@@ -270,14 +292,18 @@ async function waitForServer(log: string[]) {
 
 async function get(pathname: string) {
   const response = await request(pathname);
-  if (!response.ok) throw new Error(`${pathname} returned ${response.status}`);
+  if (!response.ok) {
+    throw new Error(
+      `${pathname} returned ${response.status}: ${await response.text()}\n${serverLog.join('')}`,
+    );
+  }
   return response.json() as Promise<any>;
 }
 
 async function send(method: 'POST' | 'PUT', pathname: string, body: unknown) {
   const response = await request(pathname, {
     method,
-    headers: {'Content-Type': 'application/json'},
+    headers: {'Content-Type': 'application/json', Origin: origin},
     body: JSON.stringify(body),
   });
   if (!response.ok) throw new Error(`${pathname} returned ${response.status}`);
@@ -295,4 +321,11 @@ function assert(value: unknown, message: string): asserts value {
 
 function escapeSql(value: string) {
   return value.replaceAll("'", "''");
+}
+
+function exists(filename: string) {
+  return stat(filename).then(
+    () => true,
+    () => false,
+  );
 }

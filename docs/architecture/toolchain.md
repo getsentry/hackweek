@@ -5,7 +5,7 @@
 The Cloudflare application uses Vite+ 0.2.7 as its local toolchain, backed by Vite
 8.2.0 and the official `@cloudflare/vite-plugin` 1.50.0. It remains a single
 React SPA and Hono Worker; the Worker serves `/api/*` while Workers Static Assets
-serves the SPA. D1 and R2 are local bindings until a later staging task provisions
+serves the SPA. D1 and R2 are local bindings until a later Cloudflare environment task provisions
 remote resources.
 
 ## Compatibility spike

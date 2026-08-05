@@ -71,35 +71,31 @@ npm run migrate:reconcile -- \
 
 The second import must preserve identical source-scoped counts and R2 keys. Run `npm run test:readiness` to independently create temporary D1/R2 state, import/reconcile the fixture, and verify `Historical Telescope`, two team members, Orbit, Impact ballot/award, `poster.txt`, and the video-free `Idea Compass` through local APIs.
 
-## Staging rehearsal
+## Cloudflare environment import
 
-Remote writes require all three signals: `--target staging`, a named `--env`, and exact matching `--confirm`. The environment must map to reviewed staging resources.
+Remote writes require all three signals: `--target cloudflare`, `--env cloudflare`, and exact matching `--confirm cloudflare`. The config must map to the single reviewed environment.
 
 ```bash
-npm run migrate:staging -- \
+npm run migrate:cloudflare -- \
   --database migration-input/database.json \
   --storage-manifest migration-input/storage-manifest.json \
   --storage-root migration-input/storage \
   --database-name hackweek-db \
-  --bucket-name hackweek-attachments-staging \
-  --env staging --confirm staging \
-  --config wrangler.staging.json \
-  --report migration-output/staging-import.migration-report.json
+  --bucket-name hackweek-attachments \
+  --env cloudflare --confirm cloudflare \
+  --config wrangler.production.json \
+  --report migration-output/cloudflare-import.migration-report.json
 
 npm run migrate:reconcile -- \
   --source migration-input/database.json \
   --storage-manifest migration-input/storage-manifest.json \
   --storage-root migration-input/storage \
-  --target staging \
+  --target cloudflare \
   --database-name hackweek-db \
-  --bucket-name hackweek-attachments-staging \
-  --env staging --confirm staging \
-  --config wrangler.staging.json \
-  --report migration-output/staging-reconcile.migration-report.json
+  --bucket-name hackweek-attachments \
+  --env cloudflare --confirm cloudflare \
+  --config wrangler.production.json \
+  --report migration-output/cloudflare-reconcile.migration-report.json
 ```
 
-Do not run these until staging bindings, Access, credentials, and approval are verified. Re-run import/reconciliation to prove idempotency, then inspect representative rendered records and authorized R2 downloads.
-
-## Production boundary
-
-The CLI has no production target. Final export/import requires a separately reviewed operator procedure after staging. Follow [`cutover.md`](cutover.md): announce/freeze writes, take the final export, record counts/checksums/time, dry-run and rehearse twice, import only into the approved destination, reconcile, block on mismatches, manually switch DNS, observe, and retain Firebase read-only through rollback. Only explicitly chosen historical videos move from R2 to Stream; never bulk-promote all old videos.
+Do not run these until bindings, Google OAuth, credentials, and approval are verified. Re-run import/reconciliation to prove idempotency, then inspect representative rendered records and authorized R2 downloads. The same environment is validated before cutover and serves production afterward; the human manually changes DNS. Only selected historical videos move from R2 to Stream.

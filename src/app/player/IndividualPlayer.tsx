@@ -27,8 +27,8 @@ export function IndividualPlayer({
   if (!playback.manifestUrl) {
     return (
       <p className="formError" role="alert">
-        local fake Stream has no HLS manifest. protected playback must be validated in
-        staging.
+        local fake Stream has no HLS manifest. protected playback must be validated in the
+        Cloudflare environment.
       </p>
     );
   }

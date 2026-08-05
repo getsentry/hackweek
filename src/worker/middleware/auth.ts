@@ -1,31 +1,41 @@
-import {createLocalJWKSet, createRemoteJWKSet, jwtVerify, type JWTPayload} from 'jose';
 import {createMiddleware} from 'hono/factory';
 
 import type {ApiErrorCode, ApiErrorResponse, SessionUser} from '../../shared/api';
+import {findUserBySessionToken, type SessionIdentity} from '../services/sessions';
+import {findUserByLocalIdentity} from '../services/users';
 
-export const ACCESS_JWT_HEADER = 'Cf-Access-Jwt-Assertion';
-
-export interface AccessIdentity {
-  subject: string;
-  email: string;
-  displayName: string;
-  avatarUrl: string | null;
-}
+export const SESSION_COOKIE_NAME = '__Host-sentry-hackweek-session';
+export const LOCAL_SESSION_COOKIE_NAME = 'sentry-hackweek-session';
 
 export interface AuthVariables {
-  identity: AccessIdentity;
+  identity: SessionIdentity;
   user: SessionUser;
+  sessionTokenHash: string | null;
 }
 
 export interface AuthBindings {
-  ACCESS_AUD?: string;
-  ACCESS_TEAM_DOMAIN?: string;
   ALLOWED_EMAIL_DOMAIN: string;
+  APP_ORIGIN?: string;
   AUTH_MODE?: string;
-  LOCAL_ACCESS_JWKS?: string;
+  GOOGLE_CLIENT_ID?: string;
+  GOOGLE_CLIENT_SECRET?: string;
+  GOOGLE_REDIRECT_URI?: string;
+  GOOGLE_JWKS_JSON?: string;
+  GOOGLE_TOKEN_ENDPOINT?: string;
   LOCAL_AUTH_EMAIL?: string;
   LOCAL_AUTH_NAME?: string;
   LOCAL_AUTH_SUBJECT?: string;
+}
+
+export interface AuthConfig {
+  mode: 'google' | 'local';
+  allowedEmailDomain: string;
+  appOrigin: string;
+  callbackUri: string;
+  secureCookie: boolean;
+  clientId?: string;
+  clientSecret?: string;
+  localIdentity?: SessionIdentity;
 }
 
 export class AuthenticationError extends Error {
@@ -38,193 +48,194 @@ export class AuthenticationError extends Error {
   }
 }
 
-export function accessIdentity<
+export function authenticateRequest<
   E extends {
-    Bindings: AuthBindings;
+    Bindings: AuthBindings & {DB: D1Database};
     Variables: AuthVariables;
   },
 >() {
   return createMiddleware<E>(async (c, next) => {
-    let identity: AccessIdentity;
     try {
-      identity = await verifyAccessIdentity(c.req.raw, c.env);
-    } catch (error) {
-      if (error instanceof AuthenticationError) {
-        const response: ApiErrorResponse = {
-          error: {code: error.code, message: error.message},
-        };
-        return c.json(response, error.status);
+      const config = readAuthConfig(c.env);
+      if (config.mode === 'local') {
+        assertRequestUsesConfiguredOrigin(c.req.raw, config);
+        const user = await findUserByLocalIdentity(c.env.DB, config.localIdentity!);
+        c.set('identity', config.localIdentity!);
+        c.set('user', user);
+        c.set('sessionTokenHash', null);
+      } else {
+        assertRequestUsesConfiguredOrigin(c.req.raw, config);
+        const token = readCookie(
+          c.req.header('Cookie'),
+          config.secureCookie ? SESSION_COOKIE_NAME : LOCAL_SESSION_COOKIE_NAME,
+        );
+        if (!token) {
+          throw new AuthenticationError('AUTH_REQUIRED', 'Sign in is required', 401);
+        }
+        const session = await findUserBySessionToken(c.env.DB, token);
+        if (!session) {
+          throw new AuthenticationError(
+            'AUTH_REQUIRED',
+            'Your session has expired. Sign in again.',
+            401,
+          );
+        }
+        c.set('identity', session.identity);
+        c.set('user', session.user);
+        c.set('sessionTokenHash', session.tokenHash);
       }
-      const response: ApiErrorResponse = {
-        error: {code: 'AUTH_INVALID', message: 'Cloudflare Access token is invalid'},
-      };
-      return c.json(response, 401);
+      await next();
+    } catch (error) {
+      return authenticationErrorResponse(c, error);
     }
+  });
+}
 
-    c.set('identity', identity);
+export function protectMutationOrigin<
+  E extends {Bindings: AuthBindings; Variables: AuthVariables},
+>() {
+  return createMiddleware<E>(async (c, next) => {
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(c.req.method)) {
+      try {
+        const config = readAuthConfig(c.env);
+        assertRequestUsesConfiguredOrigin(c.req.raw, config);
+        const origin = c.req.header('Origin');
+        if (!origin || origin !== config.appOrigin) {
+          throw new AuthenticationError(
+            'AUTH_FORBIDDEN',
+            'Cross-origin mutation rejected',
+            403,
+          );
+        }
+      } catch (error) {
+        return authenticationErrorResponse(c, error);
+      }
+    }
     await next();
   });
 }
 
-export async function verifyAccessIdentity(
-  request: Request,
-  env: AuthBindings,
-): Promise<AccessIdentity> {
-  const config = readAuthConfig(env);
-  if (config.mode === 'local') {
-    if (!isLoopbackHostname(new URL(request.url).hostname)) {
-      throw new AuthenticationError(
-        'AUTH_FORBIDDEN',
-        'Local authentication is restricted to loopback hosts',
-        403,
-      );
-    }
-    return config.identity;
-  }
-
-  const token = request.headers.get(ACCESS_JWT_HEADER);
-  if (!token) {
+export function readAuthConfig(env: AuthBindings): AuthConfig {
+  const mode = env.AUTH_MODE;
+  if (mode !== 'google' && mode !== 'local') {
     throw new AuthenticationError(
-      'AUTH_REQUIRED',
-      'Cloudflare Access token is required',
-      401,
+      'AUTH_CONFIG_INVALID',
+      'AUTH_MODE must be explicitly configured as google or local',
+      500,
     );
   }
 
-  try {
-    const keySet = config.localJwks
-      ? createLocalJWKSet(config.localJwks)
-      : createRemoteJWKSet(new URL(`${config.issuer}/cdn-cgi/access/certs`));
-    const {payload} = await jwtVerify(token, keySet, {
-      algorithms: ['RS256'],
-      issuer: config.issuer,
-      audience: config.audience,
-    });
-    return identityFromPayload(payload, config.allowedEmailDomain);
-  } catch (error) {
-    if (error instanceof AuthenticationError) {
-      throw error;
-    }
-    throw new AuthenticationError(
-      'AUTH_INVALID',
-      'Cloudflare Access token is invalid',
-      401,
-    );
-  }
-}
-
-function readAuthConfig(env: AuthBindings) {
-  const authMode = env.AUTH_MODE ?? 'access';
   const allowedEmailDomain = readAllowedEmailDomain(env.ALLOWED_EMAIL_DOMAIN);
+  const appOrigin = readAppOrigin(env.APP_ORIGIN, mode);
+  const secureCookie = appOrigin.startsWith('https://');
+  const callbackUri = `${appOrigin}/api/auth/callback`;
+  if (env.GOOGLE_REDIRECT_URI !== undefined && env.GOOGLE_REDIRECT_URI !== callbackUri) {
+    throw new AuthenticationError(
+      'AUTH_CONFIG_INVALID',
+      'GOOGLE_REDIRECT_URI must exactly match APP_ORIGIN plus /api/auth/callback',
+      500,
+    );
+  }
+
   const localIdentityConfigured = [
     env.LOCAL_AUTH_SUBJECT,
     env.LOCAL_AUTH_EMAIL,
     env.LOCAL_AUTH_NAME,
   ].some((value) => value !== undefined);
+  const googleConfigured = [
+    env.GOOGLE_CLIENT_ID,
+    env.GOOGLE_CLIENT_SECRET,
+    env.GOOGLE_JWKS_JSON,
+    env.GOOGLE_TOKEN_ENDPOINT,
+  ].some((value) => value !== undefined);
 
-  if (authMode === 'local') {
-    if (
-      env.ACCESS_AUD !== undefined ||
-      env.ACCESS_TEAM_DOMAIN !== undefined ||
-      env.LOCAL_ACCESS_JWKS !== undefined
-    ) {
+  if (mode === 'local') {
+    if (googleConfigured) {
       throw new AuthenticationError(
         'AUTH_CONFIG_INVALID',
-        'Access configuration cannot be used in local authentication mode',
+        'Google configuration cannot be used in local authentication mode',
         500,
       );
     }
     return {
-      mode: authMode,
-      identity: localIdentityFromConfig(env, allowedEmailDomain),
-    } as const;
-  }
-
-  if (authMode !== 'access' && authMode !== 'local-signed') {
-    throw new AuthenticationError(
-      'AUTH_CONFIG_INVALID',
-      'Authentication mode is invalid',
-      500,
-    );
+      mode,
+      allowedEmailDomain,
+      appOrigin,
+      callbackUri,
+      secureCookie,
+      localIdentity: localIdentityFromConfig(env, allowedEmailDomain),
+    };
   }
 
   if (localIdentityConfigured) {
     throw new AuthenticationError(
       'AUTH_CONFIG_INVALID',
-      'Local identity configuration cannot be used in signed authentication modes',
+      'Local identity configuration cannot be used in Google authentication mode',
       500,
     );
   }
-
-  const audience = env.ACCESS_AUD?.trim();
-  const issuer = readAccessIssuer(env.ACCESS_TEAM_DOMAIN);
-  if (!audience) {
+  const clientId = env.GOOGLE_CLIENT_ID?.trim();
+  const clientSecret = env.GOOGLE_CLIENT_SECRET?.trim();
+  if (!clientId || !clientSecret) {
     throw new AuthenticationError(
       'AUTH_CONFIG_INVALID',
-      'Cloudflare Access authentication is not configured',
+      'Google OAuth client configuration is incomplete',
       500,
     );
   }
-
-  if (authMode === 'access' && env.LOCAL_ACCESS_JWKS !== undefined) {
-    throw new AuthenticationError(
-      'AUTH_CONFIG_INVALID',
-      'Local authentication keys cannot be used in Access mode',
-      500,
-    );
-  }
-
-  if (authMode === 'local-signed' && !env.LOCAL_ACCESS_JWKS?.trim()) {
-    throw new AuthenticationError(
-      'AUTH_CONFIG_INVALID',
-      'Local signed authentication requires an explicit key set',
-      500,
-    );
-  }
-
   return {
-    mode: authMode,
-    audience,
+    mode,
     allowedEmailDomain,
-    issuer,
-    localJwks:
-      authMode === 'local-signed' ? parseLocalJwks(env.LOCAL_ACCESS_JWKS!) : undefined,
-  } as const;
+    appOrigin,
+    callbackUri,
+    secureCookie,
+    clientId,
+    clientSecret,
+  };
 }
 
-function readAllowedEmailDomain(value: string | undefined) {
-  const domain = value?.trim().toLowerCase();
-  if (
-    !domain ||
-    domain.length > 253 ||
-    !domain.split('.').every((label) => /^(?!-)[a-z0-9-]+(?<!-)$/.test(label))
-  ) {
+export function assertRequestUsesConfiguredOrigin(request: Request, config: AuthConfig) {
+  if (new URL(request.url).origin !== config.appOrigin) {
     throw new AuthenticationError(
-      'AUTH_CONFIG_INVALID',
-      'Allowed email domain is invalid',
-      500,
+      config.mode === 'local' ? 'AUTH_FORBIDDEN' : 'AUTH_INVALID',
+      'Request origin does not match the configured application origin',
+      config.mode === 'local' ? 403 : 401,
     );
   }
-  return domain;
 }
 
-function readAccessIssuer(value: string | undefined) {
+export function sessionCookie(token: string, config: AuthConfig) {
+  const name = config.secureCookie ? SESSION_COOKIE_NAME : LOCAL_SESSION_COOKIE_NAME;
+  return `${name}=${token}; Max-Age=28800; Path=/; HttpOnly; SameSite=Lax${config.secureCookie ? '; Secure' : ''}`;
+}
+
+export function clearSessionCookie(config: AuthConfig) {
+  const name = config.secureCookie ? SESSION_COOKIE_NAME : LOCAL_SESSION_COOKIE_NAME;
+  return `${name}=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax${config.secureCookie ? '; Secure' : ''}`;
+}
+
+function readAppOrigin(value: string | undefined, mode: 'google' | 'local') {
   try {
-    const issuerUrl = new URL(value?.trim() ?? '');
+    const url = new URL(value?.trim() ?? '');
+    const loopback = isLoopbackHostname(url.hostname);
     if (
-      issuerUrl.protocol !== 'https:' ||
-      !issuerUrl.hostname.endsWith('.cloudflareaccess.com') ||
-      issuerUrl.pathname !== '/' ||
-      issuerUrl.search ||
-      issuerUrl.hash
+      url.origin !== url.toString().replace(/\/$/, '') ||
+      url.username ||
+      url.password ||
+      url.search ||
+      url.hash ||
+      (url.protocol !== 'https:' && !(url.protocol === 'http:' && loopback)) ||
+      (mode === 'local' && !loopback)
     ) {
-      throw new Error('invalid issuer');
+      throw new Error('invalid origin');
     }
-    return issuerUrl.origin;
+    return url.origin;
   } catch {
     throw new AuthenticationError(
       'AUTH_CONFIG_INVALID',
-      'Cloudflare Access team domain is invalid',
+      mode === 'local'
+        ? 'Local APP_ORIGIN must be an exact loopback HTTP origin'
+        : 'APP_ORIGIN must be an exact HTTPS origin or an HTTP loopback origin',
       500,
     );
   }
@@ -254,18 +265,36 @@ function localIdentityFromConfig(env: AuthBindings, allowedDomain: string) {
       500,
     );
   }
-
   assertAllowedEmail(email, allowedDomain);
   return {subject, email, displayName, avatarUrl: null};
 }
 
-function isLoopbackHostname(hostname: string) {
-  return (
-    hostname === 'localhost' ||
-    hostname === '127.0.0.1' ||
-    hostname === '[::1]' ||
-    hostname === '::1'
-  );
+export function readAllowedEmailDomain(value: string | undefined) {
+  const domain = value?.trim().toLowerCase();
+  if (
+    !domain ||
+    domain.length > 253 ||
+    !domain.split('.').every((label) => /^(?!-)[a-z0-9-]+(?<!-)$/.test(label))
+  ) {
+    throw new AuthenticationError(
+      'AUTH_CONFIG_INVALID',
+      'Allowed email domain is invalid',
+      500,
+    );
+  }
+  return domain;
+}
+
+export function assertAllowedEmail(email: string, allowedDomain: string) {
+  const at = email.lastIndexOf('@');
+  const domain = at === -1 ? '' : email.slice(at + 1);
+  if (!isValidEmailAddress(email) || domain !== allowedDomain) {
+    throw new AuthenticationError(
+      'AUTH_FORBIDDEN',
+      'Email domain is not authorized',
+      403,
+    );
+  }
 }
 
 function isValidEmailAddress(email: string) {
@@ -279,80 +308,25 @@ function isValidEmailAddress(email: string) {
   );
 }
 
-function assertAllowedEmail(email: string, allowedDomain: string) {
-  const at = email.lastIndexOf('@');
-  const domain = at === -1 ? '' : email.slice(at + 1);
-  if (!isValidEmailAddress(email) || domain !== allowedDomain) {
-    throw new AuthenticationError(
-      'AUTH_FORBIDDEN',
-      'Email domain is not authorized',
-      403,
-    );
-  }
+function isLoopbackHostname(hostname: string) {
+  return ['localhost', '127.0.0.1', '[::1]', '::1'].includes(hostname);
 }
 
-function parseLocalJwks(value: string) {
-  try {
-    const jwks = JSON.parse(value) as {keys?: unknown};
-    if (!Array.isArray(jwks.keys) || jwks.keys.length === 0) {
-      throw new Error('empty key set');
-    }
-    return jwks as Parameters<typeof createLocalJWKSet>[0];
-  } catch {
-    throw new AuthenticationError(
-      'AUTH_CONFIG_INVALID',
-      'Local authentication key set is invalid',
-      500,
-    );
+function readCookie(header: string | undefined, name: string) {
+  for (const part of header?.split(';') ?? []) {
+    const [key, ...value] = part.trim().split('=');
+    if (key === name) return value.join('=');
   }
+  return undefined;
 }
 
-function identityFromPayload(payload: JWTPayload, allowedDomain: string): AccessIdentity {
-  if (payload.type !== 'app') {
-    throw new AuthenticationError(
-      'AUTH_INVALID',
-      'Access application token is required',
-      401,
-    );
-  }
-
-  if (typeof payload.sub !== 'string' || payload.sub.length === 0) {
-    throw new AuthenticationError(
-      'AUTH_INVALID',
-      'Access identity is missing a subject',
-      401,
-    );
-  }
-
-  if (typeof payload.email !== 'string') {
-    throw new AuthenticationError(
-      'AUTH_INVALID',
-      'Access identity is missing an email',
-      401,
-    );
-  }
-
-  const email = payload.email.trim().toLowerCase();
-  assertAllowedEmail(email, allowedDomain);
-  const at = email.lastIndexOf('@');
-
-  const displayName =
-    typeof payload.name === 'string' && payload.name.trim().length > 0
-      ? payload.name.trim().slice(0, 100)
-      : email.slice(0, at);
-  const avatarUrl = safeAvatarUrl(payload.picture);
-
-  return {subject: payload.sub, email, displayName, avatarUrl};
-}
-
-function safeAvatarUrl(value: unknown) {
-  if (typeof value !== 'string' || value.length > 2048) {
-    return null;
-  }
-  try {
-    const url = new URL(value);
-    return url.protocol === 'https:' ? url.toString() : null;
-  } catch {
-    return null;
-  }
+function authenticationErrorResponse(c: {json: Function}, error: unknown) {
+  const authError =
+    error instanceof AuthenticationError
+      ? error
+      : new AuthenticationError('AUTH_INVALID', 'Authentication failed', 401);
+  const response: ApiErrorResponse = {
+    error: {code: authError.code, message: authError.message},
+  };
+  return c.json(response, authError.status);
 }

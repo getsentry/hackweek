@@ -1,11 +1,11 @@
 # Video operations
 
-See [`screening.md`](screening.md) for presenter controls, state, day-of checks, Meet-style validation, and incident handling. See [`staging.md`](staging.md) for the remote evidence gate.
+See [`screening.md`](screening.md) for presenter controls, state, day-of checks, Meet-style validation, and incident handling. See [`cloudflare-validation.md`](cloudflare-validation.md) for the remote evidence gate.
 
 The video platform has two deliberately different modes:
 
 - `STREAM_MODE=fake` is for local application development and tests. It exercises authorization, D1 state, webhooks, jobs, and client contracts. It does **not** accept bytes, transcode, make HLS, or claim playback works.
-- `STREAM_MODE=real` is staging-only until the staging integration checklist passes. Browser video bytes go directly to Cloudflare Stream over tus. The Worker only provisions the upload and stores lifecycle metadata.
+- `STREAM_MODE=real` is for the single Cloudflare environment only until the remote integration checklist passes. Browser video bytes go directly to Cloudflare Stream over tus. The Worker only provisions the upload and stores lifecycle metadata.
 
 ## Lifecycle and authorization
 
@@ -46,26 +46,26 @@ A fake upload URL is a contract fixture, not an ingest endpoint. Fake protected 
 
 To exercise a webhook fixture, preserve the JSON body byte-for-byte and compute hex HMAC-SHA256 over `<unix-seconds>.<raw-body>` with `STREAM_WEBHOOK_SECRET`. Send `Webhook-Signature: time=<unix-seconds>,sig1=<hex>`. Requests older/newer than five minutes are rejected. Event identity is derived from Stream UID, `modified`, and outcome; D1 inserts it before applying an idempotent transition.
 
-## Staging Stream configuration
+## Real Stream configuration
 
-Resource/binding/Access setup and credential boundaries are documented in [`cloudflare-setup.md`](cloudflare-setup.md). Do not configure production or treat local fake results as remote evidence.
+Resource/binding/Google OAuth setup and credential boundaries are documented in [`cloudflare-setup.md`](cloudflare-setup.md). Do not configure production or treat local fake results as remote evidence.
 
-Create a least-privilege Cloudflare API token with Stream read/write for the staging account, then configure Worker secrets/vars:
+Create a least-privilege Cloudflare API token with Stream read/write for the Sentry Enterprise account, then configure Worker secrets/vars:
 
 ```sh
-wrangler secret put STREAM_API_TOKEN --env staging
-wrangler secret put STREAM_WEBHOOK_SECRET --env staging
-wrangler secret put VIDEO_SERVICE_TOKEN --env staging
-wrangler secret put R2_ACCESS_KEY_ID --env staging
-wrangler secret put R2_SECRET_ACCESS_KEY --env staging
+wrangler secret put STREAM_API_TOKEN --config wrangler.production.json
+wrangler secret put STREAM_WEBHOOK_SECRET --config wrangler.production.json
+wrangler secret put VIDEO_SERVICE_TOKEN --config wrangler.production.json
+wrangler secret put R2_ACCESS_KEY_ID --config wrangler.production.json
+wrangler secret put R2_SECRET_ACCESS_KEY --config wrangler.production.json
 ```
 
-Set non-secret staging values in the staging Wrangler environment:
+Set non-secret values in `wrangler.production.json`:
 
 ```text
 STREAM_MODE=real
 STREAM_ACCOUNT_ID=<account id>
-STREAM_ALLOWED_ORIGIN=<staging hostname, no scheme/path>
+STREAM_ALLOWED_ORIGIN=<deployed hostname, no scheme/path>
 STREAM_DELIVERY_HOST=customer-<code>.cloudflarestream.com
 R2_ACCOUNT_ID=<account id>
 R2_BUCKET_NAME=<private attachment bucket>
@@ -80,7 +80,7 @@ curl -X PUT \
   -H "Authorization: Bearer $STREAM_API_TOKEN" \
   -H 'Content-Type: application/json' \
   "https://api.cloudflare.com/client/v4/accounts/$STREAM_ACCOUNT_ID/stream/webhook" \
-  --data '{"notificationUrl":"https://<staging-host>/api/stream-webhook"}'
+  --data '{"notificationUrl":"https://<deployed-hackweek-host>/api/stream-webhook"}'
 ```
 
 Cloudflare's current documented contract differs from the original reel transcript in these material ways:
@@ -91,11 +91,11 @@ Cloudflare's current documented contract differs from the original reel transcri
 - signed playback replaces the UID with a short-lived token in the manifest path;
 - MP4 downloads must first be generated and may be `inprogress` before they are ready.
 
-### Required staging validation
+### Required remote validation
 
 Record the release SHA, deployment URL, video/project IDs, relevant workflow runs, and pass/fail evidence outside Git. These are manual remote checks; none are proven by `npm run test:readiness`.
 
-1. Confirm an unauthenticated request is blocked by Access.
+1. Confirm an unauthenticated request is redirected to application sign-in.
 2. Upload a video larger than 200 MB with tus, interrupt it, and confirm resume.
 3. Inspect browser requests: video bytes go to `upload.videodelivery.net`, never the Worker.
 4. Confirm the stored Stream video has signed URLs required, the duration limit, and allowed origin.
@@ -115,7 +115,7 @@ The scheduled `.github/workflows/video-measure.yml` calls the service-authentica
 gain_db = clamp(-16 - loudness_i, -12, 12)
 ```
 
-Configure GitHub secrets `VIDEO_API_URL` and `VIDEO_SERVICE_TOKEN`. The service token is distinct from Access user identity and Stream credentials. Trigger manually when testing or allow the ten-minute schedule. A failed decode records `failed(measurement)` and may be retried by an authorized project user. Stream/download failures remain visible rather than entering playlists.
+Configure GitHub secrets `VIDEO_API_URL` and `VIDEO_SERVICE_TOKEN`. The service token is distinct from Google user identity and Stream credentials. Trigger manually when testing or allow the ten-minute schedule. A failed decode records `failed(measurement)` and may be retried by an authorized project user. Stream/download failures remain visible rather than entering playlists.
 
 ## Drive archive
 

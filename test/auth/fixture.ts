@@ -1,20 +1,32 @@
+import {env} from 'cloudflare:test';
 import {importJWK, SignJWT, type JWTPayload} from 'jose';
+
+import {
+  LOCAL_SESSION_COOKIE_NAME,
+  SESSION_COOKIE_NAME,
+} from '../../src/worker/middleware/auth';
+import {createSession} from '../../src/worker/services/sessions';
+import {synchronizeGoogleUser} from '../../src/worker/services/users';
 
 export const localBrowserAuthBindings = {
   AUTH_MODE: 'local',
+  APP_ORIGIN: 'http://localhost:5173',
   ALLOWED_EMAIL_DOMAIN: 'sentry.io',
   LOCAL_AUTH_SUBJECT: 'local-browser-user',
   LOCAL_AUTH_EMAIL: 'developer@sentry.io',
   LOCAL_AUTH_NAME: 'Local Developer',
 } as const;
 
-export const localAuthBindings = {
-  AUTH_MODE: 'local-signed',
-  ACCESS_TEAM_DOMAIN: 'https://hackweek-local.cloudflareaccess.com',
-  ACCESS_AUD: 'hackweek-local',
+export const googleAuthBindings = {
+  AUTH_MODE: 'google',
+  APP_ORIGIN: 'https://hackweek.test',
+  GOOGLE_CLIENT_ID: 'test-client.apps.googleusercontent.com',
+  GOOGLE_CLIENT_SECRET: 'test-client-secret',
+  GOOGLE_REDIRECT_URI: 'https://hackweek.test/api/auth/callback',
+  GOOGLE_TOKEN_ENDPOINT: 'https://tokens.hackweek.test/token',
   ALLOWED_EMAIL_DOMAIN: 'sentry.io',
-  LOCAL_ACCESS_JWKS:
-    '{"keys":[{"kty":"RSA","n":"3SSum9jtxKTheDwctdDnp80Mv5_hAQzcKJJcxpw3wShOU0LyEpt23riO3ncaOC4iVm5xseM9PJmFjYMQJcplKi6I3nDC7tToFWrFqrn7LSjdvJS3WqUjn20CUiUxYZ3QLZcYyERU6M39M8nE1zFHQ3tHz7YkjoNQTPMUXMRydeL8yuBizdsrGQosgpGJceTAFIHJkKtdCipbSBZA3qrrE-HDJa9nZSYloywLVsaxzKJG2SiJzvVBydZbCQ2ZQeR44qdpCIibU2IMyVelKqiCqHwoBwzYybGx4Tcx4N_1UrNZQnECbcN7jSzxRp1agrK6p2w-svyYYXmt7ymqa3kjdQ","e":"AQAB","kid":"hackweek-local-test","alg":"RS256","use":"sig"}]}',
+  GOOGLE_JWKS_JSON:
+    '{"keys":[{"kty":"RSA","n":"3SSum9jtxKTheDwctdDnp80Mv5_hAQzcKJJcxpw3wShOU0LyEpt23riO3ncaOC4iVm5xseM9PJmFjYMQJcplKi6I3nDC7tToFWrFqrn7LSjdvJS3WqUjn20CUiUxYZ3QLZcYyERU6M39M8nE1zFHQ3tHz7YkjoNQTPMUXMRydeL8yuBizdsrGQosgpGJceTAFIHJkKtdCipbSBZA3qrrE-HDJa9nZSYloywLVsaxzKJG2SiJzvVBydZbCQ2ZQeR44qdpCIibU2IMyVelKqiCqHwoBwzYybGx4Tcx4N_1UrNZQnECbcN7jSzxRp1agrK6p2w-svyYYXmt7ymqa3kjdQ","e":"AQAB","kid":"google-test","alg":"RS256","use":"sig"}]}',
 } as const;
 
 const privateJwk = {
@@ -27,23 +39,51 @@ const privateJwk = {
   dp: '61h9htHsEGLzvsMXnahfLLQ_ATBCJaqLjJmu1Cd0aPFbICCRtyI_B9MnA1z2Q_3KhwK_iqp3F9mZBfUk4wndp36irrvaglDoCzkr-kQG-o-YovIAu1bI4oJF_D_u_UQYgCaCVdrEjOUHU9lvAUDb51u4n6UdD1GjGeeM_qTWfuk',
   dq: 'oUei3JoY1esOGqTywIzr3evR8LNPFtrWh3vRmO4OvFrtMP4oDlSp_7g-S0YSw6G7pSQP-cTEbfDs7bBTQlehPa_5LYXD2Ka_sdLqC_QTz-68r3Lutb9EGFxB31hPzX-eCBFwWlxWhBpC_-3aIGBJWFDmE0FivaRGREoGbTjCDZE',
   qi: 'Y4xuGMuT0eBDasnfrYr6Gw8mbMs-6TvBOIgSH4V0WGSrR4HGIoQbd0Ikj5mMlWEixUdapdkNH7b-X7Z-Bnoz3mDgvA5mwQs0zXy3s43tgssGRnA7XzCXbzsF_yhz5nGsCsyKBZELZ4zMGaJvVeTY6FV7Fk0MOVDUM6LPMjLidjI',
-  kid: 'hackweek-local-test',
+  kid: 'google-test',
   alg: 'RS256',
   use: 'sig',
 };
 
-export async function signAccessToken(overrides: JWTPayload = {}) {
+export async function createSessionCookie(overrides: JWTPayload = {}) {
+  const subject = typeof overrides.sub === 'string' ? overrides.sub : 'google-member';
+  const email =
+    typeof overrides.email === 'string' ? overrides.email : 'member@sentry.io';
+  const user = await synchronizeGoogleUser(env.DB, {
+    subject,
+    email: email.toLowerCase(),
+    displayName: typeof overrides.name === 'string' ? overrides.name : 'Hackweek Member',
+    avatarUrl: null,
+  });
+  const session = await createSession(env.DB, user.id);
+  return `${SESSION_COOKIE_NAME}=${session.token}`;
+}
+
+export function authenticatedHeaders(cookie: string, mutation = false) {
+  const headers = new Headers({Cookie: cookie});
+  if (mutation) headers.set('Origin', googleAuthBindings.APP_ORIGIN);
+  return headers;
+}
+
+export function cookieToken(setCookie: string) {
+  const first = setCookie.split(';', 1)[0];
+  return first.startsWith(`${SESSION_COOKIE_NAME}=`) ||
+    first.startsWith(`${LOCAL_SESSION_COOKIE_NAME}=`)
+    ? first
+    : '';
+}
+
+export async function signGoogleIdToken(overrides: JWTPayload = {}) {
   const key = await importJWK(privateJwk, 'RS256');
   const now = Math.floor(Date.now() / 1000);
   return new SignJWT({
-    type: 'app',
     email: 'member@sentry.io',
+    email_verified: true,
     name: 'Hackweek Member',
-    iss: localAuthBindings.ACCESS_TEAM_DOMAIN,
-    aud: localAuthBindings.ACCESS_AUD,
-    sub: 'access-member',
+    iss: 'https://accounts.google.com',
+    aud: googleAuthBindings.GOOGLE_CLIENT_ID,
+    sub: 'google-member',
+    nonce: 'test-nonce',
     iat: now,
-    nbf: now - 1,
     exp: now + 300,
     ...overrides,
   })

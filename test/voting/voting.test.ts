@@ -1,7 +1,7 @@
 import {env, SELF} from 'cloudflare:test';
 import {beforeEach, describe, expect, it} from 'vitest';
 
-import {signAccessToken} from '../auth/fixture';
+import {createSessionCookie} from '../auth/fixture';
 
 const base = 'https://hackweek.test/api';
 let sequence = 0;
@@ -181,13 +181,13 @@ function voteBody() {
 
 async function tokenAndSession(kind: 'voter' | 'member') {
   const subject = `vote-${kind}-${sequence}`;
-  const token = await signAccessToken({
+  const token = await createSessionCookie({
     sub: subject,
     email: `${subject}@sentry.io`,
     name: kind,
   });
-  await SELF.fetch(`${base}/session`, {headers: {'Cf-Access-Jwt-Assertion': token}});
-  const user = await env.DB.prepare('SELECT id FROM users WHERE access_subject = ?')
+  await SELF.fetch(`${base}/session`, {headers: {Cookie: token}});
+  const user = await env.DB.prepare('SELECT id FROM users WHERE google_subject = ?')
     .bind(subject)
     .first<{id: string}>();
   if (kind === 'voter') voterId = user!.id;
@@ -203,7 +203,10 @@ async function api(
   const response = await SELF.fetch(`${base}${path}`, {
     method: options.method,
     headers: {
-      'Cf-Access-Jwt-Assertion': token,
+      Cookie: token,
+      ...(options.method && options.method !== 'GET'
+        ? {Origin: 'https://hackweek.test'}
+        : {}),
       ...(options.body === undefined ? {} : {'Content-Type': 'application/json'}),
     },
     body: options.body === undefined ? undefined : JSON.stringify(options.body),

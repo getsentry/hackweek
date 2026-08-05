@@ -1,9 +1,10 @@
 import {Hono} from 'hono';
 
 import type {AuthBindings, AuthVariables} from './middleware/auth';
-import {accessIdentity} from './middleware/auth';
-import {requireRole, resolveUser} from './middleware/user';
+import {authenticateRequest, protectMutationOrigin} from './middleware/auth';
+import {requireRole} from './middleware/user';
 import {adminRoutes} from './routes/admin';
+import {authenticatedAuthRoutes, authRoutes} from './routes/auth';
 import {analyticsRoutes} from './routes/analytics';
 import {awardsRoutes} from './routes/awards';
 import {groupsRoutes} from './routes/groups';
@@ -40,9 +41,11 @@ const app = new Hono<WorkerEnv>();
 app.get('/api/health', (c) => c.json({ok: true}));
 app.route('/api/stream-webhook', streamWebhookRoutes);
 app.route('/api/video-jobs', videoJobRoutes);
+app.route('/api/auth', authRoutes);
 
-app.use('/api/*', accessIdentity<WorkerEnv>());
-app.use('/api/*', resolveUser);
+app.use('/api/*', authenticateRequest<WorkerEnv>());
+app.use('/api/*', protectMutationOrigin<WorkerEnv>());
+app.route('/api/auth', authenticatedAuthRoutes);
 app.route('/api/session', sessionRoutes);
 app.route('/api/years', yearsRoutes);
 app.route('/api/projects', projectsRoutes);

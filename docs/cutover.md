@@ -1,11 +1,11 @@
 # Production cutover and rollback
 
-Production migration is operator-assisted. No repository script changes DNS, disables/deletes Firebase, creates production resources, or performs an irreversible cutover. Staging evidence and human approval are mandatory first.
+Production migration is operator-assisted. No repository script changes DNS, disables/deletes Firebase, creates production resources, or performs an irreversible cutover. Cloudflare environment evidence and human approval are mandatory first.
 
 ## Go/no-go prerequisites
 
-- Staging evidence in [`staging.md`](staging.md) is complete for the exact release commit.
-- Production Cloudflare resources/configuration, Access policy, secrets, observability, cost/retention, and operators have been separately approved.
+- Cloudflare environment evidence in [`cloudflare-validation.md`](cloudflare-validation.md) is complete for the exact release commit.
+- Production Cloudflare resources/configuration, Google OAuth configuration, secrets, observability, cost/retention, and operators have been separately approved.
 - Export/import rehearsal using a recent real export completes twice with no unexplained mismatch.
 - A maintenance window, write-freeze mechanism, DNS owner, rollback decision owner, incident channel, and Firebase read-only retention period are agreed.
 - DNS TTL has been reviewed in advance by the human DNS operator.
@@ -26,10 +26,10 @@ Production migration is operator-assisted. No repository script changes DNS, dis
 - [ ] Promote only the chosen historical videos; validate real Stream lifecycle/protected playback.
 - [ ] Run screening checks for order, individual playback, controls, preloading, gain, and failure visibility.
 - [ ] Human changes DNS to the Cloudflare application.
-- [ ] Observe Access, Worker, D1, R2, Stream, client errors, latency, and business journeys through the agreed high-risk window.
+- [ ] Observe Google OAuth sessions, Worker, D1, R2, Stream, client errors, latency, and business journeys through the agreed high-risk window.
 - [ ] Retain Firebase deployment/data read-only and retain verified exports for the rollback window.
 
-The migration CLI intentionally supports only `local` and explicitly confirmed `staging`. Production destination configuration and commands must be separately reviewed by operators; do not repurpose `--target staging` against production.
+The migration CLI intentionally supports only `local` and explicitly confirmed `cloudflare`. Production destination configuration and commands must be separately reviewed by operators; do not repurpose `--target Cloudflare environment` against production.
 
 ## Stop and rollback conditions
 
@@ -52,7 +52,7 @@ A rollback is not safe if writes continued independently in both systems. This i
 
 - [ ] Confirm monitoring, representative user/admin/video journeys, and reconciliation at 1 hour, 1 business day, and the agreed retention milestones.
 - [ ] Archive final reports/checksums and ownership records in approved operator storage, not Git.
-- [ ] Rotate temporary migration/deployment credentials and remove unneeded staging export access.
+- [ ] Rotate temporary migration/deployment credentials and remove unneeded migration export access.
 - [ ] Keep Firebase read-only until the rollback period and data-retention approval complete.
 - [ ] Only then obtain explicit human approval to remove legacy hosting/data/resources; deletion is a separate change with backups verified first.
 - [ ] Remove temporary DNS records/tokens, update incident/service ownership, and record costs/retention.

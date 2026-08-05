@@ -5,7 +5,7 @@ import type {ProjectWriteRequest} from '../../src/shared/projects';
 import {FakeStreamGateway} from '../../src/worker/integrations/stream/fake';
 import {RealStreamGateway} from '../../src/worker/integrations/stream/real';
 import {loudnessGain} from '../../src/worker/services/videos';
-import {signAccessToken} from '../auth/fixture';
+import {createSessionCookie} from '../auth/fixture';
 
 const base = 'https://hackweek.test/api';
 const webhookSecret = 'test-webhook-secret';
@@ -18,11 +18,11 @@ let groupId: string;
 
 beforeEach(async () => {
   suffix += 1;
-  ownerToken = await signAccessToken({
+  ownerToken = await createSessionCookie({
     sub: `video-owner-${suffix}`,
     email: `video-owner-${suffix}@sentry.io`,
   });
-  outsiderToken = await signAccessToken({
+  outsiderToken = await createSessionCookie({
     sub: `video-outsider-${suffix}`,
     email: `video-outsider-${suffix}@sentry.io`,
   });
@@ -30,7 +30,7 @@ beforeEach(async () => {
   await session(outsiderToken);
   yearId = `video-year-${suffix}`;
   groupId = `video-group-${suffix}`;
-  const owner = await env.DB.prepare('SELECT id FROM users WHERE access_subject = ?')
+  const owner = await env.DB.prepare('SELECT id FROM users WHERE google_subject = ?')
     .bind(`video-owner-${suffix}`)
     .first<{id: string}>();
   await env.DB.batch([
@@ -336,7 +336,7 @@ function projectPayload(): ProjectWriteRequest {
 
 function session(token: string) {
   return SELF.fetch(`${base}/session`, {
-    headers: {'Cf-Access-Jwt-Assertion': token},
+    headers: {Cookie: token},
   });
 }
 
@@ -348,7 +348,10 @@ async function api(
   const response = await SELF.fetch(`${base}${path}`, {
     method: options.method,
     headers: {
-      'Cf-Access-Jwt-Assertion': token,
+      Cookie: token,
+      ...(options.method && options.method !== 'GET'
+        ? {Origin: 'https://hackweek.test'}
+        : {}),
       ...(options.body === undefined ? {} : {'Content-Type': 'application/json'}),
     },
     body: options.body === undefined ? undefined : JSON.stringify(options.body),

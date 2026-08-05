@@ -1,6 +1,7 @@
 # Copy to .dev.vars for local browser development only. Never configure this
 # identity mode in a deployed environment.
 AUTH_MODE="local"
+APP_ORIGIN="http://localhost:5173"
 LOCAL_AUTH_SUBJECT="local-browser-user"
 LOCAL_AUTH_EMAIL="developer@sentry.io"
 LOCAL_AUTH_NAME="Local Developer"

@@ -1,19 +1,19 @@
 import type {SessionUser, UpdateProfileRequest} from '../../shared/api';
-import type {AccessIdentity} from '../middleware/auth';
+import type {SessionIdentity} from './sessions';
 
 interface UserRow {
   id: string;
   source_uid: string;
-  access_subject: string | null;
+  google_subject: string | null;
   email: string;
   display_name: string;
   avatar_url: string | null;
   is_admin: number;
 }
 
-export async function synchronizeUser(
+export async function synchronizeGoogleUser(
   db: D1Database,
-  identity: AccessIdentity,
+  identity: SessionIdentity,
 ): Promise<SessionUser> {
   const bySubject = await findBySubject(db, identity.subject);
   if (bySubject && bySubject.email.toLowerCase() !== identity.email) {
@@ -22,29 +22,43 @@ export async function synchronizeUser(
 
   const user = bySubject ?? (await findByEmail(db, identity.email));
   if (user) {
-    if (user.access_subject === null) {
-      try {
-        await db
-          .prepare(
-            `UPDATE users
-             SET access_subject = ?, updated_at = CURRENT_TIMESTAMP
-             WHERE id = ?`,
-          )
-          .bind(identity.subject, user.id)
-          .run();
-        user.access_subject = identity.subject;
-      } catch {
-        throw new UserIdentityConflictError();
-      }
+    if (user.google_subject !== null && user.google_subject !== identity.subject) {
+      throw new UserIdentityConflictError();
     }
-    return toSessionUser(user);
+    try {
+      await db
+        .prepare(
+          `UPDATE users
+           SET google_subject = ?, email = ?, display_name = ?, avatar_url = ?,
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = ?`,
+        )
+        .bind(
+          identity.subject,
+          identity.email,
+          identity.displayName,
+          identity.avatarUrl,
+          user.id,
+        )
+        .run();
+    } catch {
+      throw new UserIdentityConflictError();
+    }
+    return toSessionUser({
+      ...user,
+      google_subject: identity.subject,
+      email: identity.email,
+      display_name: identity.displayName,
+      avatar_url: identity.avatarUrl,
+    });
   }
 
   const id = crypto.randomUUID();
   try {
     await db
       .prepare(
-        `INSERT INTO users (id, source_uid, access_subject, email, display_name, avatar_url)
+        `INSERT INTO users
+          (id, source_uid, google_subject, email, display_name, avatar_url)
          VALUES (?, ?, ?, ?, ?, ?)`,
       )
       .bind(
@@ -60,6 +74,40 @@ export async function synchronizeUser(
     throw new UserIdentityConflictError();
   }
 
+  return {
+    id,
+    email: identity.email,
+    displayName: identity.displayName,
+    avatarUrl: identity.avatarUrl,
+    role: 'member',
+  };
+}
+
+export async function findUserByLocalIdentity(
+  db: D1Database,
+  identity: SessionIdentity,
+): Promise<SessionUser> {
+  const user = await findByEmail(db, identity.email);
+  if (user) return toSessionUser(user);
+
+  const id = crypto.randomUUID();
+  try {
+    await db
+      .prepare(
+        `INSERT INTO users (id, source_uid, email, display_name, avatar_url)
+         VALUES (?, ?, ?, ?, ?)`,
+      )
+      .bind(
+        id,
+        identity.subject,
+        identity.email,
+        identity.displayName,
+        identity.avatarUrl,
+      )
+      .run();
+  } catch {
+    throw new UserIdentityConflictError();
+  }
   return {
     id,
     email: identity.email,
@@ -85,22 +133,20 @@ export async function updateUserProfile(
 
   const user = await db
     .prepare(
-      `SELECT id, source_uid, access_subject, email, display_name, avatar_url, is_admin
+      `SELECT id, source_uid, google_subject, email, display_name, avatar_url, is_admin
        FROM users WHERE id = ?`,
     )
     .bind(userId)
     .first<UserRow>();
-  if (!user) {
-    throw new Error('Authenticated user disappeared');
-  }
+  if (!user) throw new Error('Authenticated user disappeared');
   return toSessionUser(user);
 }
 
 async function findBySubject(db: D1Database, subject: string) {
   return db
     .prepare(
-      `SELECT id, source_uid, access_subject, email, display_name, avatar_url, is_admin
-       FROM users WHERE access_subject = ?`,
+      `SELECT id, source_uid, google_subject, email, display_name, avatar_url, is_admin
+       FROM users WHERE google_subject = ?`,
     )
     .bind(subject)
     .first<UserRow>();
@@ -109,7 +155,7 @@ async function findBySubject(db: D1Database, subject: string) {
 async function findByEmail(db: D1Database, email: string) {
   return db
     .prepare(
-      `SELECT id, source_uid, access_subject, email, display_name, avatar_url, is_admin
+      `SELECT id, source_uid, google_subject, email, display_name, avatar_url, is_admin
        FROM users WHERE email = ? COLLATE NOCASE`,
     )
     .bind(email)

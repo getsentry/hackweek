@@ -28,12 +28,19 @@ export function AppLayout({user, children}: {user: SessionUser; children: ReactN
             </Link>
           )}
         </nav>
-        <div
-          className="identity"
-          aria-label={`signed in as ${user.displayName}, ${user.role}`}
-        >
-          <span>{user.displayName}</span>
-          <small>{user.role}</small>
+        <div className="identityActions">
+          <div
+            className="identity"
+            aria-label={`signed in as ${user.displayName}, ${user.role}`}
+          >
+            <span>{user.displayName}</span>
+            <small>{user.role}</small>
+          </div>
+          <form action="/api/auth/logout" method="post">
+            <button className="textButton" type="submit">
+              sign out
+            </button>
+          </form>
         </div>
       </header>
       {children}

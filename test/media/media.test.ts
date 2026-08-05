@@ -1,7 +1,7 @@
 import {env, SELF} from 'cloudflare:test';
 import {beforeEach, describe, expect, it} from 'vitest';
 
-import {signAccessToken} from '../auth/fixture';
+import {createSessionCookie} from '../auth/fixture';
 
 let suffix = 1000;
 let yearId: string;
@@ -14,11 +14,11 @@ beforeEach(async () => {
   suffix += 1;
   yearId = `media-year-${suffix}`;
   groupId = `media-group-${suffix}`;
-  memberToken = await signAccessToken({
+  memberToken = await createSessionCookie({
     sub: `media-member-${suffix}`,
     email: `media-member-${suffix}@sentry.io`,
   });
-  outsiderToken = await signAccessToken({
+  outsiderToken = await createSessionCookie({
     sub: `media-outsider-${suffix}`,
     email: `media-outsider-${suffix}@sentry.io`,
   });
@@ -129,7 +129,7 @@ async function upload(token: string, name: string, contents: string) {
 
 async function synchronize(token: string, subject: string) {
   await request('/api/session', token);
-  const row = await env.DB.prepare('SELECT id FROM users WHERE access_subject = ?')
+  const row = await env.DB.prepare('SELECT id FROM users WHERE google_subject = ?')
     .bind(subject)
     .first<{id: string}>();
   return row!.id;
@@ -137,6 +137,8 @@ async function synchronize(token: string, subject: string) {
 
 function request(path: string, token: string, init: RequestInit = {}) {
   const headers = new Headers(init.headers);
-  headers.set('Cf-Access-Jwt-Assertion', token);
+  headers.set('Cookie', token);
+  if (init?.method && init.method !== 'GET')
+    headers.set('Origin', 'https://hackweek.test');
   return SELF.fetch(`https://hackweek.test${path}`, {...init, headers});
 }

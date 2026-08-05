@@ -5,7 +5,7 @@ import path from 'node:path';
 
 import type {MigrationData, MigrationReport} from './types';
 
-export type Destination = 'local' | 'staging';
+export type Destination = 'local' | 'cloudflare';
 
 export interface ImportOptions {
   destination: Destination;
@@ -198,7 +198,7 @@ function destinationFlag(destination: Destination) {
 }
 
 function environmentArgs(options: ImportOptions) {
-  return options.destination === 'staging' && options.environment
+  return options.destination === 'cloudflare' && options.environment
     ? ['--env', options.environment]
     : [];
 }

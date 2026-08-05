@@ -110,8 +110,8 @@ function parseArguments(argv: string[]): Arguments {
   const database = flags.get('database') ?? flags.get('source');
   if (!database) throw new Error('--database is required');
   const target = flags.get('target') ?? 'local';
-  if (target !== 'local' && target !== 'staging')
-    throw new Error('--target must be local or staging');
+  if (target !== 'local' && target !== 'cloudflare')
+    throw new Error('--target must be local or cloudflare');
   return {
     command,
     database,

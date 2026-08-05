@@ -2,7 +2,7 @@ import {env, SELF} from 'cloudflare:test';
 import {describe, expect, it} from 'vitest';
 
 import {tableNames} from '../src/worker/db/schema';
-import {signAccessToken} from './auth/fixture';
+import {createSessionCookie} from './auth/fixture';
 
 describe('Cloudflare application foundation', () => {
   it('serves the health API from the Worker without authentication', async () => {
@@ -59,10 +59,10 @@ describe('Cloudflare application foundation', () => {
     ).rejects.toThrow('users cannot vote for their own project');
   });
 
-  it('synchronizes a valid Access identity into D1', async () => {
-    const token = await signAccessToken({email: 'foundation@sentry.io'});
+  it('resolves a valid hashed session into a D1 identity', async () => {
+    const token = await createSessionCookie({email: 'foundation@sentry.io'});
     const response = await SELF.fetch('https://hackweek.test/api/session', {
-      headers: {'Cf-Access-Jwt-Assertion': token},
+      headers: {Cookie: token},
     });
 
     expect(response.status).toBe(200);

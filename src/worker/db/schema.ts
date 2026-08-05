@@ -1,5 +1,7 @@
 export const tableNames = [
   'users',
+  'oauth_login_attempts',
+  'user_sessions',
   'years',
   'groups',
   'projects',

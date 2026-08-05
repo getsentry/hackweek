@@ -2,7 +2,7 @@
 
 ## Before screening day
 
-- Complete every staging video check in [`video-operations.md`](video-operations.md); local fake Stream is insufficient.
+- Complete every Cloudflare environment video check in [`video-operations.md`](video-operations.md); local fake Stream is insufficient.
 - Use a supported company browser and validate both hls.js and native-HLS behavior where applicable.
 - In admin, save the intended project order. Only `ready` videos with measured/clamped gain enter the reel; missing, uploading, processing, measuring, and failed rows stay excluded.
 - Open each individual permalink, then run **play all** from start to finish. Confirm title cards, N+1 preload, `ended` advancement, final completion, and no raw UID playback.
@@ -26,7 +26,7 @@ Player states are `idle`, `loading`, `title`, `playing`, `paused`, `complete`, a
 
 ## Screening-day checklist
 
-- [ ] Access and `/api/health` are available from the presentation network.
+- [ ] Google login and `/api/health` are available from the presentation network.
 - [ ] Admin order matches the approved running sheet.
 - [ ] Every expected project is ready; investigate any omitted project before starting.
 - [ ] Protected tokens issue, raw UID URLs fail, and the first two manifests preload.
@@ -40,7 +40,7 @@ Player states are `idle`, `loading`, `title`, `playing`, `paused`, `complete`, a
 
 1. Pause playback and record the project/video ID and visible error.
 2. If one clip is bad, use the approved individual permalink list for the next valid clip; do not mutate D1 video status manually.
-3. If signed playback fails broadly, verify Access/session, Stream token issuance, allowed origin, and account status. Do not expose an unsigned manifest as a workaround.
+3. If signed playback fails broadly, verify Google session, Stream token issuance, allowed origin, and account status. Do not expose an unsigned manifest as a workaround.
 4. If audio graph/Meet sharing fails, switch to the rehearsed backup presenter. Do not increase gain beyond the clamp.
-5. If the Worker or Stream is unavailable, stop the screening rather than claim partial success. Follow the staging/cutover incident owner and preserve logs.
+5. If the Worker or Stream is unavailable, stop the screening rather than claim partial success. Follow the Cloudflare environment/cutover incident owner and preserve logs.
 6. Failed measurement is retryable through the project UI/job. Archive failure does not block screening readiness.

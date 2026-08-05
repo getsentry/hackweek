@@ -2,7 +2,7 @@ import {env, SELF} from 'cloudflare:test';
 import {beforeEach, describe, expect, it} from 'vitest';
 
 import type {ProjectWriteRequest} from '../../src/shared/projects';
-import {signAccessToken} from '../auth/fixture';
+import {createSessionCookie} from '../auth/fixture';
 
 const base = 'https://hackweek.test/api';
 let suffix = 0;
@@ -15,18 +15,18 @@ beforeEach(async () => {
   suffix += 1;
   yearId = `project-year-${suffix}`;
   groupId = `group-${suffix}`;
-  memberToken = await signAccessToken({
+  memberToken = await createSessionCookie({
     sub: `project-member-${suffix}`,
     email: `project-member-${suffix}@sentry.io`,
     name: 'Project Member',
   });
-  outsiderToken = await signAccessToken({
+  outsiderToken = await createSessionCookie({
     sub: `project-outsider-${suffix}`,
     email: `project-outsider-${suffix}@sentry.io`,
     name: 'Project Outsider',
   });
   await session(memberToken);
-  const user = await env.DB.prepare('SELECT id FROM users WHERE access_subject = ?')
+  const user = await env.DB.prepare('SELECT id FROM users WHERE google_subject = ?')
     .bind(`project-member-${suffix}`)
     .first<{id: string}>();
   await env.DB.batch([
@@ -147,12 +147,12 @@ describe('project and history APIs', () => {
 
   it('lets admins manage groups and clears deleted project references atomically', async () => {
     const project = await createProject(memberToken);
-    const adminToken = await signAccessToken({
+    const adminToken = await createSessionCookie({
       sub: `project-admin-${suffix}`,
       email: `project-admin-${suffix}@sentry.io`,
     });
     await session(adminToken);
-    await env.DB.prepare('UPDATE users SET is_admin = 1 WHERE access_subject = ?')
+    await env.DB.prepare('UPDATE users SET is_admin = 1 WHERE google_subject = ?')
       .bind(`project-admin-${suffix}`)
       .run();
 
@@ -200,7 +200,7 @@ function projectPayload(): ProjectWriteRequest {
 
 function session(token: string) {
   return SELF.fetch(`${base}/session`, {
-    headers: {'Cf-Access-Jwt-Assertion': token},
+    headers: {Cookie: token},
   });
 }
 
@@ -212,7 +212,10 @@ async function api(
   const response = await SELF.fetch(`${base}${path}`, {
     method: options.method,
     headers: {
-      'Cf-Access-Jwt-Assertion': token,
+      Cookie: token,
+      ...(options.method && options.method !== 'GET'
+        ? {Origin: 'https://hackweek.test'}
+        : {}),
       ...(options.body === undefined ? {} : {'Content-Type': 'application/json'}),
     },
     body: options.body === undefined ? undefined : JSON.stringify(options.body),

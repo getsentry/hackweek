@@ -19,12 +19,13 @@ export function App() {
     return <AuthState title="Loading Hackweek" detail="checking your Sentry account…" />;
   }
   if (session.status === 'unauthenticated') {
-    return (
-      <AuthState
-        title="Access required"
-        detail="Sign in through the company Cloudflare Access page, then reload Hackweek."
-      />
-    );
+    const detail =
+      session.reason === 'forbidden'
+        ? 'Use your verified sentry.io Google Workspace account.'
+        : session.reason
+          ? 'Your sign-in could not be completed. Please start again.'
+          : 'Use your Sentry Google Workspace account to continue.';
+    return <AuthState title="Welcome to Hackweek" detail={detail} login />;
   }
   if (session.status === 'forbidden') {
     return (
@@ -95,13 +96,26 @@ export function App() {
   );
 }
 
-function AuthState({title, detail}: {title: string; detail: string}) {
+function AuthState({
+  title,
+  detail,
+  login = false,
+}: {
+  title: string;
+  detail: string;
+  login?: boolean;
+}) {
   return (
     <main className="authShell">
       <section className="authState" aria-live="polite">
-        <p className="kicker">Hackweek Access</p>
+        <p className="kicker">Sentry #Hackweek</p>
         <h1>{title}</h1>
         <p>{detail}</p>
+        {login && (
+          <a className="primaryButton googleLogin" href="/api/auth/login">
+            Sign in with Google
+          </a>
+        )}
       </section>
     </main>
   );

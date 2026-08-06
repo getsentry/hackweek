@@ -10,6 +10,12 @@ export default defineConfig({
     cloudflareTest(async () => ({
       wrangler: {configPath: './wrangler.jsonc'},
       miniflare: {
+        serviceBindings: {
+          ASSETS: async () =>
+            new Response('<!doctype html><div id="root"></div>', {
+              headers: {'Content-Type': 'text/html; charset=UTF-8'},
+            }),
+        },
         bindings: {
           TEST_MIGRATIONS: await readD1Migrations(path.join(root, 'migrations')),
           AUTH_MODE: 'google',

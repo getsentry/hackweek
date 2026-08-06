@@ -11,7 +11,7 @@ import {
   FakeHistoricalVideoSource,
   R2HistoricalVideoSource,
 } from '../integrations/historical-source';
-import {streamGateway} from '../integrations/stream';
+import {streamGateway, streamMode} from '../integrations/stream';
 import type {WorkerEnv} from '../index';
 import {errorResponse, ServiceError} from '../services/errors';
 import {
@@ -32,7 +32,10 @@ videosRoutes.get('/playlist', async (c) => {
   try {
     const year = c.req.query('year');
     if (!year) throw new ServiceError('VALIDATION_FAILED', 'Year is required', 400);
-    const response: PlaylistResponse = {videos: await listPlaylist(c.env.DB, year)};
+    const response: PlaylistResponse = {
+      videos: await listPlaylist(c.env.DB, year),
+      streamMode: streamMode(c.env),
+    };
     return c.json(response);
   } catch (error) {
     return respondError(c, error);
@@ -67,7 +70,10 @@ export const projectVideoRoutes = new Hono<WorkerEnv>();
 
 projectVideoRoutes.get('/:projectId/video', async (c) => {
   try {
-    return c.json({video: await getProjectVideo(c.env.DB, c.req.param('projectId'))});
+    return c.json({
+      video: await getProjectVideo(c.env.DB, c.req.param('projectId')),
+      streamMode: streamMode(c.env),
+    });
   } catch (error) {
     return respondError(c, error);
   }
@@ -186,7 +192,15 @@ function deliveryHost(env: WorkerEnv['Bindings']) {
 }
 
 function historicalSource(env: WorkerEnv['Bindings']) {
-  if ((env.STREAM_MODE ?? 'fake') === 'fake') return new FakeHistoricalVideoSource();
+  const mode = streamMode(env);
+  if (mode === 'disabled') {
+    throw new ServiceError(
+      'SERVICE_UNAVAILABLE',
+      'Video processing is temporarily unavailable',
+      503,
+    );
+  }
+  if (mode === 'fake') return new FakeHistoricalVideoSource();
   if (
     !env.R2_ACCOUNT_ID?.trim() ||
     !env.R2_BUCKET_NAME?.trim() ||

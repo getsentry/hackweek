@@ -63,7 +63,7 @@ export async function importMigration(
     }
 
     const sqlFile = path.join(temp, 'import.sql');
-    await writeFile(sqlFile, migrationSql(data), {mode: 0o600});
+    await writeFile(sqlFile, migrationSql(data, options.destination), {mode: 0o600});
     wrangler(
       [
         'd1',
@@ -83,8 +83,11 @@ export async function importMigration(
   }
 }
 
-export function migrationSql(data: MigrationData) {
-  const statements = ['PRAGMA foreign_keys = ON;', 'BEGIN TRANSACTION;'];
+export function migrationSql(data: MigrationData, destination: Destination = 'local') {
+  const statements = [
+    'PRAGMA foreign_keys = ON;',
+    ...(destination === 'local' ? ['BEGIN TRANSACTION;'] : []),
+  ];
   for (const row of data.users) {
     statements.push(sql`INSERT INTO users
       (id, source_uid, email, display_name, avatar_url, is_admin, created_at, updated_at)
@@ -173,7 +176,7 @@ export function migrationSql(data: MigrationData) {
     statements.push(sql`UPDATE years SET voting_enabled=${Number(row.votingEnabled)},
       submissions_closed=${Number(row.submissionsClosed)} WHERE id=${row.id};`);
   }
-  statements.push('COMMIT;');
+  if (destination === 'local') statements.push('COMMIT;');
   return `${statements.join('\n')}\n`;
 }
 

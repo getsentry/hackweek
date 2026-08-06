@@ -2,10 +2,11 @@
 
 See [`screening.md`](screening.md) for presenter controls, state, day-of checks, Meet-style validation, and incident handling. See [`cloudflare-validation.md`](cloudflare-validation.md) for the remote evidence gate.
 
-The video platform has two deliberately different modes:
+The video platform has three deliberately different modes:
 
-- `STREAM_MODE=fake` is for local application development and tests. It exercises authorization, D1 state, webhooks, jobs, and client contracts. It does **not** accept bytes, transcode, make HLS, or claim playback works.
-- `STREAM_MODE=real` is for the single Cloudflare environment only until the remote integration checklist passes. Browser video bytes go directly to Cloudflare Stream over tus. The Worker only provisions the upload and stores lifecycle metadata.
+- `STREAM_MODE=disabled` is the production-safe state while Stream is unavailable. Video reads report the mode, every Stream mutation fails closed with `503 SERVICE_UNAVAILABLE`, no gateway call or lifecycle row is created, and the UI clearly disables upload and playback while the non-video product remains available.
+- `STREAM_MODE=fake` is only for local application development and tests. It exercises authorization, D1 state, webhooks, jobs, and client contracts. It does **not** accept bytes, transcode, make HLS, or claim playback works.
+- `STREAM_MODE=real` enables the single Cloudflare environment only after the separate Stream rollout is approved and validated. Browser video bytes go directly to Cloudflare Stream over tus. The Worker only provisions the upload and stores lifecycle metadata.
 
 ## Lifecycle and authorization
 

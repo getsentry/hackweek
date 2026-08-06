@@ -1,7 +1,7 @@
 import {useRef, useState, type ChangeEvent} from 'react';
 import {Link} from 'wouter';
 
-import type {ProjectVideo} from '../../shared/videos';
+import type {ProjectVideo, StreamMode} from '../../shared/videos';
 import {useCreateVideoUpload, useDeleteVideo, useRetryVideo} from '../queries/videos';
 import {createTusUpload, type ResumableUpload, type UploadSnapshot} from './upload';
 
@@ -18,6 +18,7 @@ export function ProjectVideoPanel({
   video,
   canManage,
   loading = false,
+  streamMode,
   uploadFactory = createTusUpload,
 }: {
   projectId: string;
@@ -25,6 +26,7 @@ export function ProjectVideoPanel({
   video: ProjectVideo | null;
   canManage: boolean;
   loading?: boolean;
+  streamMode?: StreamMode;
   uploadFactory?: typeof createTusUpload;
 }) {
   const createUpload = useCreateVideoUpload(projectId);
@@ -59,6 +61,7 @@ export function ProjectVideoPanel({
   }
 
   const isUploading = upload && upload.phase !== 'complete';
+  const disabled = streamMode === 'disabled';
   const actionError = error ?? remove.error?.message ?? retry.error?.message;
 
   return (
@@ -81,6 +84,11 @@ export function ProjectVideoPanel({
       {loading ? (
         <p className="videoNotice" aria-live="polite">
           loading video status…
+        </p>
+      ) : disabled ? (
+        <p className="videoNotice" role="status">
+          video processing is temporarily unavailable. projects, attachments, voting,
+          awards, and every non-video workflow remain available.
         </p>
       ) : video ? (
         <VideoStatusCard video={video} />
@@ -129,7 +137,7 @@ export function ProjectVideoPanel({
         </div>
       )}
 
-      {canManage && !isUploading && (
+      {canManage && !disabled && !isUploading && (
         <div className="videoActions">
           {(!video || video.status === 'failed') && (
             <label className="uploadAction">
@@ -172,8 +180,9 @@ export function ProjectVideoPanel({
         </p>
       )}
       <p className="videoFinePrint">
-        uploads go directly to Cloudflare Stream using resumable tus. closing this page
-        does not send video bytes through Hackweek.
+        {disabled
+          ? 'video uploads and playback will appear here after Cloudflare Stream is enabled.'
+          : 'uploads go directly to Cloudflare Stream using resumable tus. closing this page does not send video bytes through Hackweek.'}
       </p>
     </section>
   );

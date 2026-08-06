@@ -80,6 +80,22 @@ describe('video user experience', () => {
     );
   });
 
+  it('shows disabled-video UX without upload or lifecycle actions', () => {
+    renderQuery(
+      <ProjectVideoPanel
+        projectId="project"
+        yearId="2026"
+        video={null}
+        canManage
+        streamMode="disabled"
+      />,
+    );
+
+    expect(screen.getByText(/video processing is temporarily unavailable/i)).toBeTruthy();
+    expect(screen.queryByLabelText('select project video')).toBeNull();
+    expect(screen.queryByRole('button', {name: 'delete video'})).toBeNull();
+  });
+
   it('keeps failed owner state visible with retry/replacement/delete actions', () => {
     renderQuery(
       <ProjectVideoPanel
@@ -101,7 +117,7 @@ describe('video user experience', () => {
   });
 
   it('renders accessible empty reel and individual ready-video permalinks', async () => {
-    fetchMock.mockResolvedValue(json({videos: playlist}));
+    fetchMock.mockResolvedValue(json({videos: playlist, streamMode: 'fake'}));
     renderRoute(<WatchPage />, '/years/2026/watch', '/years/:yearId/watch');
     expect(await screen.findByRole('heading', {name: 'play the reel'})).toBeTruthy();
     expect(screen.getByRole('button', {name: 'play all'})).toBeTruthy();
@@ -111,6 +127,16 @@ describe('video user experience', () => {
 
     renderQuery(<ScreeningPlayer playlist={[]} getPlayback={vi.fn()} />);
     expect(screen.getByRole('heading', {name: 'no videos are ready'})).toBeTruthy();
+  });
+
+  it('renders a clear disabled screening state without implying playback works', async () => {
+    fetchMock.mockResolvedValue(json({videos: [], streamMode: 'disabled'}));
+    renderRoute(<WatchPage />, '/years/2026/watch', '/years/:yearId/watch');
+
+    expect(
+      await screen.findByRole('heading', {name: 'video screening unavailable'}),
+    ).toBeTruthy();
+    expect(screen.queryByRole('button', {name: 'play all'})).toBeNull();
   });
 
   it('exposes visible pause, skip, fullscreen controls and keyboard shortcuts', async () => {

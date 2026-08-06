@@ -108,36 +108,6 @@ CREATE INDEX votes_project_idx ON votes(project_id);
 CREATE INDEX votes_category_idx ON votes(year_id, award_category_id);
 CREATE INDEX votes_creator_idx ON votes(year_id, creator_id);
 
-CREATE TRIGGER votes_validate_insert
-BEFORE INSERT ON votes
-BEGIN
-  SELECT CASE
-    WHEN (SELECT year_id FROM projects WHERE id = NEW.project_id) <> NEW.year_id
-      THEN RAISE(ABORT, 'vote project must belong to vote year')
-    WHEN (SELECT year_id FROM award_categories WHERE id = NEW.award_category_id) <> NEW.year_id
-      THEN RAISE(ABORT, 'vote category must belong to vote year')
-    WHEN EXISTS (
-      SELECT 1 FROM project_members
-      WHERE project_id = NEW.project_id AND user_id = NEW.creator_id
-    ) THEN RAISE(ABORT, 'users cannot vote for their own project')
-  END;
-END;
-
-CREATE TRIGGER votes_validate_update
-BEFORE UPDATE OF year_id, creator_id, project_id, award_category_id ON votes
-BEGIN
-  SELECT CASE
-    WHEN (SELECT year_id FROM projects WHERE id = NEW.project_id) <> NEW.year_id
-      THEN RAISE(ABORT, 'vote project must belong to vote year')
-    WHEN (SELECT year_id FROM award_categories WHERE id = NEW.award_category_id) <> NEW.year_id
-      THEN RAISE(ABORT, 'vote category must belong to vote year')
-    WHEN EXISTS (
-      SELECT 1 FROM project_members
-      WHERE project_id = NEW.project_id AND user_id = NEW.creator_id
-    ) THEN RAISE(ABORT, 'users cannot vote for their own project')
-  END;
-END;
-
 CREATE TABLE awards (
   id TEXT PRIMARY KEY NOT NULL,
   source_id TEXT NOT NULL UNIQUE,

@@ -1,3 +1,5 @@
+export type StreamMode = 'disabled' | 'fake' | 'real';
+
 export type VideoStatus =
   | 'pending_upload'
   | 'uploading'
@@ -58,8 +60,14 @@ export interface PlaylistItem {
   position: number;
 }
 
+export interface ProjectVideoResponse {
+  video: ProjectVideo | null;
+  streamMode: StreamMode;
+}
+
 export interface PlaylistResponse {
   videos: PlaylistItem[];
+  streamMode: StreamMode;
 }
 
 export interface MeasurementQueueItem {

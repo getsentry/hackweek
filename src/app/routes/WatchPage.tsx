@@ -23,8 +23,15 @@ export function WatchPage() {
             </div>
             <p>two-player protected HLS with measured, clamped audio gain.</p>
           </header>
-          <ScreeningPlayer playlist={playlist.data.videos} getPlayback={getPlayback} />
-          {playlist.data.videos.length > 0 && (
+          {playlist.data.streamMode === 'disabled' ? (
+            <PageState
+              title="video screening unavailable"
+              detail="Cloudflare Stream is not enabled yet. archives, projects, attachments, voting, awards, and administration remain available."
+            />
+          ) : (
+            <ScreeningPlayer playlist={playlist.data.videos} getPlayback={getPlayback} />
+          )}
+          {playlist.data.streamMode !== 'disabled' && playlist.data.videos.length > 0 && (
             <section className="reelIndex" aria-labelledby="reel-index-heading">
               <p className="kicker">on demand</p>
               <h2 id="reel-index-heading">watch one project</h2>
@@ -59,7 +66,12 @@ export function ProjectVideoWatchPage() {
 
   return (
     <QueryState loading={video.isLoading || playback.isLoading} error={error}>
-      {video.data?.video?.status !== 'ready' ? (
+      {video.data?.streamMode === 'disabled' ? (
+        <PageState
+          title="video playback unavailable"
+          detail="Cloudflare Stream is not enabled yet. the rest of Hackweek remains available."
+        />
+      ) : video.data?.video?.status !== 'ready' ? (
         <PageState
           title="video unavailable"
           detail="only a ready project video can be played. processing and failed videos remain visible to their team."

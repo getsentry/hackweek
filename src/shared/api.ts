@@ -6,7 +6,8 @@ export type ApiErrorCode =
   | 'VALIDATION_FAILED'
   | 'NOT_FOUND'
   | 'CONFLICT'
-  | 'STORAGE_FAILED';
+  | 'STORAGE_FAILED'
+  | 'SERVICE_UNAVAILABLE';
 
 export interface ApiErrorResponse {
   error: {

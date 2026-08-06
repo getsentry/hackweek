@@ -6,20 +6,18 @@ This operator guide configures exactly one Cloudflare environment in the Sentry 
 
 Use an OAuth 2.0 client whose application type is **Web application**. Configure its consent/branding for the Sentry organization. The authorization flow requests only `openid email profile` and does not request offline access.
 
-In **Authorized JavaScript origins**, enter exact origins, with no path or wildcard:
+In **Authorized JavaScript origins**, enter the exact deployed origin with no path or wildcard:
 
 ```text
-http://localhost:5173
-http://127.0.0.1:5173
-https://<deployed-hackweek-host>
+https://hackweek.getsentry.workers.dev
 ```
 
-In **Authorized redirect URIs**, enter the exact callback for every origin in use:
+Loopback origins may remain only if this same client is intentionally used for local development.
+
+In **Authorized redirect URIs**, enter the exact deployed callback:
 
 ```text
-http://localhost:5173/api/auth/callback
-http://127.0.0.1:5173/api/auth/callback
-https://<deployed-hackweek-host>/api/auth/callback
+https://hackweek.getsentry.workers.dev/api/auth/callback
 ```
 
 Scheme, host, port, path, case, and trailing slash must match exactly. Google permits HTTP only for loopback development. Do not add wildcard origins, wildcard callbacks, query strings, or an open redirect.
@@ -28,10 +26,11 @@ Set reviewed non-secret Worker vars in `wrangler.production.json`:
 
 ```text
 AUTH_MODE=google
-APP_ORIGIN=https://<deployed-hackweek-host>
-GOOGLE_REDIRECT_URI=https://<deployed-hackweek-host>/api/auth/callback
+APP_ORIGIN=https://hackweek.getsentry.workers.dev
+GOOGLE_REDIRECT_URI=https://hackweek.getsentry.workers.dev/api/auth/callback
 GOOGLE_CLIENT_ID=<web-application-client-id>.apps.googleusercontent.com
 ALLOWED_EMAIL_DOMAIN=sentry.io
+STREAM_MODE=disabled
 ```
 
 Install the client secret interactively; do not place it in config, GitHub workflow YAML, shell history, logs, or client output:
@@ -44,7 +43,7 @@ The Worker uses Google's authorization-code endpoint, PKCE S256, random state/no
 
 ## Cloudflare resources
 
-Create one Worker with Static Assets, one D1 database, one private R2 attachment bucket, and Stream in the Sentry Enterprise account. Replace every committed `REPLACE_ME` placeholder in `wrangler.production.json` through a reviewed change. The deployment workflow rejects placeholders and an unexpected account ID.
+Create one Worker with Static Assets, one D1 database, and one private R2 attachment bucket in the Sentry Enterprise account. The core rollout leaves `STREAM_MODE=disabled` and does not create or mutate Stream resources or webhooks. Replace the remaining D1 UUID and Google client ID placeholders in `wrangler.production.json` through a reviewed change. The deployment workflow rejects placeholders, fake/real Stream mode, and an unexpected account ID.
 
 Apply migrations only to the reviewed destination:
 

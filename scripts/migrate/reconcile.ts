@@ -31,36 +31,10 @@ export function transformedCounts(data: MigrationData): Record<EntityName, numbe
 }
 
 export function destinationCounts(options: ImportOptions, data: MigrationData) {
-  const directory = mkdtempSync(path.join(tmpdir(), 'hackweek-reconcile-'));
-  const sqlFile = path.join(directory, 'counts.sql');
-  writeFileSync(sqlFile, destinationCountSql(data), {mode: 0o600});
-  let output: string;
-  try {
-    output = execFileSync(
-      process.execPath,
-      [
-        path.resolve('node_modules/wrangler/bin/wrangler.js'),
-        'd1',
-        'execute',
-        options.databaseName,
-        options.destination === 'local' ? '--local' : '--remote',
-        '--file',
-        sqlFile,
-        '--json',
-        ...(options.environment ? ['--env', options.environment] : []),
-        ...(options.destination === 'local' && options.persistTo
-          ? ['--persist-to', options.persistTo]
-          : []),
-        ...(options.config ? ['--config', options.config] : []),
-      ],
-      {cwd: process.cwd(), encoding: 'utf8'},
-    );
-  } finally {
-    rmSync(directory, {recursive: true, force: true});
-  }
-  const parsed = JSON.parse(output) as Array<{
-    results: Array<{row: string}>;
-  }>;
+  const parsed =
+    options.destination === 'local'
+      ? executeLocalCountQueries(options, data)
+      : executeRemoteCountQueries(options, data);
   const counts: Partial<Record<EntityName, number>> = {};
   const sourceCounts: Partial<Record<EntityName, number>> = {};
   for (const {row} of parsed.flatMap(({results}) => results)) {
@@ -75,12 +49,67 @@ export function destinationCounts(options: ImportOptions, data: MigrationData) {
   return {counts, sourceCounts};
 }
 
+function executeLocalCountQueries(options: ImportOptions, data: MigrationData) {
+  const directory = mkdtempSync(path.join(tmpdir(), 'hackweek-reconcile-'));
+  const sqlFile = path.join(directory, 'counts.sql');
+  writeFileSync(sqlFile, destinationCountSql(data), {mode: 0o600});
+  try {
+    const output = wranglerCountCommand(options, ['--file', sqlFile]);
+    return parseWranglerJson(output) as Array<{results: Array<{row: string}>}>;
+  } finally {
+    rmSync(directory, {recursive: true, force: true});
+  }
+}
+
+function executeRemoteCountQueries(options: ImportOptions, data: MigrationData) {
+  return destinationCountStatements(data).flatMap((statement) => {
+    const output = wranglerCountCommand(options, ['--command', statement]);
+    return parseWranglerJson(output) as Array<{results: Array<{row: string}>}>;
+  });
+}
+
+function wranglerCountCommand(options: ImportOptions, queryArgs: string[]) {
+  return execFileSync(
+    process.execPath,
+    [
+      path.resolve('node_modules/wrangler/bin/wrangler.js'),
+      'd1',
+      'execute',
+      options.databaseName,
+      options.destination === 'local' ? '--local' : '--remote',
+      ...queryArgs,
+      '--json',
+      ...(options.environment ? ['--env', options.environment] : []),
+      ...(options.destination === 'local' && options.persistTo
+        ? ['--persist-to', options.persistTo]
+        : []),
+      ...(options.config ? ['--config', options.config] : []),
+    ],
+    {cwd: process.cwd(), encoding: 'utf8'},
+  );
+}
+
+export function parseWranglerJson(output: string) {
+  for (let index = 0; index < output.length; index += 1) {
+    if (output[index] !== '[' && output[index] !== '{') continue;
+    try {
+      return JSON.parse(output.slice(index));
+    } catch {
+      // Wrangler may prefix remote file execution with progress lines. Keep scanning.
+    }
+  }
+  throw new Error('Wrangler did not return a JSON payload');
+}
+
+export function destinationCountStatements(data: MigrationData) {
+  return entityNames.flatMap((name) => [
+    `SELECT json_object('entity','${name}','kind','all','count',COUNT(*)) row FROM ${tables[name]}`,
+    ...sourceCountQueries(name, data),
+  ]);
+}
+
 export function destinationCountSql(data: MigrationData) {
-  return `${entityNames
-    .flatMap((name) => [
-      `SELECT json_object('entity','${name}','kind','all','count',COUNT(*)) row FROM ${tables[name]}`,
-      ...sourceCountQueries(name, data),
-    ])
+  return `${destinationCountStatements(data)
     .map((statement) => `${statement};`)
     .join('\n')}\n`;
 }
@@ -152,9 +181,13 @@ export function assertExplicitDestination(
   environment: string | undefined,
   confirmation: string | undefined,
 ) {
-  if (destination === 'cloudflare' && (!environment || confirmation !== environment)) {
+  if (destination !== 'cloudflare') return;
+  if (environment !== undefined) {
     throw new Error(
-      'Cloudflare requires both --env <environment> and --confirm <same-environment>',
+      'The single Cloudflare environment uses the reviewed top-level config; do not pass --env',
     );
+  }
+  if (confirmation !== 'cloudflare') {
+    throw new Error('Cloudflare writes require --confirm cloudflare');
   }
 }

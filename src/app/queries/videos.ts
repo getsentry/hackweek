@@ -5,6 +5,7 @@ import type {
   PlaybackResponse,
   PlaylistResponse,
   ProjectVideo,
+  ProjectVideoResponse,
 } from '../../shared/videos';
 import {apiRequest, jsonRequest} from './api';
 
@@ -12,7 +13,7 @@ export function useProjectVideo(projectId: string) {
   return useQuery({
     queryKey: ['project-video', projectId],
     queryFn: () =>
-      apiRequest<{video: ProjectVideo | null}>(
+      apiRequest<ProjectVideoResponse>(
         `/projects/${encodeURIComponent(projectId)}/video`,
       ),
     refetchInterval: ({state}) => {
@@ -30,7 +31,14 @@ export function useCreateVideoUpload(projectId: string) {
         `/projects/${encodeURIComponent(projectId)}/video/upload`,
         jsonRequest('POST', {fileName: file.name, fileSize: file.size}),
       ),
-    onSuccess: ({video}) => cache.setQueryData(['project-video', projectId], {video}),
+    onSuccess: ({video}) =>
+      cache.setQueryData<ProjectVideoResponse>(
+        ['project-video', projectId],
+        (current) => ({
+          video,
+          streamMode: current?.streamMode ?? 'fake',
+        }),
+      ),
   });
 }
 
@@ -41,7 +49,14 @@ export function useDeleteVideo(projectId: string) {
       apiRequest<void>(`/projects/${encodeURIComponent(projectId)}/video`, {
         method: 'DELETE',
       }),
-    onSuccess: () => cache.setQueryData(['project-video', projectId], {video: null}),
+    onSuccess: () =>
+      cache.setQueryData<ProjectVideoResponse>(
+        ['project-video', projectId],
+        (current) => ({
+          video: null,
+          streamMode: current?.streamMode ?? 'fake',
+        }),
+      ),
   });
 }
 
@@ -52,7 +67,14 @@ export function useRetryVideo(projectId: string) {
       apiRequest<{video: ProjectVideo}>(`/videos/${encodeURIComponent(videoId)}/retry`, {
         method: 'POST',
       }),
-    onSuccess: ({video}) => cache.setQueryData(['project-video', projectId], {video}),
+    onSuccess: ({video}) =>
+      cache.setQueryData<ProjectVideoResponse>(
+        ['project-video', projectId],
+        (current) => ({
+          video,
+          streamMode: current?.streamMode ?? 'fake',
+        }),
+      ),
   });
 }
 

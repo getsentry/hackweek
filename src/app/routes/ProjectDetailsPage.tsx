@@ -144,6 +144,7 @@ export function ProjectDetailsPage() {
               video={video.data?.video ?? null}
               loading={video.isLoading}
               canManage={project.data.project.permissions.canManageMedia}
+              streamMode={video.data?.streamMode}
             />
           )}
           {project.data.project.kind === 'project' && (

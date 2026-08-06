@@ -73,7 +73,7 @@ The second import must preserve identical source-scoped counts and R2 keys. Run 
 
 ## Cloudflare environment import
 
-Remote writes require all three signals: `--target cloudflare`, `--env cloudflare`, and exact matching `--confirm cloudflare`. The config must map to the single reviewed environment.
+Remote writes require the explicit `--target cloudflare`, exact `--confirm cloudflare`, and the reviewed `wrangler.production.json`. The single Cloudflare environment is defined at the config top level, so passing `--env` is rejected.
 
 ```bash
 npm run migrate:cloudflare -- \
@@ -82,7 +82,7 @@ npm run migrate:cloudflare -- \
   --storage-root migration-input/storage \
   --database-name hackweek-db \
   --bucket-name hackweek-attachments \
-  --env cloudflare --confirm cloudflare \
+  --confirm cloudflare \
   --config wrangler.production.json \
   --report migration-output/cloudflare-import.migration-report.json
 
@@ -93,7 +93,7 @@ npm run migrate:reconcile -- \
   --target cloudflare \
   --database-name hackweek-db \
   --bucket-name hackweek-attachments \
-  --env cloudflare --confirm cloudflare \
+  --confirm cloudflare \
   --config wrangler.production.json \
   --report migration-output/cloudflare-reconcile.migration-report.json
 ```

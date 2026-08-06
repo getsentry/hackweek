@@ -6,6 +6,7 @@ import {migrationSql} from '../../scripts/migrate/import';
 import {
   assertExplicitDestination,
   destinationCountSql,
+  parseWranglerJson,
   transformedCounts,
 } from '../../scripts/migrate/reconcile';
 import {
@@ -130,15 +131,29 @@ describe('Firebase migration transformation', () => {
     );
   });
 
-  it('creates stable upsert SQL so reruns cannot duplicate source rows', async () => {
+  it('creates stable destination-safe upsert SQL so reruns cannot duplicate rows', async () => {
     const result = await transformFirebaseExport(await fixture('database.json'));
     const first = migrationSql(result.data);
     const second = migrationSql(result.data);
+    const cloudflare = migrationSql(result.data, 'cloudflare');
 
     expect(second).toBe(first);
+    expect(first).toContain('BEGIN TRANSACTION;');
+    expect(first).toContain('COMMIT;');
+    expect(cloudflare).not.toContain('BEGIN TRANSACTION;');
+    expect(cloudflare).not.toContain('COMMIT;');
     expect(first).toContain('ON CONFLICT(id) DO UPDATE');
     expect(first).toContain('ON CONFLICT(project_id, user_id) DO UPDATE');
     expect(first).toContain("'project-history'");
+  });
+
+  it('parses remote Wrangler JSON after progress output', () => {
+    expect(
+      parseWranglerJson(
+        '├ Checking if file needs uploading\n🌀 Starting import...\n[{"results":[]} ]',
+      ),
+    ).toEqual([{results: []}]);
+    expect(() => parseWranglerJson('no payload')).toThrow(/JSON payload/);
   });
 
   it('writes production-sized reconciliation queries to SQL without huge command arguments', async () => {
@@ -180,14 +195,17 @@ describe('Firebase migration transformation', () => {
     expect(deterministicR2Key('../p', 'm/slash', 'x')).toBe(
       'projects/%2e%2e%2fp/media/m%2fslash/x',
     );
+    expect(() => assertExplicitDestination('cloudflare', undefined, undefined)).toThrow(
+      /--confirm/,
+    );
     expect(() =>
-      assertExplicitDestination('cloudflare', 'cloudflare', undefined),
-    ).toThrow(/--confirm/);
-    expect(() =>
-      assertExplicitDestination('cloudflare', 'cloudflare', 'production'),
+      assertExplicitDestination('cloudflare', undefined, 'production'),
     ).toThrow(/--confirm/);
     expect(() =>
       assertExplicitDestination('cloudflare', 'cloudflare', 'cloudflare'),
+    ).toThrow(/do not pass --env/);
+    expect(() =>
+      assertExplicitDestination('cloudflare', undefined, 'cloudflare'),
     ).not.toThrow();
   });
 });

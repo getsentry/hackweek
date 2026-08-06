@@ -1,39 +1,36 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "hackweek",
+  "account_id": "773afa1f62ff86c80db4f24f7ff1e9c8",
   "main": "./src/worker/index.ts",
   "compatibility_date": "2026-08-03",
   "assets": {
     "directory": "./dist/client",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*"]
+    "binding": "ASSETS",
+    "run_worker_first": true
   },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "hackweek-db",
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "7063a770-b791-4fcd-aedf-ddf5fff2e312",
       "migrations_dir": "migrations"
     }
   ],
   "r2_buckets": [
     {
       "binding": "ATTACHMENTS",
-      "bucket_name": "replace-me-hackweek-attachments"
+      "bucket_name": "hackweek-attachments"
     }
   ],
   "vars": {
     "AUTH_MODE": "google",
-    "APP_ORIGIN": "https://replace-me.example.invalid",
-    "GOOGLE_REDIRECT_URI": "https://replace-me.example.invalid/api/auth/callback",
-    "GOOGLE_CLIENT_ID": "REPLACE_ME.apps.googleusercontent.com",
+    "APP_ORIGIN": "https://hackweek.getsentry.workers.dev",
+    "GOOGLE_REDIRECT_URI": "https://hackweek.getsentry.workers.dev/api/auth/callback",
+    "GOOGLE_CLIENT_ID": "694837489680-25m2umkr51lofdads5uvocgtcdqcs6c4.apps.googleusercontent.com",
     "ALLOWED_EMAIL_DOMAIN": "sentry.io",
-    "STREAM_MODE": "real",
-    "STREAM_ACCOUNT_ID": "REPLACE_ME_STREAM_ACCOUNT_ID",
-    "STREAM_ALLOWED_ORIGIN": "replace-me.example.invalid",
-    "STREAM_DELIVERY_HOST": "replace-me.cloudflarestream.com",
-    "R2_ACCOUNT_ID": "REPLACE_ME_R2_ACCOUNT_ID",
-    "R2_BUCKET_NAME": "replace-me-hackweek-attachments"
+    "STREAM_MODE": "disabled"
   },
   "observability": {"enabled": true}
 }

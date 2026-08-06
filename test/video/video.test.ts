@@ -2,6 +2,8 @@ import {env, SELF} from 'cloudflare:test';
 import {beforeEach, describe, expect, it} from 'vitest';
 
 import type {ProjectWriteRequest} from '../../src/shared/projects';
+import worker from '../../src/worker';
+import {streamGateway, streamMode} from '../../src/worker/integrations/stream';
 import {FakeStreamGateway} from '../../src/worker/integrations/stream/fake';
 import {RealStreamGateway} from '../../src/worker/integrations/stream/real';
 import {loudnessGain} from '../../src/worker/services/videos';
@@ -49,6 +51,48 @@ beforeEach(async () => {
 });
 
 describe('Cloudflare Stream gateways', () => {
+  it('fails closed without creating fake records when Stream is disabled', async () => {
+    const disabledEnv = new Proxy(env, {
+      get(target, property, receiver) {
+        return property === 'STREAM_MODE'
+          ? 'disabled'
+          : Reflect.get(target, property, receiver);
+      },
+    });
+    expect(streamMode(disabledEnv)).toBe('disabled');
+    expect(() => streamGateway(disabledEnv)).toThrow(
+      'Video processing is temporarily unavailable',
+    );
+
+    const response = await worker.request(
+      `${base}/projects/${projectId}/video/upload`,
+      {
+        method: 'POST',
+        headers: {
+          Cookie: ownerToken,
+          Origin: 'https://hackweek.test',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({fileName: 'demo.mp4', fileSize: 300_000_000}),
+      },
+      disabledEnv,
+    );
+    const stored = await env.DB.prepare(
+      'SELECT COUNT(*) count FROM project_videos WHERE project_id = ?',
+    )
+      .bind(projectId)
+      .first<{count: number}>();
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({
+      error: {
+        code: 'SERVICE_UNAVAILABLE',
+        message: 'Video processing is temporarily unavailable',
+      },
+    });
+    expect(stored?.count).toBe(0);
+  });
+
   it('creates constrained direct tus requests without exposing the API token', async () => {
     const requests: Request[] = [];
     const originalFetch = globalThis.fetch;

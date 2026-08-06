@@ -22,12 +22,7 @@ CREATE TABLE oauth_login_attempts (
 CREATE INDEX oauth_login_attempts_expiry_idx
   ON oauth_login_attempts(expires_at);
 
-CREATE TRIGGER oauth_login_attempts_delete_consumed
-AFTER UPDATE OF consumed_at ON oauth_login_attempts
-WHEN NEW.consumed_at IS NOT NULL
-BEGIN
-  DELETE FROM oauth_login_attempts WHERE state_hash = NEW.state_hash;
-END;
+CREATE TRIGGER oauth_login_attempts_delete_consumed AFTER UPDATE OF consumed_at ON oauth_login_attempts WHEN NEW.consumed_at IS NOT NULL BEGIN DELETE FROM oauth_login_attempts WHERE state_hash = NEW.state_hash; END;
 
 CREATE TABLE user_sessions (
   token_hash TEXT PRIMARY KEY NOT NULL CHECK (length(token_hash) = 64),

@@ -32,7 +32,7 @@ export interface VideoBindings {
 }
 
 export type WorkerEnv = {
-  Bindings: Env & AuthBindings & VideoBindings;
+  Bindings: Env & AuthBindings & VideoBindings & {ASSETS: Fetcher};
   Variables: AuthVariables;
 };
 
@@ -58,5 +58,7 @@ app.route('/api/admin', adminRoutes);
 app.route('/api/admin/analytics', analyticsRoutes);
 app.route('/api/admin/awards', awardsRoutes);
 app.get('/api/admin/session', requireRole('admin'), (c) => c.json({user: c.get('user')}));
+
+app.all('*', (c) => c.env.ASSETS.fetch(c.req.raw));
 
 export default app;

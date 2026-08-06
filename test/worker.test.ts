@@ -12,6 +12,14 @@ describe('Cloudflare application foundation', () => {
     expect(await response.json()).toEqual({ok: true});
   });
 
+  it('serves the SPA shell through the Worker assets binding', async () => {
+    const response = await SELF.fetch('https://hackweek.test/years/2024/projects');
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Content-Type')).toContain('text/html');
+    expect(await response.text()).toContain('<div id="root"></div>');
+  });
+
   it('requires authentication for protected APIs', async () => {
     const response = await SELF.fetch('https://hackweek.test/api/session');
 

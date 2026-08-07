@@ -72,7 +72,8 @@
   padding: 0;
   margin-bottom: 8px;
 }
-.Project-summary a {
+.Project-summary a,
+.Project-details-summary a {
   text-decoration: underline;
 }
 

@@ -1,6 +1,7 @@
 import {Redirect, Route, Switch} from 'wouter';
 
 import {AppLayout, PageState} from './components/AppLayout';
+import {GoogleIcon} from './components/GoogleIcon';
 import {AdminAnalyticsPage} from './routes/AdminAnalyticsPage';
 import {AdminPage} from './routes/AdminPage';
 import {EditProjectPage, NewProjectPage} from './routes/ProjectEditorPage';
@@ -113,7 +114,8 @@ function AuthState({
         <p>{detail}</p>
         {login && (
           <a className="primaryButton googleLogin" href="/api/auth/login">
-            Sign in with Google
+            <GoogleIcon />
+            <span>Sign in with Google</span>
           </a>
         )}
       </section>

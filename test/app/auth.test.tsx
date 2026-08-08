@@ -30,9 +30,9 @@ describe('Google sign-in experience', () => {
     expect(
       await screen.findByRole('heading', {name: 'Welcome to Hackweek'}),
     ).toBeTruthy();
-    expect(
-      screen.getByRole('link', {name: 'Sign in with Google'}).getAttribute('href'),
-    ).toBe('/api/auth/login');
+    const loginLink = screen.getByRole('link', {name: 'Sign in with Google'});
+    expect(loginLink.getAttribute('href')).toBe('/api/auth/login');
+    expect(loginLink.querySelector('svg')).toBeTruthy();
   });
 
   it('explains a failed fixed callback without reflecting arbitrary text', async () => {

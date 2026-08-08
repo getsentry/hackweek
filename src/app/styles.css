@@ -1088,9 +1088,40 @@ main {
   line-height: 1.7;
 }
 .googleLogin {
-  display: inline-block;
+  display: inline-flex;
+  gap: 0.65rem;
+  align-items: center;
+  min-height: 2.85rem;
+  padding: 0.7rem 1rem;
   margin-bottom: 2.5rem;
+  color: var(--blurple);
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1;
   text-decoration: none;
+  border: 2px solid var(--blurple);
+  border-radius: 0.65rem;
+  background: #fff;
+  box-shadow: 0 2px 0 rgba(78, 42, 154, 0.12);
+  transition:
+    color 100ms ease,
+    background 100ms ease,
+    box-shadow 100ms ease,
+    transform 100ms ease;
+}
+.googleLogin:hover {
+  color: #fff;
+  background: var(--blurple);
+  box-shadow: 0 3px 0 rgba(78, 42, 154, 0.18);
+  transform: translateY(-1px);
+}
+.googleLogin:active {
+  box-shadow: none;
+  transform: translateY(1px);
+}
+.googleLogin svg {
+  display: block;
+  flex: none;
 }
 .pageState--error {
   border-color: #f5a8b4;

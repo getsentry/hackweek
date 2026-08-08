@@ -50,7 +50,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
           <header className="projectsHero pageHeader">
             <div>
               <Link className="backLink" href="/years">
-                ← archives
+                ← hackweek
               </Link>
               <p className="kicker">Hackweek {year.data.year.id}</p>
               <h1>projects &amp; ideas</h1>

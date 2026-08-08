@@ -106,7 +106,7 @@ export function PageState({
       <p className="kicker">Hackweek</p>
       <h1>{title}</h1>
       <p>{detail}</p>
-      {tone === 'forbidden' && <Link href="/years">Return to archives</Link>}
+      {tone === 'forbidden' && <Link href="/years">Return to Hackweek</Link>}
     </section>
   );
 }

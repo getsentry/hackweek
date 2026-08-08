@@ -285,7 +285,7 @@ describe('clickable project routes', () => {
     expect(within(row as HTMLElement).getByText('Orbital')).toBeTruthy();
     expect(within(row as HTMLElement).getByText('looking for help')).toBeTruthy();
     expect(within(row as HTMLElement).getByLabelText('Member One')).toBeTruthy();
-    expect(within(row as HTMLElement).getByText('2 attachments')).toBeTruthy();
+    expect(within(row as HTMLElement).queryByText('2 attachments')).toBeNull();
     expect(within(row as HTMLElement).queryByText(projectFixture.summary)).toBeNull();
     expect(window.localStorage.getItem('hackweek.projectsView')).toBe('list');
 

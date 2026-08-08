@@ -10,7 +10,6 @@ export function ProjectCard({
   view?: 'grid' | 'list';
 }) {
   const projectLink = `/years/${project.yearId}/projects/${project.id}`;
-  const attachmentCount = `${project.mediaCount} ${project.mediaCount === 1 ? 'attachment' : 'attachments'}`;
 
   if (view === 'list') {
     return (
@@ -20,7 +19,6 @@ export function ProjectCard({
         </h2>
         <ProjectTags project={project} className="projectRowTags" />
         <MemberStack members={project.members} />
-        <span className="projectRowAttachments">{attachmentCount}</span>
       </article>
     );
   }
@@ -34,7 +32,6 @@ export function ProjectCard({
       <p title={project.summary}>{project.summary}</p>
       <footer>
         <MemberStack members={project.members} />
-        <span>{attachmentCount}</span>
       </footer>
     </article>
   );

@@ -252,7 +252,12 @@ function readinessEnv() {
 }
 
 function run(command: string, args: string[]) {
-  execFileSync(command, args, {cwd: root, env: readinessEnv(), stdio: 'inherit'});
+  // Detach stdin so wrangler never sees a TTY and auto-confirms its prompts.
+  execFileSync(command, args, {
+    cwd: root,
+    env: readinessEnv(),
+    stdio: ['ignore', 'inherit', 'inherit'],
+  });
 }
 
 function sql(command: string) {

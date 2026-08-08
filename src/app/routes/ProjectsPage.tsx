@@ -64,9 +64,11 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
               <Link className="textAction" href={`/years/${yearId}/watch`}>
                 watch reel
               </Link>
-              <Link className="textAction" href={`/years/${yearId}/vote`}>
-                vote
-              </Link>
+              {year.data.year.votingEnabled && (
+                <Link className="textAction" href={`/years/${yearId}/vote`}>
+                  vote
+                </Link>
+              )}
               {isAdmin && (
                 <Link className="textAction" href={`/admin/years/${yearId}`}>
                   manage year

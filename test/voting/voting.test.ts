@@ -139,6 +139,67 @@ describe('voting invariants', () => {
     expect(missing.status).toBe(400);
   });
 
+  it('rejects vote writes for archived years despite stored voting state', async () => {
+    const archivedProjectId = `vote-archived-project-${sequence}`;
+    const archivedVoteId = `vote-archived-${sequence}`;
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO projects (id, source_id, year_id, creator_id, name)
+         VALUES (?, ?, ?, ?, ?)`,
+      ).bind(
+        archivedProjectId,
+        archivedProjectId,
+        otherYearId,
+        creatorId,
+        'Archived signal',
+      ),
+      env.DB.prepare(
+        `INSERT INTO votes
+          (id, source_id, year_id, creator_id, project_id, award_category_id)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+      ).bind(
+        archivedVoteId,
+        archivedVoteId,
+        otherYearId,
+        voterId,
+        archivedProjectId,
+        secondCategoryId,
+      ),
+    ]);
+
+    const cast = await api('/votes', voterToken, {
+      method: 'POST',
+      body: {
+        yearId: otherYearId,
+        projectId: archivedProjectId,
+        categoryId: secondCategoryId,
+      },
+    });
+    const replaced = await api(`/votes/${archivedVoteId}`, voterToken, {
+      method: 'PUT',
+      body: {
+        yearId: otherYearId,
+        projectId: archivedProjectId,
+        categoryId: secondCategoryId,
+      },
+    });
+    const deleted = await api(`/votes/${archivedVoteId}`, voterToken, {
+      method: 'DELETE',
+    });
+
+    for (const response of [cast, replaced, deleted]) {
+      expect(response).toMatchObject({
+        status: 400,
+        body: {
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'voting is not enabled for this year',
+          },
+        },
+      });
+    }
+  });
+
   it('atomically enforces one creator/category vote under concurrent attempts', async () => {
     const [first, second] = await Promise.all([
       api('/votes', voterToken, {method: 'POST', body: voteBody()}),

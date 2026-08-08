@@ -61,11 +61,15 @@ export function AdminPage() {
             <section className="controlPanel">
               <p className="kicker">year settings</p>
               <h2>submissions &amp; voting</h2>
+              {!query.data.year.isCurrent && (
+                <p>This year is archived. Submissions and voting are locked.</p>
+              )}
               <label className="switchRow">
                 <span>Submissions closed</span>
                 <input
                   type="checkbox"
                   checked={query.data.year.submissionsClosed}
+                  disabled={!query.data.year.isCurrent}
                   onChange={(event) =>
                     actions.year.mutate({
                       ...query.data.year,
@@ -79,6 +83,7 @@ export function AdminPage() {
                 <input
                   type="checkbox"
                   checked={query.data.year.votingEnabled}
+                  disabled={!query.data.year.isCurrent}
                   onChange={(event) =>
                     actions.year.mutate({
                       ...query.data.year,

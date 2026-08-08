@@ -9,6 +9,12 @@ import type {
   YearSummary,
 } from '../../shared/projects';
 import {ServiceError} from '../services/errors';
+import {
+  currentYearIdSql,
+  effectiveYearFlags,
+  getEffectiveYearFlags,
+  type StoredYearFlags,
+} from './years';
 
 interface UserContext {
   id: string;
@@ -58,6 +64,7 @@ export async function listYears(db: D1Database): Promise<YearSummary[]> {
   const {results} = await db
     .prepare(
       `SELECT y.id, y.voting_enabled, y.submissions_closed,
+        ${currentYearIdSql} current_year_id,
         SUM(CASE WHEN p.status = 'active' AND p.kind = 'project' THEN 1 ELSE 0 END) project_count,
         SUM(CASE WHEN p.status = 'active' AND p.kind = 'idea' THEN 1 ELSE 0 END) idea_count,
         (SELECT COUNT(*) FROM groups g WHERE g.year_id = y.id) group_count,
@@ -73,6 +80,7 @@ export async function listYears(db: D1Database): Promise<YearSummary[]> {
       id: string;
       voting_enabled: number;
       submissions_closed: number;
+      current_year_id: string;
       project_count: number;
       idea_count: number;
       group_count: number;
@@ -85,6 +93,7 @@ export async function getYear(db: D1Database, id: string) {
   const row = await db
     .prepare(
       `SELECT y.id, y.voting_enabled, y.submissions_closed,
+        ${currentYearIdSql} current_year_id,
         (SELECT COUNT(*) FROM projects p WHERE p.year_id = y.id AND p.status = 'active' AND p.kind = 'project') project_count,
         (SELECT COUNT(*) FROM projects p WHERE p.year_id = y.id AND p.status = 'active' AND p.kind = 'idea') idea_count,
         (SELECT COUNT(*) FROM groups g WHERE g.year_id = y.id) group_count,
@@ -98,6 +107,7 @@ export async function getYear(db: D1Database, id: string) {
       id: string;
       voting_enabled: number;
       submissions_closed: number;
+      current_year_id: string;
       project_count: number;
       idea_count: number;
       group_count: number;
@@ -320,7 +330,8 @@ export async function claimProject(
   }
   const existing = await db
     .prepare(
-      `SELECT p.year_id, p.kind, y.submissions_closed,
+      `SELECT p.year_id, p.kind, y.voting_enabled, y.submissions_closed,
+        ${currentYearIdSql} current_year_id,
         (SELECT COUNT(*) FROM project_members pm WHERE pm.project_id = p.id) member_count
        FROM projects p JOIN years y ON y.id = p.year_id
        WHERE p.id = ? AND p.status = 'active'`,
@@ -329,7 +340,9 @@ export async function claimProject(
     .first<{
       year_id: string;
       kind: string;
+      voting_enabled: number;
       submissions_closed: number;
+      current_year_id: string;
       member_count: number;
     }>();
   if (!existing) {
@@ -338,7 +351,7 @@ export async function claimProject(
   if (existing.kind !== 'idea' || existing.member_count !== 0) {
     throw new ServiceError('CONFLICT', 'This idea has already been claimed', 409);
   }
-  if (existing.submissions_closed) {
+  if (effectiveYearFlags(existing.year_id, existing).submissionsClosed) {
     throw new ServiceError('AUTH_FORBIDDEN', 'Submissions are closed', 403);
   }
   if (existing.year_id !== input.yearId) {
@@ -391,16 +404,17 @@ export async function deleteProject(
 ) {
   const project = await db
     .prepare(
-      `SELECT p.creator_id, y.submissions_closed
+      `SELECT p.year_id, p.creator_id, y.voting_enabled, y.submissions_closed,
+        ${currentYearIdSql} current_year_id
        FROM projects p JOIN years y ON y.id = p.year_id
        WHERE p.id = ? AND p.status = 'active'`,
     )
     .bind(projectId)
-    .first<{creator_id: string; submissions_closed: number}>();
+    .first<StoredYearFlags & {year_id: string; creator_id: string}>();
   if (!project) {
     throw new ServiceError('NOT_FOUND', 'Project not found', 404);
   }
-  if (project.submissions_closed) {
+  if (effectiveYearFlags(project.year_id, project).submissionsClosed) {
     throw new ServiceError('AUTH_FORBIDDEN', 'Submissions are closed', 403);
   }
   if (user.role !== 'admin' && project.creator_id !== user.id) {
@@ -421,8 +435,8 @@ export async function deleteProject(
 async function editableProject(db: D1Database, projectId: string, user: UserContext) {
   const project = await db
     .prepare(
-      `SELECT p.year_id, p.kind, y.submissions_closed,
-        p.creator_id,
+      `SELECT p.year_id, p.kind, y.voting_enabled, y.submissions_closed,
+        ${currentYearIdSql} current_year_id, p.creator_id,
         EXISTS(SELECT 1 FROM project_members pm WHERE pm.project_id = p.id AND pm.user_id = ?) is_member
        FROM projects p JOIN years y ON y.id = p.year_id
        WHERE p.id = ? AND p.status = 'active'`,
@@ -431,14 +445,16 @@ async function editableProject(db: D1Database, projectId: string, user: UserCont
     .first<{
       year_id: string;
       kind: ProjectWriteRequest['kind'];
+      voting_enabled: number;
       submissions_closed: number;
+      current_year_id: string;
       creator_id: string;
       is_member: number;
     }>();
   if (!project) {
     throw new ServiceError('NOT_FOUND', 'Project not found', 404);
   }
-  if (project.submissions_closed) {
+  if (effectiveYearFlags(project.year_id, project).submissionsClosed) {
     throw new ServiceError('AUTH_FORBIDDEN', 'Submissions are closed', 403);
   }
   if (user.role !== 'admin' && !project.is_member && project.creator_id !== user.id) {
@@ -456,14 +472,11 @@ async function assertOpenYearAndReferences(
   input: ProjectWriteRequest,
   actorId: string,
 ) {
-  const year = await db
-    .prepare('SELECT submissions_closed FROM years WHERE id = ?')
-    .bind(input.yearId)
-    .first<{submissions_closed: number}>();
+  const year = await getEffectiveYearFlags(db, input.yearId);
   if (!year) {
     throw new ServiceError('VALIDATION_FAILED', 'Year does not exist', 400);
   }
-  if (year.submissions_closed) {
+  if (year.submissionsClosed) {
     throw new ServiceError('AUTH_FORBIDDEN', 'Submissions are closed', 403);
   }
   if (input.groupId) {
@@ -563,15 +576,18 @@ function mapYear(row: {
   id: string;
   voting_enabled: number;
   submissions_closed: number;
+  current_year_id: string;
   project_count: number;
   idea_count: number;
   group_count: number;
   participant_count: number;
 }): YearSummary {
+  const flags = effectiveYearFlags(row.id, row);
   return {
     id: row.id,
-    votingEnabled: Boolean(row.voting_enabled),
-    submissionsClosed: Boolean(row.submissions_closed),
+    votingEnabled: flags.votingEnabled,
+    submissionsClosed: flags.submissionsClosed,
+    isCurrent: flags.isCurrent,
     projectCount: row.project_count,
     ideaCount: row.idea_count,
     groupCount: row.group_count,

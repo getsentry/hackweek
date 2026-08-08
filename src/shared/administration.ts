@@ -67,6 +67,7 @@ export interface AdminYearResponse {
     id: string;
     votingEnabled: boolean;
     submissionsClosed: boolean;
+    isCurrent: boolean;
   };
   categories: AwardCategorySummary[];
   awards: AwardSummary[];

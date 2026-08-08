@@ -69,6 +69,31 @@ describe('voting and administration journeys', () => {
     });
   });
 
+  it('shows archived year settings as locked', async () => {
+    fetchMock.mockResolvedValue(
+      json({
+        ...adminFixture,
+        year: {
+          id: '2025',
+          votingEnabled: false,
+          submissionsClosed: true,
+          isCurrent: false,
+        },
+      }),
+    );
+    renderRoute(<AdminPage />, '/admin/years/2025', '/admin/years/:yearId');
+
+    expect(await screen.findByText(/This year is archived/)).toBeTruthy();
+    expect(
+      (screen.getByRole('checkbox', {name: 'Submissions closed'}) as HTMLInputElement)
+        .disabled,
+    ).toBe(true);
+    expect(
+      (screen.getByRole('checkbox', {name: 'Voting enabled'}) as HTMLInputElement)
+        .disabled,
+    ).toBe(true);
+  });
+
   it('renders D1 aggregate analytics without raw vote identities', async () => {
     fetchMock.mockResolvedValue(
       json({
@@ -155,7 +180,12 @@ const votingFixture = {
   votes: [vote],
 };
 const adminFixture = {
-  year: {id: '2026', votingEnabled: true, submissionsClosed: false},
+  year: {
+    id: '2026',
+    votingEnabled: true,
+    submissionsClosed: false,
+    isCurrent: true,
+  },
   categories: [{id: 'category-1', yearId: '2026', name: 'Delight'}],
   awards: [],
   projects: [{id: 'project-1', name: 'First project', nominations: []}],

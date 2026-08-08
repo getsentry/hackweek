@@ -71,8 +71,31 @@ describe('year and award administration', () => {
     expect(updated.body.year).toMatchObject({
       votingEnabled: true,
       submissionsClosed: true,
+      isCurrent: true,
     });
     expect(renamed.body.category.name).toBe('Most inventive');
+  });
+
+  it('stores archived year settings while returning their effective locked state', async () => {
+    const archivedYearId = `admin-archive-${sequence}`;
+    await env.DB.prepare('INSERT INTO years (id) VALUES (?)').bind(archivedYearId).run();
+
+    const updated = await api(`/admin/years/${archivedYearId}`, adminToken, {
+      method: 'PUT',
+      body: {votingEnabled: true, submissionsClosed: false},
+    });
+    const stored = await env.DB.prepare(
+      'SELECT voting_enabled, submissions_closed FROM years WHERE id = ?',
+    )
+      .bind(archivedYearId)
+      .first<{voting_enabled: number; submissions_closed: number}>();
+
+    expect(updated.body.year).toMatchObject({
+      votingEnabled: false,
+      submissionsClosed: true,
+      isCurrent: false,
+    });
+    expect(stored).toEqual({voting_enabled: 1, submissions_closed: 0});
   });
 
   it('enforces two distinct same-year nominations in validation and D1', async () => {

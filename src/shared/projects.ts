@@ -7,6 +7,7 @@ export interface YearSummary {
   id: string;
   votingEnabled: boolean;
   submissionsClosed: boolean;
+  isCurrent: boolean;
   projectCount: number;
   ideaCount: number;
   groupCount: number;

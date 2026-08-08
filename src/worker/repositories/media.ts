@@ -1,5 +1,6 @@
 import type {MediaSummary} from '../../shared/projects';
 import {ServiceError} from '../services/errors';
+import {currentYearIdSql, effectiveYearFlags} from './years';
 
 const MAX_MEDIA_BYTES = 25 * 1024 * 1024;
 
@@ -131,22 +132,26 @@ async function assertCanManageMedia(
 ) {
   const project = await db
     .prepare(
-      `SELECT p.kind, p.creator_id, y.submissions_closed,
+      `SELECT p.year_id, p.kind, p.creator_id, y.voting_enabled, y.submissions_closed,
+        ${currentYearIdSql} current_year_id,
         EXISTS(SELECT 1 FROM project_members pm WHERE pm.project_id = p.id AND pm.user_id = ?) is_member
        FROM projects p JOIN years y ON y.id = p.year_id
        WHERE p.id = ? AND p.status = 'active'`,
     )
     .bind(user.id, projectId)
     .first<{
+      year_id: string;
       kind: string;
       creator_id: string;
+      voting_enabled: number;
       submissions_closed: number;
+      current_year_id: string;
       is_member: number;
     }>();
   if (!project) {
     throw new ServiceError('NOT_FOUND', 'Project not found', 404);
   }
-  if (project.submissions_closed) {
+  if (effectiveYearFlags(project.year_id, project).submissionsClosed) {
     throw new ServiceError('AUTH_FORBIDDEN', 'Submissions are closed', 403);
   }
   if (project.kind !== 'project') {

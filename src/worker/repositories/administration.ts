@@ -12,6 +12,7 @@ import type {
 } from '../../shared/administration';
 import {ServiceError} from '../services/errors';
 import {getYear} from './projects';
+import {getEffectiveYearFlags} from './years';
 
 interface CategoryRow {
   id: string;
@@ -111,6 +112,7 @@ export async function castVote(
   input: {yearId: string; projectId: string; categoryId: string},
   userId: string,
 ): Promise<VoteSummary> {
+  await assertVotingEnabled(db, input.yearId);
   const id = crypto.randomUUID();
   try {
     await db
@@ -138,6 +140,9 @@ export async function replaceVote(
   input: {yearId: string; projectId: string; categoryId: string},
   userId: string,
 ): Promise<VoteSummary> {
+  const existingYearId = await getOwnedVoteYear(db, voteId, userId);
+  await assertVotingEnabled(db, existingYearId);
+  if (input.yearId !== existingYearId) await assertVotingEnabled(db, input.yearId);
   try {
     const result = await db
       .prepare(
@@ -160,6 +165,8 @@ export async function replaceVote(
 }
 
 export async function deleteVote(db: D1Database, voteId: string, userId: string) {
+  const yearId = await getOwnedVoteYear(db, voteId, userId);
+  await assertVotingEnabled(db, yearId);
   const result = await db
     .prepare('DELETE FROM votes WHERE id = ? AND creator_id = ?')
     .bind(voteId, userId)
@@ -262,6 +269,7 @@ export async function getAdminYear(
       id: year.id,
       votingEnabled: year.votingEnabled,
       submissionsClosed: year.submissionsClosed,
+      isCurrent: year.isCurrent,
     },
     categories: categoryResult.results.map(mapCategory),
     awards: awardResult.results.map(mapAward),
@@ -508,6 +516,26 @@ export async function getAnalytics(
       voteCount: row.vote_count,
     })),
   };
+}
+
+async function assertVotingEnabled(db: D1Database, yearId: string) {
+  const year = await getEffectiveYearFlags(db, yearId);
+  if (!year?.votingEnabled) {
+    throw new ServiceError(
+      'VALIDATION_FAILED',
+      'voting is not enabled for this year',
+      400,
+    );
+  }
+}
+
+async function getOwnedVoteYear(db: D1Database, voteId: string, userId: string) {
+  const vote = await db
+    .prepare('SELECT year_id FROM votes WHERE id = ? AND creator_id = ?')
+    .bind(voteId, userId)
+    .first<{year_id: string}>();
+  if (!vote) throw new ServiceError('NOT_FOUND', 'Vote not found', 404);
+  return vote.year_id;
 }
 
 async function getAward(db: D1Database, id: string): Promise<AwardSummary> {

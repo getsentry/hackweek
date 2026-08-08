@@ -74,6 +74,46 @@ describe('project and history APIs', () => {
     expect(page.body.projects[0].members).toBeInstanceOf(Array);
   });
 
+  it('derives archived year flags and rejects project creation there', async () => {
+    const archivedYearId = `project-archive-${suffix}`;
+    await env.DB.prepare(
+      'INSERT INTO years (id, voting_enabled, submissions_closed) VALUES (?, 1, 0)',
+    )
+      .bind(archivedYearId)
+      .run();
+
+    const archived = await api('/projects', memberToken, {
+      method: 'POST',
+      body: {
+        ...projectPayload(),
+        yearId: archivedYearId,
+        kind: 'idea',
+        groupId: null,
+      },
+    });
+    const years = await api('/years', memberToken);
+
+    expect(archived).toMatchObject({
+      status: 403,
+      body: {error: {code: 'AUTH_FORBIDDEN', message: 'Submissions are closed'}},
+    });
+    expect(years.body.years).toContainEqual(
+      expect.objectContaining({
+        id: archivedYearId,
+        votingEnabled: false,
+        submissionsClosed: true,
+        isCurrent: false,
+      }),
+    );
+    expect(years.body.years).toContainEqual(
+      expect.objectContaining({
+        id: yearId,
+        submissionsClosed: false,
+        isCurrent: true,
+      }),
+    );
+  });
+
   it('enforces membership, closed submissions, and same-year group references', async () => {
     const project = await createProject(memberToken);
     await session(outsiderToken);

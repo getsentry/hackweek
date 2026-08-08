@@ -1154,6 +1154,7 @@ main {
 }
 .projectForm input[type='text'],
 .projectForm input[type='url'],
+.projectForm input[type='search'],
 .projectForm input:not([type]),
 .projectForm textarea {
   width: 100%;
@@ -1184,8 +1185,7 @@ main {
   gap: 0.75rem;
 }
 .kindPicker label,
-.checkField,
-.teamPicker label {
+.checkField {
   display: flex;
   gap: 0.75rem;
   align-items: start;
@@ -1201,26 +1201,123 @@ main {
 .checkField span {
   display: block;
 }
-.teamPicker {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+.selectedTeam {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  padding: 0;
+  margin: 0 0 1rem;
+  list-style: none;
+}
+.teamMemberChip {
+  display: flex;
   gap: 0.75rem;
-  max-height: 20rem;
-  overflow: auto;
+  align-items: center;
+  max-width: 100%;
+  padding: 0.5rem 0.55rem 0.5rem 0.7rem;
+  border: 1px solid #d9d1ff;
+  border-radius: 0.55rem;
+  background: #f5f2ff;
 }
-.teamPicker label {
-  padding: 0.5rem;
-  border-bottom: 1px solid var(--line);
+.teamMemberChip > span {
+  min-width: 0;
 }
-.teamPicker label span {
-  margin: 0;
-  color: var(--ink);
-}
-.teamPicker small {
+.teamMemberChip strong,
+.teamMemberChip small,
+.teamSearchResults strong,
+.teamSearchResults small {
   display: block;
-  margin-top: 0.2rem;
+}
+.teamMemberChip strong,
+.teamSearchResults strong {
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+.teamMemberChip strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.teamMemberChip small,
+.teamSearchResults small {
+  margin-top: 0.15rem;
+  overflow: hidden;
   color: var(--muted);
   font-size: 0.68rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.teamMemberChip button {
+  display: grid;
+  flex: 0 0 auto;
+  width: 1.55rem;
+  height: 1.55rem;
+  padding: 0;
+  color: var(--blurple);
+  font-size: 1.1rem;
+  line-height: 1;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  place-items: center;
+}
+.teamMemberChip button:hover,
+.teamMemberChip button:focus-visible {
+  background: #e5dfff;
+  outline: none;
+}
+.teamSelectionEmpty {
+  margin: 0 0 0.75rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+.teamSearch {
+  position: relative;
+}
+.teamSearch > label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+.teamSearchResults,
+.teamSearchEmpty {
+  position: absolute;
+  z-index: 2;
+  right: 0;
+  left: 0;
+  padding: 0.35rem;
+  margin: 0.3rem 0 0;
+  border: 1px solid #c9c3d1;
+  border-radius: 0.5rem;
+  background: #fff;
+  box-shadow: 0 0.75rem 1.5rem rgba(43, 34, 70, 0.14);
+}
+.teamSearchResults {
+  max-height: 22rem;
+  overflow-y: auto;
+  list-style: none;
+}
+.teamSearchResults button {
+  width: 100%;
+  padding: 0.6rem 0.7rem;
+  text-align: left;
+  border: 0;
+  border-radius: 0.35rem;
+  background: transparent;
+  cursor: pointer;
+}
+.teamSearchResults button:hover,
+.teamSearchResults button[aria-selected='true'] {
+  background: #f0ecff;
+}
+.teamSearchEmpty {
+  padding: 0.75rem;
+  color: var(--muted);
+  font-size: 0.75rem;
 }
 .checkField {
   padding: 1rem;
@@ -1964,9 +2061,6 @@ kbd {
     border-top: 1px solid var(--line);
     border-left: 0;
   }
-  .teamPicker {
-    grid-template-columns: 1fr 1fr;
-  }
   .heroActions {
     justify-content: flex-start;
   }
@@ -2044,8 +2138,7 @@ kbd {
   .projectForm {
     grid-template-columns: 1fr;
   }
-  .kindPicker,
-  .teamPicker {
+  .kindPicker {
     grid-template-columns: 1fr;
   }
   .formActions,

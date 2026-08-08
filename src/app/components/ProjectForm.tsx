@@ -1,4 +1,4 @@
-import {useEffect, useState, type FormEvent} from 'react';
+import {useEffect, useId, useState, type FormEvent, type KeyboardEvent} from 'react';
 
 import type {ProjectDetail, ProjectWriteRequest} from '../../shared/projects';
 import {useProjectOptions} from '../queries/projects';
@@ -29,6 +29,11 @@ export function ProjectForm({
   );
   const [groupId, setGroupId] = useState(project?.group?.id ?? '');
   const [memberIds, setMemberIds] = useState(project?.members.map(({id}) => id) ?? []);
+  const [memberQuery, setMemberQuery] = useState('');
+  const [memberResultsOpen, setMemberResultsOpen] = useState(false);
+  const [highlightedMember, setHighlightedMember] = useState(-1);
+  const memberListboxId = useId();
+  const memberSearchId = useId();
   const [needsHelp, setNeedsHelp] = useState(project?.needsHelp ?? false);
   const [helpDetails, setHelpDetails] = useState(project?.helpDetails ?? '');
 
@@ -43,6 +48,61 @@ export function ProjectForm({
     setNeedsHelp(project.needsHelp);
     setHelpDetails(project.helpDetails ?? '');
   }, [claim, project]);
+
+  const users = options.data?.users ?? [];
+  const selectedMembers = memberIds.flatMap((id) => {
+    const member =
+      users.find((user) => user.id === id) ??
+      project?.members.find((user) => user.id === id);
+    return member ? [member] : [];
+  });
+  const normalizedMemberQuery = memberQuery.trim().toLowerCase();
+  const matchingMembers = normalizedMemberQuery
+    ? users
+        .filter(
+          (user) =>
+            !memberIds.includes(user.id) &&
+            (user.displayName.toLowerCase().includes(normalizedMemberQuery) ||
+              user.email.toLowerCase().includes(normalizedMemberQuery)),
+        )
+        .slice(0, 8)
+    : [];
+  const showMemberResults = memberResultsOpen && Boolean(normalizedMemberQuery);
+
+  function addMember(id: string) {
+    setMemberIds((members) => (members.includes(id) ? members : [...members, id]));
+    setMemberQuery('');
+    setMemberResultsOpen(false);
+    setHighlightedMember(-1);
+  }
+
+  function handleMemberSearchKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === 'Escape' && memberResultsOpen) {
+      event.preventDefault();
+      setMemberResultsOpen(false);
+      setHighlightedMember(-1);
+      return;
+    }
+    if (event.key === 'Enter' && showMemberResults) {
+      event.preventDefault();
+      const member = matchingMembers[highlightedMember < 0 ? 0 : highlightedMember];
+      if (member) addMember(member.id);
+      return;
+    }
+    if (!matchingMembers.length) return;
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      setMemberResultsOpen(true);
+      setHighlightedMember((index) => (index + 1) % matchingMembers.length);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      setMemberResultsOpen(true);
+      setHighlightedMember((index) =>
+        index <= 0 ? matchingMembers.length - 1 : index - 1,
+      );
+    }
+  }
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -146,25 +206,91 @@ export function ProjectForm({
           </label>
           <fieldset className="teamPicker">
             <legend>Team</legend>
-            {options.data?.users.map((user) => (
-              <label key={user.id}>
-                <input
-                  type="checkbox"
-                  checked={memberIds.includes(user.id)}
-                  onChange={(event) =>
-                    setMemberIds((members) =>
-                      event.target.checked
-                        ? [...members, user.id]
-                        : members.filter((id) => id !== user.id),
-                    )
-                  }
-                />
-                <span>
-                  {user.displayName}
-                  <small>{user.email}</small>
-                </span>
-              </label>
-            ))}
+            {selectedMembers.length ? (
+              <ul className="selectedTeam" aria-label="Selected team members">
+                {selectedMembers.map((member) => (
+                  <li className="teamMemberChip" key={member.id}>
+                    <span>
+                      <strong>{member.displayName}</strong>
+                      <small>{member.email}</small>
+                    </span>
+                    <button
+                      type="button"
+                      aria-label={`Remove ${member.displayName} from team`}
+                      onClick={() =>
+                        setMemberIds((members) =>
+                          members.filter((id) => id !== member.id),
+                        )
+                      }
+                    >
+                      <span aria-hidden="true">×</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="teamSelectionEmpty">No team members selected yet.</p>
+            )}
+            <div
+              className="teamSearch"
+              onBlur={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                  setMemberResultsOpen(false);
+                  setHighlightedMember(-1);
+                }
+              }}
+            >
+              <label htmlFor={memberSearchId}>Search members</label>
+              <input
+                id={memberSearchId}
+                type="search"
+                role="combobox"
+                aria-autocomplete="list"
+                aria-controls={memberListboxId}
+                aria-expanded={showMemberResults}
+                aria-activedescendant={
+                  showMemberResults && highlightedMember >= 0
+                    ? `${memberListboxId}-option-${highlightedMember}`
+                    : undefined
+                }
+                autoComplete="off"
+                placeholder="Search by name or email"
+                value={memberQuery}
+                onFocus={() => {
+                  if (normalizedMemberQuery) setMemberResultsOpen(true);
+                }}
+                onChange={(event) => {
+                  setMemberQuery(event.target.value);
+                  setMemberResultsOpen(Boolean(event.target.value.trim()));
+                  setHighlightedMember(-1);
+                }}
+                onKeyDown={handleMemberSearchKeyDown}
+              />
+              {showMemberResults &&
+                (matchingMembers.length ? (
+                  <ul className="teamSearchResults" id={memberListboxId} role="listbox">
+                    {matchingMembers.map((member, index) => (
+                      <li key={member.id}>
+                        <button
+                          id={`${memberListboxId}-option-${index}`}
+                          type="button"
+                          role="option"
+                          aria-selected={highlightedMember === index}
+                          onMouseEnter={() => setHighlightedMember(index)}
+                          onClick={() => addMember(member.id)}
+                        >
+                          <strong>{member.displayName}</strong>
+                          <small>{member.email}</small>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="teamSearchEmpty" role="status">
+                    No matches
+                  </p>
+                ))}
+            </div>
           </fieldset>
           <label className="checkField">
             <input

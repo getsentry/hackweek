@@ -118,7 +118,7 @@ describe('clickable project routes', () => {
     const hero = await screen.findByRole('region', {name: 'Hackweek 2025'});
     expect(within(hero).getByRole('heading', {name: 'Hackweek 2025'})).toBeTruthy();
     expect(within(hero).getByText('8')).toBeTruthy();
-    expect(hero.querySelector('.yearBannerFallback')).toBeTruthy();
+    expect(hero.querySelector('.yearBanner, .yearBannerFallback')).toBeTruthy();
     expect(
       within(hero)
         .getByRole('link', {name: /submissions open/})

@@ -296,15 +296,13 @@ main {
   transform: scale(1.01);
 }
 .currentYearHeroContent {
-  position: relative;
-  z-index: 1;
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.9fr);
   gap: clamp(2rem, 5vw, 4rem);
   align-items: end;
-  width: calc(100% - clamp(1.5rem, 6vw, 5rem));
+  width: 100%;
   padding: clamp(1.75rem, 5vw, 3rem);
-  margin: clamp(-5rem, -8vw, -3.5rem) auto 0;
+  margin: 1.5rem auto 0;
   color: #fff;
   border-radius: 1rem;
   background: var(--dark-blurple);
@@ -384,6 +382,7 @@ main {
   display: grid;
   grid-template-columns: minmax(0, 43.8125rem);
   gap: 2.5rem;
+  justify-content: center;
   padding: 0;
   margin: 0;
   list-style: none;

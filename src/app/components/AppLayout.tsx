@@ -20,7 +20,7 @@ export function AppLayout({user, children}: {user: SessionUser; children: ReactN
         </Link>
         <nav aria-label="Primary navigation">
           <Link href="/years" className={archivesActive ? 'active' : ''}>
-            archives
+            hackweek
           </Link>
           {user.role === 'admin' && (
             <Link href="/admin/years/new" className={adminActive ? 'active' : ''}>

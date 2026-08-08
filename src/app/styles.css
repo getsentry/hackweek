@@ -599,6 +599,36 @@ main {
 .segmented button.active span {
   color: var(--blurple);
 }
+.projectControlActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+.projectViewToggle {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: var(--soft);
+}
+.projectViewToggle button {
+  min-height: 2rem;
+  padding: 0.35rem 0.55rem;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  border: 0;
+  border-radius: 0.35rem;
+  background: transparent;
+}
+.projectViewToggle button[aria-pressed='true'] {
+  color: var(--dark-blurple);
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(29, 17, 39, 0.12);
+}
 .projectControls label,
 .operationsBar label {
   display: flex;
@@ -627,6 +657,57 @@ main {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1.25rem;
+}
+.projectList {
+  border-top: 1px solid var(--line);
+}
+.projectRow {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1fr) auto auto auto;
+  gap: 1rem;
+  align-items: center;
+  min-width: 0;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--line);
+  animation: rise 0.3s ease-out both;
+}
+.projectRow h2 {
+  min-width: 0;
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+}
+.projectRow h2 a {
+  display: block;
+  overflow: hidden;
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.projectRowTags {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+.projectRow .tag {
+  padding: 0.27rem 0.5rem;
+  font-size: 0.65rem;
+  white-space: nowrap;
+}
+.projectRow .memberStack > span {
+  width: 1.65rem;
+  height: 1.65rem;
+  font-size: 0.55rem;
+}
+.projectRow .openSeat,
+.projectRowAttachments {
+  color: var(--muted);
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+.projectRow .openSeat {
+  color: var(--blurple);
 }
 .projectCard {
   display: flex;
@@ -695,7 +776,7 @@ main {
   font-size: 0.95rem;
   line-height: 1.55;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
+  -webkit-line-clamp: 3;
 }
 .projectCard footer {
   display: flex;
@@ -1930,6 +2011,32 @@ kbd {
   .nominationRow {
     align-items: stretch;
     flex-direction: column;
+  }
+  .projectControlActions {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .projectRow {
+    grid-template-areas:
+      'name name name'
+      'tags members attachments';
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 0.6rem 0.8rem;
+  }
+  .projectRow h2 {
+    grid-area: name;
+  }
+  .projectRowTags {
+    grid-area: tags;
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+  .projectRow > .memberStack,
+  .projectRow > .openSeat {
+    grid-area: members;
+  }
+  .projectRowAttachments {
+    grid-area: attachments;
   }
   .detailActions {
     min-width: 0;

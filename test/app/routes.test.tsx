@@ -15,7 +15,10 @@ import type {ProjectDetail} from '../../src/shared/projects';
 const fetchMock = vi.fn<typeof fetch>();
 vi.stubGlobal('fetch', fetchMock);
 
-afterEach(() => fetchMock.mockReset());
+afterEach(() => {
+  fetchMock.mockReset();
+  window.localStorage.removeItem('hackweek.projectsView');
+});
 
 describe('clickable project routes', () => {
   it('renders the legacy Hackweek masthead with accessible navigation and identity', () => {
@@ -160,7 +163,7 @@ describe('clickable project routes', () => {
     expect(within(archives).queryByText('2025')).toBeNull();
   });
 
-  it('moves between project and idea query state from the route controls', async () => {
+  it('defaults to the grid view when storage is unavailable', async () => {
     fetchMock.mockImplementation(async (input) => {
       const url =
         typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
@@ -196,10 +199,39 @@ describe('clickable project routes', () => {
       });
     });
 
-    renderRoute(<ProjectsPage />, '/years/2026/projects', '/years/:yearId/projects');
+    const storageDescriptor = Object.getOwnPropertyDescriptor(window, 'localStorage')!;
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      get() {
+        throw new DOMException('Blocked', 'SecurityError');
+      },
+    });
+    try {
+      renderRoute(<ProjectsPage />, '/years/2026/projects', '/years/:yearId/projects');
+    } finally {
+      Object.defineProperty(window, 'localStorage', storageDescriptor);
+    }
+
     const projectHeading = await screen.findByRole('heading', {name: 'A small machine'});
     expect(projectHeading.closest('.projectCard')).toBeTruthy();
-    expect(screen.getByRole('region', {name: 'project list'})).toBeTruthy();
+    expect(screen.getByRole('region', {name: 'project list'}).className).toBe(
+      'projectGrid',
+    );
+    expect(
+      screen.getByRole('button', {name: 'grid view'}).getAttribute('aria-pressed'),
+    ).toBe('true');
+    expect(window.localStorage.getItem('hackweek.projectsView')).toBeNull();
+
+    const setItem = vi
+      .spyOn(window.localStorage, 'setItem')
+      .mockImplementationOnce(() => {
+        throw new DOMException('Blocked', 'QuotaExceededError');
+      });
+    await userEvent.click(screen.getByRole('button', {name: 'list view'}));
+    setItem.mockRestore();
+    expect(screen.getByRole('region', {name: 'project list'}).className).toBe(
+      'projectList',
+    );
 
     await userEvent.click(screen.getByRole('button', {name: /Ideas/}));
 
@@ -208,6 +240,65 @@ describe('clickable project routes', () => {
       expect.stringContaining('kind=idea'),
       undefined,
     );
+  });
+
+  it('switches to compact list rows and restores the stored preference', async () => {
+    fetchMock.mockImplementation(async (input) => {
+      const url =
+        typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      if (url.includes('/api/years/2026')) {
+        return json({
+          year: {
+            id: '2026',
+            votingEnabled: false,
+            submissionsClosed: false,
+            projectCount: 1,
+            ideaCount: 0,
+            groupCount: 1,
+            participantCount: 1,
+          },
+          groups: [{id: 'group', yearId: '2026', name: 'Orbital', projectCount: 1}],
+          awards: [],
+        });
+      }
+      return json({
+        projects: [{...projectFixture, needsHelp: true, mediaCount: 2}],
+        nextCursor: null,
+      });
+    });
+
+    const firstRender = renderRoute(
+      <ProjectsPage />,
+      '/years/2026/projects',
+      '/years/:yearId/projects',
+    );
+    await screen.findByRole('heading', {name: 'A small machine'});
+
+    await userEvent.click(screen.getByRole('button', {name: 'list view'}));
+
+    const list = screen.getByRole('region', {name: 'project list'});
+    const row = screen
+      .getByRole('heading', {name: 'A small machine'})
+      .closest('.projectRow');
+    expect(list.className).toBe('projectList');
+    expect(row).toBeTruthy();
+    expect(within(row as HTMLElement).getByText('Orbital')).toBeTruthy();
+    expect(within(row as HTMLElement).getByText('looking for help')).toBeTruthy();
+    expect(within(row as HTMLElement).getByLabelText('Member One')).toBeTruthy();
+    expect(within(row as HTMLElement).getByText('2 attachments')).toBeTruthy();
+    expect(within(row as HTMLElement).queryByText(projectFixture.summary)).toBeNull();
+    expect(window.localStorage.getItem('hackweek.projectsView')).toBe('list');
+
+    firstRender.unmount();
+    renderRoute(<ProjectsPage />, '/years/2026/projects', '/years/:yearId/projects');
+
+    const restoredHeading = await screen.findByRole('heading', {
+      name: 'A small machine',
+    });
+    expect(restoredHeading.closest('.projectRow')).toBeTruthy();
+    expect(
+      screen.getByRole('button', {name: 'list view'}).getAttribute('aria-pressed'),
+    ).toBe('true');
   });
 
   it('renders an idea with no video and exposes the server claim permission', async () => {

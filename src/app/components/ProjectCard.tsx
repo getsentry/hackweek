@@ -2,28 +2,52 @@ import {Link} from 'wouter';
 
 import type {ProjectSummary} from '../../shared/projects';
 
-export function ProjectCard({project}: {project: ProjectSummary}) {
+export function ProjectCard({
+  project,
+  view = 'grid',
+}: {
+  project: ProjectSummary;
+  view?: 'grid' | 'list';
+}) {
+  const projectLink = `/years/${project.yearId}/projects/${project.id}`;
+  const attachmentCount = `${project.mediaCount} ${project.mediaCount === 1 ? 'attachment' : 'attachments'}`;
+
+  if (view === 'list') {
+    return (
+      <article className={`projectRow projectRow--${project.kind}`}>
+        <h2>
+          <Link href={projectLink}>{project.name}</Link>
+        </h2>
+        <ProjectTags project={project} className="projectRowTags" />
+        <MemberStack members={project.members} />
+        <span className="projectRowAttachments">{attachmentCount}</span>
+      </article>
+    );
+  }
+
   return (
     <article className={`projectCard projectCard--${project.kind}`}>
-      <div className="cardMeta">
-        <span className="tag tag--group">
-          {project.kind === 'idea' ? 'open idea' : (project.group?.name ?? 'ungrouped')}
-        </span>
-        {project.needsHelp && <strong className="tag tag--help">looking for help</strong>}
-      </div>
+      <ProjectTags project={project} className="cardMeta" />
       <h2>
-        <Link href={`/years/${project.yearId}/projects/${project.id}`}>
-          {project.name}
-        </Link>
+        <Link href={projectLink}>{project.name}</Link>
       </h2>
-      <p>{project.summary}</p>
+      <p title={project.summary}>{project.summary}</p>
       <footer>
         <MemberStack members={project.members} />
-        <span>
-          {project.mediaCount} {project.mediaCount === 1 ? 'attachment' : 'attachments'}
-        </span>
+        <span>{attachmentCount}</span>
       </footer>
     </article>
+  );
+}
+
+function ProjectTags({project, className}: {project: ProjectSummary; className: string}) {
+  return (
+    <div className={className}>
+      <span className="tag tag--group">
+        {project.kind === 'idea' ? 'open idea' : (project.group?.name ?? 'ungrouped')}
+      </span>
+      {project.needsHelp && <strong className="tag tag--help">looking for help</strong>}
+    </div>
   );
 }
 

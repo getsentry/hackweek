@@ -548,6 +548,7 @@ function mapProject(row: ProjectRow, members: ProjectMember[]): ProjectSummary {
       displayName: row.creator_name,
       avatarUrl: row.creator_avatar,
       role: row.creator_admin ? 'admin' : 'member',
+      actualRole: row.creator_admin ? 'admin' : 'member',
     },
     group:
       row.group_id && row.group_name
@@ -599,6 +600,7 @@ function mapMember(row: Omit<MemberRow, 'project_id'>): ProjectMember {
     displayName: row.display_name,
     avatarUrl: row.avatar_url,
     role: row.is_admin ? 'admin' : 'member',
+    actualRole: row.is_admin ? 'admin' : 'member',
   };
 }
 

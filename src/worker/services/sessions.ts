@@ -1,4 +1,4 @@
-import type {SessionUser} from '../../shared/api';
+import type {SessionUser, SessionViewMode} from '../../shared/api';
 
 export const SESSION_TTL_SECONDS = 8 * 60 * 60;
 
@@ -17,6 +17,7 @@ interface SessionRow {
   avatar_url: string | null;
   is_admin: number;
   google_subject: string | null;
+  view_as_member: number;
 }
 
 export async function createSession(db: D1Database, userId: string, now = nowSeconds()) {
@@ -43,7 +44,7 @@ export async function findUserBySessionToken(
   const row = await db
     .prepare(
       `SELECT s.token_hash, s.user_id, u.email, u.display_name, u.avatar_url,
-              u.is_admin, u.google_subject
+              u.is_admin, u.google_subject, s.view_as_member
        FROM user_sessions s
        JOIN users u ON u.id = s.user_id
        WHERE s.token_hash = ? AND s.revoked_at IS NULL AND s.expires_at > ?`,
@@ -66,6 +67,38 @@ export async function findUserBySessionToken(
     },
     user: toSessionUser(row),
   };
+}
+
+export async function setSessionViewMode(
+  db: D1Database,
+  tokenHash: string,
+  mode: SessionViewMode,
+): Promise<SessionUser | null> {
+  const result = await db
+    .prepare(
+      `UPDATE user_sessions
+       SET view_as_member = ?
+       WHERE token_hash = ?
+         AND EXISTS (
+           SELECT 1 FROM users
+           WHERE users.id = user_sessions.user_id AND users.is_admin = 1
+         )`,
+    )
+    .bind(mode === 'member' ? 1 : 0, tokenHash)
+    .run();
+  if (result.meta.changes !== 1) return null;
+
+  const row = await db
+    .prepare(
+      `SELECT s.token_hash, s.user_id, u.email, u.display_name, u.avatar_url,
+              u.is_admin, u.google_subject, s.view_as_member
+       FROM user_sessions s
+       JOIN users u ON u.id = s.user_id
+       WHERE s.token_hash = ?`,
+    )
+    .bind(tokenHash)
+    .first<SessionRow>();
+  return row ? toSessionUser(row) : null;
 }
 
 export async function revokeSessionByTokenHash(
@@ -128,12 +161,14 @@ export function randomBase64Url(bytes: number) {
 }
 
 function toSessionUser(row: SessionRow): SessionUser {
+  const actualRole = row.is_admin === 1 ? 'admin' : 'member';
   return {
     id: row.user_id,
     email: row.email.toLowerCase(),
     displayName: row.display_name,
     avatarUrl: row.avatar_url,
-    role: row.is_admin === 1 ? 'admin' : 'member',
+    role: actualRole === 'admin' && row.view_as_member === 1 ? 'member' : actualRole,
+    actualRole,
   };
 }
 

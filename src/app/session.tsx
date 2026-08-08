@@ -1,10 +1,28 @@
-import {createContext, useContext, useEffect, useState, type ReactNode} from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+  type ReactNode,
+} from 'react';
 
-import type {ApiErrorResponse, SessionResponse, SessionUser} from '../shared/api';
+import type {
+  ApiErrorResponse,
+  SessionResponse,
+  SessionUser,
+  SessionViewMode,
+} from '../shared/api';
+import {apiRequest, jsonRequest} from './queries/api';
 
 type SessionState =
   | {status: 'loading'; user: null; reason: null}
-  | {status: 'authenticated'; user: SessionUser; reason: null}
+  | {
+      status: 'authenticated';
+      user: SessionUser;
+      reason: null;
+      setViewMode: (mode: SessionViewMode) => Promise<void>;
+    }
   | {status: 'unauthenticated'; user: null; reason: string | null}
   | {status: 'forbidden'; user: null; reason: string | null}
   | {status: 'error'; user: null; reason: string | null};
@@ -18,6 +36,18 @@ export function SessionProvider({children}: {children: ReactNode}) {
     user: null,
     reason: null,
   });
+  const setViewMode = useCallback(async (mode: SessionViewMode) => {
+    const result = await apiRequest<SessionResponse>(
+      '/session/view-mode',
+      jsonRequest('POST', {mode}),
+    );
+    setSession({
+      status: 'authenticated',
+      user: result.user,
+      reason: null,
+      setViewMode,
+    });
+  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -25,7 +55,12 @@ export function SessionProvider({children}: {children: ReactNode}) {
       .then(async (response) => {
         if (response.ok) {
           const result = (await response.json()) as SessionResponse;
-          setSession({status: 'authenticated', user: result.user, reason: null});
+          setSession({
+            status: 'authenticated',
+            user: result.user,
+            reason: null,
+            setViewMode,
+          });
           return;
         }
 
@@ -44,7 +79,7 @@ export function SessionProvider({children}: {children: ReactNode}) {
         }
       });
     return () => controller.abort();
-  }, [authError]);
+  }, [authError, setViewMode]);
 
   return <SessionContext.Provider value={session}>{children}</SessionContext.Provider>;
 }

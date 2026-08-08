@@ -17,6 +17,7 @@ export interface ApiErrorResponse {
 }
 
 export type UserRole = 'member' | 'admin';
+export type SessionViewMode = 'admin' | 'member';
 
 export interface SessionUser {
   id: string;
@@ -24,10 +25,15 @@ export interface SessionUser {
   displayName: string;
   avatarUrl: string | null;
   role: UserRole;
+  actualRole: UserRole;
 }
 
 export interface SessionResponse {
   user: SessionUser;
+}
+
+export interface UpdateSessionViewModeRequest {
+  mode: SessionViewMode;
 }
 
 export interface UpdateProfileRequest {

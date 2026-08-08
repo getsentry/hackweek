@@ -80,6 +80,7 @@ export async function synchronizeGoogleUser(
     displayName: identity.displayName,
     avatarUrl: identity.avatarUrl,
     role: 'member',
+    actualRole: 'member',
   };
 }
 
@@ -129,12 +130,14 @@ async function findByEmail(db: D1Database, email: string) {
 }
 
 function toSessionUser(row: UserRow): SessionUser {
+  const role = row.is_admin === 1 ? 'admin' : 'member';
   return {
     id: row.id,
     email: row.email.toLowerCase(),
     displayName: row.display_name,
     avatarUrl: row.avatar_url,
-    role: row.is_admin === 1 ? 'admin' : 'member',
+    role,
+    actualRole: role,
   };
 }
 

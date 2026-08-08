@@ -147,6 +147,19 @@ input:disabled {
   align-items: center;
   justify-self: end;
 }
+.viewModeSwitch {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+  padding-right: 0.8rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  white-space: nowrap;
+  border-right: 1px solid var(--line);
+}
+.viewModeSwitch small {
+  color: var(--danger);
+}
 .identity {
   text-align: right;
 }
@@ -1892,7 +1905,8 @@ kbd {
   .masthead nav a {
     min-height: 2.8rem;
   }
-  .identity span {
+  .identity span,
+  .viewModeSwitch > span {
     display: none;
   }
   .currentYearHeroContent {

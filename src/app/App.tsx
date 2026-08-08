@@ -46,7 +46,7 @@ export function App() {
   }
 
   return (
-    <AppLayout user={session.user}>
+    <AppLayout user={session.user} onViewModeChange={session.setViewMode}>
       <Switch>
         <Route path="/years" component={YearsPage} />
         <Route path="/admin/analytics">

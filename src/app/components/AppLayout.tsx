@@ -1,12 +1,34 @@
-import type {ReactNode} from 'react';
+import {useState, type ReactNode} from 'react';
 import {Link, useRoute} from 'wouter';
 
-import type {SessionUser} from '../../shared/api';
+import type {SessionUser, SessionViewMode} from '../../shared/api';
 import sentrySymbol from '../../assets/logos/logo-sentry-symbol.svg';
 
-export function AppLayout({user, children}: {user: SessionUser; children: ReactNode}) {
+export function AppLayout({
+  user,
+  onViewModeChange,
+  children,
+}: {
+  user: SessionUser;
+  onViewModeChange: (mode: SessionViewMode) => Promise<void>;
+  children: ReactNode;
+}) {
   const [archivesActive] = useRoute('/years*');
   const [adminActive] = useRoute('/admin*');
+  const [switchingViewMode, setSwitchingViewMode] = useState(false);
+  const [viewModeError, setViewModeError] = useState<string | null>(null);
+
+  async function switchViewMode() {
+    setSwitchingViewMode(true);
+    setViewModeError(null);
+    try {
+      await onViewModeChange(user.role === 'admin' ? 'member' : 'admin');
+    } catch {
+      setViewModeError('unable to switch view');
+    } finally {
+      setSwitchingViewMode(false);
+    }
+  }
   return (
     <div className="appFrame">
       <header className="masthead app-header">
@@ -29,6 +51,21 @@ export function AppLayout({user, children}: {user: SessionUser; children: ReactN
           )}
         </nav>
         <div className="identityActions">
+          {user.actualRole === 'admin' && (
+            <div className="viewModeSwitch">
+              <span>viewing as {user.role === 'admin' ? 'admin' : 'user'}</span>
+              <span aria-hidden="true">|</span>
+              <button
+                className="textButton"
+                type="button"
+                disabled={switchingViewMode}
+                onClick={switchViewMode}
+              >
+                {user.role === 'admin' ? 'switch to user view' : 'back to admin'}
+              </button>
+              {viewModeError && <small role="status">{viewModeError}</small>}
+            </div>
+          )}
           <div
             className="identity"
             aria-label={`signed in as ${user.displayName}, ${user.role}`}

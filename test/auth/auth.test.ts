@@ -10,6 +10,7 @@ import {
 } from '../../src/worker/middleware/auth';
 import {sha256Hex} from '../../src/worker/services/sessions';
 import {
+  authenticatedHeaders,
   cookieToken,
   createSessionCookie,
   googleAuthBindings,
@@ -222,6 +223,80 @@ describe('Google OAuth authorization code flow', () => {
 });
 
 describe('session and request security', () => {
+  it('lets an admin enter member mode and return using their underlying role', async () => {
+    const cookie = await createSessionCookie({
+      sub: 'google-admin',
+      email: 'admin@sentry.io',
+      name: 'Hackweek Admin',
+    });
+    await env.DB.prepare(
+      "UPDATE users SET is_admin = 1 WHERE google_subject = 'google-admin'",
+    ).run();
+
+    const initial = await SELF.fetch(endpoint, {headers: {Cookie: cookie}});
+    expect(await initial.json()).toMatchObject({
+      user: {role: 'admin', actualRole: 'admin'},
+    });
+
+    const invalid = await changeViewMode(cookie, 'owner');
+    expect(invalid.status).toBe(400);
+
+    const memberMode = await changeViewMode(cookie, 'member');
+    expect(memberMode.status).toBe(200);
+    expect(await memberMode.json()).toMatchObject({
+      user: {role: 'member', actualRole: 'admin'},
+    });
+    expect(
+      (
+        await env.DB.prepare(
+          `SELECT view_as_member FROM user_sessions
+           JOIN users ON users.id = user_sessions.user_id
+           WHERE users.google_subject = 'google-admin'`,
+        ).first()
+      )?.view_as_member,
+    ).toBe(1);
+    expect(
+      (
+        await SELF.fetch('https://hackweek.test/api/admin/session', {
+          headers: {Cookie: cookie},
+        })
+      ).status,
+    ).toBe(403);
+
+    const adminMode = await changeViewMode(cookie, 'admin');
+    expect(adminMode.status).toBe(200);
+    expect(await adminMode.json()).toMatchObject({
+      user: {role: 'admin', actualRole: 'admin'},
+    });
+    expect(
+      (
+        await SELF.fetch('https://hackweek.test/api/admin/session', {
+          headers: {Cookie: cookie},
+        })
+      ).status,
+    ).toBe(200);
+  });
+
+  it('forbids members from changing either session view mode', async () => {
+    const cookie = await createSessionCookie();
+
+    for (const mode of ['member', 'admin']) {
+      const response = await changeViewMode(cookie, mode);
+      expect(response.status).toBe(403);
+    }
+
+    const stored = await env.DB.prepare(
+      `SELECT view_as_member FROM user_sessions
+       JOIN users ON users.id = user_sessions.user_id
+       WHERE users.google_subject = 'google-member'`,
+    ).first();
+    expect(stored).toEqual({view_as_member: 0});
+    const session = await SELF.fetch(endpoint, {headers: {Cookie: cookie}});
+    expect(await session.json()).toMatchObject({
+      user: {role: 'member', actualRole: 'member'},
+    });
+  });
+
   it('revokes logout, clears the cookie, and requires exact same origin', async () => {
     const cookie = await createSessionCookie();
     const crossOrigin = await SELF.fetch('https://hackweek.test/api/auth/logout', {
@@ -328,6 +403,16 @@ async function beginLogin() {
   });
   const url = new URL(login.headers.get('Location')!);
   return {state: url.searchParams.get('state')!, nonce: url.searchParams.get('nonce')!};
+}
+
+function changeViewMode(cookie: string, mode: string) {
+  const headers = authenticatedHeaders(cookie, true);
+  headers.set('Content-Type', 'application/json');
+  return SELF.fetch(`${endpoint}/view-mode`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({mode}),
+  });
 }
 
 function callback(state: string) {

@@ -27,7 +27,9 @@ describe('clickable project routes', () => {
           displayName: 'Member One',
           avatarUrl: null,
           role: 'admin',
+          actualRole: 'admin',
         }}
+        onViewModeChange={async () => {}}
       >
         <main>content</main>
       </AppLayout>,
@@ -39,6 +41,29 @@ describe('clickable project routes', () => {
     expect(wordmark.querySelector('img')?.getAttribute('alt')).toBe('');
     expect(screen.getByRole('navigation', {name: 'Primary navigation'})).toBeTruthy();
     expect(screen.getByLabelText('signed in as Member One, admin')).toBeTruthy();
+    expect(screen.getByRole('button', {name: 'switch to user view'})).toBeTruthy();
+  });
+
+  it('only shows the view mode switch to underlying admins', () => {
+    renderRoute(
+      <AppLayout
+        user={{
+          id: 'member',
+          email: 'member@sentry.io',
+          displayName: 'Member One',
+          avatarUrl: null,
+          role: 'member',
+          actualRole: 'member',
+        }}
+        onViewModeChange={async () => {}}
+      >
+        <main>content</main>
+      </AppLayout>,
+      '/years',
+    );
+
+    expect(screen.queryByText(/viewing as/)).toBeNull();
+    expect(screen.queryByRole('button', {name: /user view|back to admin/})).toBeNull();
   });
 
   it('renders the archive empty state accessibly', async () => {
@@ -287,6 +312,7 @@ const projectFixture: ProjectDetail = {
     displayName: 'Member One',
     avatarUrl: null,
     role: 'member',
+    actualRole: 'member',
   },
   group: {id: 'group', yearId: '2026', name: 'Orbital', projectCount: 1},
   members: [
@@ -296,6 +322,7 @@ const projectFixture: ProjectDetail = {
       displayName: 'Member One',
       avatarUrl: null,
       role: 'member',
+      actualRole: 'member',
     },
   ],
   mediaCount: 0,

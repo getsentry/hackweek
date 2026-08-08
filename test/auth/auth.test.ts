@@ -13,7 +13,6 @@ import {
   cookieToken,
   createSessionCookie,
   googleAuthBindings,
-  localBrowserAuthBindings,
   signGoogleIdToken,
 } from './fixture';
 
@@ -274,30 +273,45 @@ describe('session and request security', () => {
       ).status,
     ).toBe(401);
   });
+
+  it('rejects forged identity headers without a session', async () => {
+    const response = await SELF.fetch(endpoint, {
+      headers: {
+        'Cf-Access-Authenticated-User-Email': 'admin@sentry.io',
+        'Cf-Access-Jwt-Assertion': 'forged',
+        'X-Goog-Authenticated-User-Email': 'accounts.google.com:admin@sentry.io',
+        'X-Goog-Authenticated-User-Id': 'accounts.google.com:attacker',
+      },
+    });
+
+    expect(response.status).toBe(401);
+    expect(await response.json()).toEqual({
+      error: {code: 'AUTH_REQUIRED', message: 'Sign in is required'},
+    });
+  });
 });
 
-describe('loopback local authentication', () => {
-  it.each([
-    'http://localhost:5173/api/session',
-    'http://127.0.0.1:5173/api/session',
-    'http://[::1]:5173/api/session',
-  ])('creates a D1 member when APP_ORIGIN exactly matches %s', async (url) => {
-    const origin = new URL(url).origin;
-    const response = await fetchLocal(url, {APP_ORIGIN: origin});
-    expect(response.status).toBe(200);
+describe('Google OAuth configuration', () => {
+  it.each<[string, Partial<AuthBindings>]>([
+    ['APP_ORIGIN is missing', {APP_ORIGIN: undefined}],
+    ['GOOGLE_CLIENT_ID is missing', {GOOGLE_CLIENT_ID: undefined}],
+    ['GOOGLE_CLIENT_SECRET is missing', {GOOGLE_CLIENT_SECRET: undefined}],
+    ['GOOGLE_REDIRECT_URI is missing', {GOOGLE_REDIRECT_URI: undefined}],
+    [
+      'GOOGLE_REDIRECT_URI does not match APP_ORIGIN',
+      {GOOGLE_REDIRECT_URI: 'https://hackweek.test/wrong'},
+    ],
+    ['ALLOWED_EMAIL_DOMAIN is missing', {ALLOWED_EMAIL_DOMAIN: undefined}],
+  ])('fails closed when %s', async (_name, overrides) => {
+    const response = await fetchWithAuthBindings(overrides);
+
+    expect(response.status).toBe(500);
     expect(await response.json()).toMatchObject({
-      user: {email: 'developer@sentry.io', role: 'member'},
+      error: {code: 'AUTH_CONFIG_INVALID'},
     });
   });
 
-  it.each(['https://hackweek.test', 'http://192.168.1.20:5173', 'http://127.0.0.2:5173'])(
-    'fails closed for non-loopback APP_ORIGIN %s',
-    async (APP_ORIGIN) => {
-      expect(() => readAuthConfig({...localBrowserAuthBindings, APP_ORIGIN})).toThrow();
-    },
-  );
-
-  it('uses a non-Secure local cookie only for loopback Google OAuth', () => {
+  it('supports Google OAuth on an exact loopback origin', () => {
     const config = readAuthConfig({
       ...googleAuthBindings,
       APP_ORIGIN: 'http://localhost:5173',
@@ -305,14 +319,6 @@ describe('loopback local authentication', () => {
     });
     expect(config.secureCookie).toBe(false);
     expect(LOCAL_SESSION_COOKIE_NAME).not.toMatch(/^__Host-/);
-  });
-
-  it('rejects Google configuration and role input in local mode', async () => {
-    const response = await fetchLocal('http://localhost:5173/api/session?role=admin', {
-      GOOGLE_CLIENT_ID: 'attacker-client',
-      LOCAL_AUTH_IS_ADMIN: 'true',
-    });
-    expect(response.status).toBe(500);
   });
 });
 
@@ -331,18 +337,15 @@ function callback(state: string) {
   );
 }
 
-function fetchLocal(
-  url: string,
-  override: Partial<AuthBindings> & {LOCAL_AUTH_IS_ADMIN?: string} = {},
-) {
+function fetchWithAuthBindings(overrides: Partial<AuthBindings>) {
   return app.request(
-    url,
+    endpoint,
     {},
     {
       DB: env.DB,
       ATTACHMENTS: env.ATTACHMENTS,
-      ...localBrowserAuthBindings,
-      ...override,
+      ...googleAuthBindings,
+      ...overrides,
     },
   );
 }

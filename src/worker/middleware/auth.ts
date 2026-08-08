@@ -2,7 +2,6 @@ import {createMiddleware} from 'hono/factory';
 
 import type {ApiErrorCode, ApiErrorResponse, SessionUser} from '../../shared/api';
 import {findUserBySessionToken, type SessionIdentity} from '../services/sessions';
-import {findUserByLocalIdentity} from '../services/users';
 
 export const SESSION_COOKIE_NAME = '__Host-sentry-hackweek-session';
 export const LOCAL_SESSION_COOKIE_NAME = 'sentry-hackweek-session';
@@ -10,32 +9,26 @@ export const LOCAL_SESSION_COOKIE_NAME = 'sentry-hackweek-session';
 export interface AuthVariables {
   identity: SessionIdentity;
   user: SessionUser;
-  sessionTokenHash: string | null;
+  sessionTokenHash: string;
 }
 
 export interface AuthBindings {
   ALLOWED_EMAIL_DOMAIN: string;
   APP_ORIGIN?: string;
-  AUTH_MODE?: string;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   GOOGLE_REDIRECT_URI?: string;
   GOOGLE_JWKS_JSON?: string;
   GOOGLE_TOKEN_ENDPOINT?: string;
-  LOCAL_AUTH_EMAIL?: string;
-  LOCAL_AUTH_NAME?: string;
-  LOCAL_AUTH_SUBJECT?: string;
 }
 
 export interface AuthConfig {
-  mode: 'google' | 'local';
   allowedEmailDomain: string;
   appOrigin: string;
   callbackUri: string;
   secureCookie: boolean;
-  clientId?: string;
-  clientSecret?: string;
-  localIdentity?: SessionIdentity;
+  clientId: string;
+  clientSecret: string;
 }
 
 export class AuthenticationError extends Error {
@@ -57,33 +50,25 @@ export function authenticateRequest<
   return createMiddleware<E>(async (c, next) => {
     try {
       const config = readAuthConfig(c.env);
-      if (config.mode === 'local') {
-        assertRequestUsesConfiguredOrigin(c.req.raw, config);
-        const user = await findUserByLocalIdentity(c.env.DB, config.localIdentity!);
-        c.set('identity', config.localIdentity!);
-        c.set('user', user);
-        c.set('sessionTokenHash', null);
-      } else {
-        assertRequestUsesConfiguredOrigin(c.req.raw, config);
-        const token = readCookie(
-          c.req.header('Cookie'),
-          config.secureCookie ? SESSION_COOKIE_NAME : LOCAL_SESSION_COOKIE_NAME,
-        );
-        if (!token) {
-          throw new AuthenticationError('AUTH_REQUIRED', 'Sign in is required', 401);
-        }
-        const session = await findUserBySessionToken(c.env.DB, token);
-        if (!session) {
-          throw new AuthenticationError(
-            'AUTH_REQUIRED',
-            'Your session has expired. Sign in again.',
-            401,
-          );
-        }
-        c.set('identity', session.identity);
-        c.set('user', session.user);
-        c.set('sessionTokenHash', session.tokenHash);
+      assertRequestUsesConfiguredOrigin(c.req.raw, config);
+      const token = readCookie(
+        c.req.header('Cookie'),
+        config.secureCookie ? SESSION_COOKIE_NAME : LOCAL_SESSION_COOKIE_NAME,
+      );
+      if (!token) {
+        throw new AuthenticationError('AUTH_REQUIRED', 'Sign in is required', 401);
       }
+      const session = await findUserBySessionToken(c.env.DB, token);
+      if (!session) {
+        throw new AuthenticationError(
+          'AUTH_REQUIRED',
+          'Your session has expired. Sign in again.',
+          401,
+        );
+      }
+      c.set('identity', session.identity);
+      c.set('user', session.user);
+      c.set('sessionTokenHash', session.tokenHash);
       await next();
     } catch (error) {
       return authenticationErrorResponse(c, error);
@@ -116,20 +101,11 @@ export function protectMutationOrigin<
 }
 
 export function readAuthConfig(env: AuthBindings): AuthConfig {
-  const mode = env.AUTH_MODE;
-  if (mode !== 'google' && mode !== 'local') {
-    throw new AuthenticationError(
-      'AUTH_CONFIG_INVALID',
-      'AUTH_MODE must be explicitly configured as google or local',
-      500,
-    );
-  }
-
   const allowedEmailDomain = readAllowedEmailDomain(env.ALLOWED_EMAIL_DOMAIN);
-  const appOrigin = readAppOrigin(env.APP_ORIGIN, mode);
+  const appOrigin = readAppOrigin(env.APP_ORIGIN);
   const secureCookie = appOrigin.startsWith('https://');
   const callbackUri = `${appOrigin}/api/auth/callback`;
-  if (env.GOOGLE_REDIRECT_URI !== undefined && env.GOOGLE_REDIRECT_URI !== callbackUri) {
+  if (env.GOOGLE_REDIRECT_URI !== callbackUri) {
     throw new AuthenticationError(
       'AUTH_CONFIG_INVALID',
       'GOOGLE_REDIRECT_URI must exactly match APP_ORIGIN plus /api/auth/callback',
@@ -137,43 +113,6 @@ export function readAuthConfig(env: AuthBindings): AuthConfig {
     );
   }
 
-  const localIdentityConfigured = [
-    env.LOCAL_AUTH_SUBJECT,
-    env.LOCAL_AUTH_EMAIL,
-    env.LOCAL_AUTH_NAME,
-  ].some((value) => value !== undefined);
-  const googleConfigured = [
-    env.GOOGLE_CLIENT_ID,
-    env.GOOGLE_CLIENT_SECRET,
-    env.GOOGLE_JWKS_JSON,
-    env.GOOGLE_TOKEN_ENDPOINT,
-  ].some((value) => value !== undefined);
-
-  if (mode === 'local') {
-    if (googleConfigured) {
-      throw new AuthenticationError(
-        'AUTH_CONFIG_INVALID',
-        'Google configuration cannot be used in local authentication mode',
-        500,
-      );
-    }
-    return {
-      mode,
-      allowedEmailDomain,
-      appOrigin,
-      callbackUri,
-      secureCookie,
-      localIdentity: localIdentityFromConfig(env, allowedEmailDomain),
-    };
-  }
-
-  if (localIdentityConfigured) {
-    throw new AuthenticationError(
-      'AUTH_CONFIG_INVALID',
-      'Local identity configuration cannot be used in Google authentication mode',
-      500,
-    );
-  }
   const clientId = env.GOOGLE_CLIENT_ID?.trim();
   const clientSecret = env.GOOGLE_CLIENT_SECRET?.trim();
   if (!clientId || !clientSecret) {
@@ -184,7 +123,6 @@ export function readAuthConfig(env: AuthBindings): AuthConfig {
     );
   }
   return {
-    mode,
     allowedEmailDomain,
     appOrigin,
     callbackUri,
@@ -197,9 +135,9 @@ export function readAuthConfig(env: AuthBindings): AuthConfig {
 export function assertRequestUsesConfiguredOrigin(request: Request, config: AuthConfig) {
   if (new URL(request.url).origin !== config.appOrigin) {
     throw new AuthenticationError(
-      config.mode === 'local' ? 'AUTH_FORBIDDEN' : 'AUTH_INVALID',
+      'AUTH_INVALID',
       'Request origin does not match the configured application origin',
-      config.mode === 'local' ? 403 : 401,
+      401,
     );
   }
 }
@@ -214,7 +152,7 @@ export function clearSessionCookie(config: AuthConfig) {
   return `${name}=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax${config.secureCookie ? '; Secure' : ''}`;
 }
 
-function readAppOrigin(value: string | undefined, mode: 'google' | 'local') {
+function readAppOrigin(value: string | undefined) {
   try {
     const url = new URL(value?.trim() ?? '');
     const loopback = isLoopbackHostname(url.hostname);
@@ -224,8 +162,7 @@ function readAppOrigin(value: string | undefined, mode: 'google' | 'local') {
       url.password ||
       url.search ||
       url.hash ||
-      (url.protocol !== 'https:' && !(url.protocol === 'http:' && loopback)) ||
-      (mode === 'local' && !loopback)
+      (url.protocol !== 'https:' && !(url.protocol === 'http:' && loopback))
     ) {
       throw new Error('invalid origin');
     }
@@ -233,40 +170,10 @@ function readAppOrigin(value: string | undefined, mode: 'google' | 'local') {
   } catch {
     throw new AuthenticationError(
       'AUTH_CONFIG_INVALID',
-      mode === 'local'
-        ? 'Local APP_ORIGIN must be an exact loopback HTTP origin'
-        : 'APP_ORIGIN must be an exact HTTPS origin or an HTTP loopback origin',
+      'APP_ORIGIN must be an exact HTTPS origin or an HTTP loopback origin',
       500,
     );
   }
-}
-
-function localIdentityFromConfig(env: AuthBindings, allowedDomain: string) {
-  const subject = env.LOCAL_AUTH_SUBJECT?.trim();
-  const email = env.LOCAL_AUTH_EMAIL?.trim().toLowerCase();
-  const displayName = env.LOCAL_AUTH_NAME?.trim();
-  if (
-    !subject ||
-    subject.length > 255 ||
-    !/^[a-zA-Z0-9._:@/-]+$/.test(subject) ||
-    !email ||
-    email.length > 254 ||
-    !isValidEmailAddress(email) ||
-    !displayName ||
-    displayName.length > 100 ||
-    Array.from(displayName).some((character) => {
-      const code = character.charCodeAt(0);
-      return code <= 31 || code === 127;
-    })
-  ) {
-    throw new AuthenticationError(
-      'AUTH_CONFIG_INVALID',
-      'Local authentication identity is invalid',
-      500,
-    );
-  }
-  assertAllowedEmail(email, allowedDomain);
-  return {subject, email, displayName, avatarUrl: null};
 }
 
 export function readAllowedEmailDomain(value: string | undefined) {

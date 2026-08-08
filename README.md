@@ -21,20 +21,20 @@ npm run migrate:local -- \
 npm run dev
 ```
 
-Open `http://localhost:5173`. `AUTH_MODE=local` is an explicit fixed identity accepted only when `APP_ORIGIN` and the request URL are the same exact loopback origin. It never accepts client roles; D1 remains the sole role authority. To promote the disposable local row after opening the app once:
+Before starting the app, configure a Google OAuth Web application to allow the JavaScript origin `http://localhost:5173` and redirect URI `http://localhost:5173/api/auth/callback`. Replace the placeholders in `.dev.vars` with its client ID and the client secret from the shared vault; never commit `.dev.vars`.
+
+Open `http://localhost:5173` and sign in with Google. D1 remains the sole role authority. To promote your local user after signing in once, replace the email below and run:
 
 ```bash
 npx wrangler d1 execute hackweek-db --local --command \
-  "UPDATE users SET is_admin = 1, updated_at = CURRENT_TIMESTAMP WHERE source_uid = 'local-browser-user' AND email = 'developer@sentry.io'"
-npm run dev
+  "UPDATE users SET is_admin = 1, updated_at = CURRENT_TIMESTAMP WHERE google_subject IS NOT NULL AND email = 'you@sentry.io'"
 ```
 
 Resetting `.wrangler/state` removes the promotion. Never run that command with `--remote`.
 
 ## Authentication
 
-- `google` — deployed application-owned Google OAuth Authorization Code flow with PKCE, state, nonce, confidential server exchange, Google JWKS validation, exact verified `@sentry.io` enforcement, hashed opaque D1 sessions, and secure HttpOnly cookies.
-- `local` — explicit loopback-only development identity; no Google secrets or network resources required.
+Google OAuth is the only browser authentication path in every environment, including local development. It uses the Authorization Code flow with PKCE, state, nonce, confidential server exchange, Google JWKS validation, exact verified `@sentry.io` enforcement, hashed opaque D1 sessions, and HttpOnly cookies.
 
 All browser APIs except health, the signed Stream webhook, and service-token video jobs require a D1-backed user. Authenticated mutations and logout require an exact same-origin `Origin` header. Logout revokes the current D1 session. Login rotates existing sessions. Google/client claims never grant admin access.
 

@@ -12,7 +12,7 @@ In **Authorized JavaScript origins**, enter the exact deployed origin with no pa
 https://hackweek.getsentry.workers.dev
 ```
 
-Loopback origins may remain only if this same client is intentionally used for local development.
+Add each loopback origin used for local development to the dedicated development OAuth client.
 
 In **Authorized redirect URIs**, enter the exact deployed callback:
 
@@ -25,7 +25,6 @@ Scheme, host, port, path, case, and trailing slash must match exactly. Google pe
 Set reviewed non-secret Worker vars in `wrangler.production.json`:
 
 ```text
-AUTH_MODE=google
 APP_ORIGIN=https://hackweek.getsentry.workers.dev
 GOOGLE_REDIRECT_URI=https://hackweek.getsentry.workers.dev/api/auth/callback
 GOOGLE_CLIENT_ID=<web-application-client-id>.apps.googleusercontent.com
@@ -40,6 +39,12 @@ npx wrangler secret put GOOGLE_CLIENT_SECRET --config wrangler.production.json
 ```
 
 The Worker uses Google's authorization-code endpoint, PKCE S256, random state/nonce, server-side exchange, and Google JWKS ID-token validation. It checks signature, issuer, client audience, expiry, nonce, `email_verified=true`, and the exact email suffix `@sentry.io`. No `hd` value is relied upon; the verified email address itself is the domain boundary. D1 remains the only application role authority.
+
+## Local development
+
+Create a Google OAuth Web application that allows the JavaScript origin `http://localhost:5173` and the exact redirect URI `http://localhost:5173/api/auth/callback`. Copy `.dev.vars.example` to `.dev.vars`, fill in the client ID, and retrieve the client secret from the shared vault. Never commit `.dev.vars` or the secret.
+
+Google OAuth is also required locally; there is no fixed development identity or authentication bypass. If a different loopback host or port is used, update the authorized origin, redirect URI, `APP_ORIGIN`, and `GOOGLE_REDIRECT_URI` so they match exactly.
 
 ## Cloudflare resources
 

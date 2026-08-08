@@ -1,10 +1,9 @@
-# Copy to .dev.vars for local browser development only. Never configure this
-# identity mode in a deployed environment.
-AUTH_MODE="local"
+# Copy to .dev.vars for local browser development only. The Google OAuth client
+# must allow the loopback origin and exact callback below.
 APP_ORIGIN="http://localhost:5173"
-LOCAL_AUTH_SUBJECT="local-browser-user"
-LOCAL_AUTH_EMAIL="developer@sentry.io"
-LOCAL_AUTH_NAME="Local Developer"
+GOOGLE_CLIENT_ID=<non-secret client ID>
+GOOGLE_CLIENT_SECRET=<secret from the shared vault; never commit>
+GOOGLE_REDIRECT_URI=http://localhost:5173/api/auth/callback
 ALLOWED_EMAIL_DOMAIN="sentry.io"
 
 # The local adapter issues direct-upload fixtures and protected-playback contracts.

@@ -18,7 +18,6 @@ export default defineConfig({
         },
         bindings: {
           TEST_MIGRATIONS: await readD1Migrations(path.join(root, 'migrations')),
-          AUTH_MODE: 'google',
           APP_ORIGIN: 'https://hackweek.test',
           GOOGLE_CLIENT_ID: 'test-client.apps.googleusercontent.com',
           GOOGLE_CLIENT_SECRET: 'test-client-secret',

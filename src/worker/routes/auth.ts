@@ -39,7 +39,6 @@ authRoutes.get('/login', async (c) => {
   try {
     const config = readAuthConfig(c.env);
     assertRequestUsesConfiguredOrigin(c.req.raw, config);
-    if (config.mode !== 'google') return c.redirect('/');
 
     const now = Math.floor(Date.now() / 1000);
     const state = randomBase64Url(32);
@@ -71,13 +70,6 @@ authRoutes.get('/callback', async (c) => {
   if (!config) return callbackErrorRedirect(c, 'configuration');
   try {
     assertRequestUsesConfiguredOrigin(c.req.raw, config);
-    if (config.mode !== 'google') {
-      throw new AuthenticationError(
-        'AUTH_CONFIG_INVALID',
-        'Google OAuth is disabled',
-        500,
-      );
-    }
     const state = c.req.query('state');
     const code = c.req.query('code');
     if (
@@ -126,9 +118,7 @@ authRoutes.get('/callback', async (c) => {
 
 authenticatedAuthRoutes.post('/logout', async (c) => {
   const config = readAuthConfig(c.env);
-  if (c.get('sessionTokenHash')) {
-    await revokeSessionByTokenHash(c.env.DB, c.get('sessionTokenHash')!);
-  }
+  await revokeSessionByTokenHash(c.env.DB, c.get('sessionTokenHash'));
   c.header('Set-Cookie', clearSessionCookie(config));
   return c.redirect('/', 303);
 });

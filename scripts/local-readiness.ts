@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import {execFileSync, spawn, type ChildProcess} from 'node:child_process';
+import {createHash} from 'node:crypto';
 import {mkdtemp, rename, rm, stat, writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
@@ -9,6 +10,13 @@ const fixture = path.join(root, 'test/fixtures/firebase');
 const state = await mkdtemp(path.join(tmpdir(), 'hackweek-readiness-'));
 const port = Number(process.env.READINESS_PORT ?? 5199);
 const origin = `http://127.0.0.1:${port}`;
+const googleClientId = 'local-readiness.apps.googleusercontent.com';
+const googleClientSecret = 'local-readiness-client-secret';
+const sessionToken = createHash('sha256')
+  .update('hackweek-local-readiness')
+  .digest('base64url');
+const sessionTokenHash = createHash('sha256').update(sessionToken).digest('hex');
+const devVars = `APP_ORIGIN="${origin}"\nGOOGLE_CLIENT_ID="${googleClientId}"\nGOOGLE_CLIENT_SECRET="${googleClientSecret}"\nGOOGLE_REDIRECT_URI="${origin}/api/auth/callback"\nALLOWED_EMAIL_DOMAIN="sentry.io"\nSTREAM_MODE="fake"\nSTREAM_ALLOWED_ORIGIN="localhost"\nSTREAM_DELIVERY_HOST="customer-fake.cloudflarestream.com"\nSTREAM_WEBHOOK_SECRET="local-readiness-webhook-secret"\nVIDEO_SERVICE_TOKEN="local-readiness-video-service-token"\n`;
 let server: ChildProcess | undefined;
 const serverLog: string[] = [];
 const rootDevVars = path.join(root, '.dev.vars');
@@ -54,13 +62,21 @@ try {
     '--persist-to',
     state,
   ]);
+  const now = Math.floor(Date.now() / 1000);
+  sql(
+    `INSERT INTO users
+       (id, source_uid, google_subject, email, display_name, avatar_url)
+     VALUES
+       ('local-readiness-user', 'local-readiness-user', 'google-readiness-user',
+        'developer@sentry.io', 'Local Developer', NULL);
+     INSERT INTO user_sessions
+       (token_hash, user_id, expires_at, created_at, last_used_at)
+     VALUES
+       ('${sessionTokenHash}', 'local-readiness-user', ${now + 28_800}, ${now}, ${now});`,
+  );
 
   const isolatedConfig = path.join(state, 'wrangler.readiness.json');
-  await writeFile(
-    path.join(state, '.dev.vars'),
-    `AUTH_MODE="local"\nAPP_ORIGIN="${origin}"\nLOCAL_AUTH_SUBJECT="local-browser-user"\nLOCAL_AUTH_EMAIL="developer@sentry.io"\nLOCAL_AUTH_NAME="Local Developer"\nALLOWED_EMAIL_DOMAIN="sentry.io"\nSTREAM_MODE="fake"\nSTREAM_ALLOWED_ORIGIN="localhost"\nSTREAM_DELIVERY_HOST="customer-fake.cloudflarestream.com"\nSTREAM_WEBHOOK_SECRET="local-readiness-webhook-secret"\nVIDEO_SERVICE_TOKEN="local-readiness-video-service-token"\n`,
-    {mode: 0o600},
-  );
+  await writeFile(path.join(state, '.dev.vars'), devVars, {mode: 0o600});
   await writeFile(
     isolatedConfig,
     JSON.stringify({
@@ -82,11 +98,10 @@ try {
       ],
       r2_buckets: [{binding: 'ATTACHMENTS', bucket_name: 'hackweek-attachments-local'}],
       vars: {
-        AUTH_MODE: 'local',
         APP_ORIGIN: origin,
-        LOCAL_AUTH_SUBJECT: 'local-browser-user',
-        LOCAL_AUTH_EMAIL: 'developer@sentry.io',
-        LOCAL_AUTH_NAME: 'Local Developer',
+        GOOGLE_CLIENT_ID: googleClientId,
+        GOOGLE_CLIENT_SECRET: googleClientSecret,
+        GOOGLE_REDIRECT_URI: `${origin}/api/auth/callback`,
         ALLOWED_EMAIL_DOMAIN: 'sentry.io',
         STREAM_MODE: 'fake',
         STREAM_ALLOWED_ORIGIN: 'localhost',
@@ -99,11 +114,7 @@ try {
   );
 
   if (hadDevVars) await rename(rootDevVars, savedDevVars);
-  await writeFile(
-    rootDevVars,
-    `AUTH_MODE="local"\nAPP_ORIGIN="${origin}"\nLOCAL_AUTH_SUBJECT="local-browser-user"\nLOCAL_AUTH_EMAIL="developer@sentry.io"\nLOCAL_AUTH_NAME="Local Developer"\nALLOWED_EMAIL_DOMAIN="sentry.io"\nSTREAM_MODE="fake"\nSTREAM_ALLOWED_ORIGIN="localhost"\nSTREAM_DELIVERY_HOST="customer-fake.cloudflarestream.com"\nSTREAM_WEBHOOK_SECRET="local-readiness-webhook-secret"\nVIDEO_SERVICE_TOKEN="local-readiness-video-service-token"\n`,
-    {mode: 0o600},
-  );
+  await writeFile(rootDevVars, devVars, {mode: 0o600});
 
   server = spawn(
     process.execPath,
@@ -127,12 +138,20 @@ try {
   server.stderr?.on('data', (chunk) => serverLog.push(String(chunk)));
   await waitForServer(serverLog);
 
-  const session = await get('/api/session');
-  assert(session.user.role === 'member', 'seeded local identity starts as a member');
+  const login = await request('/api/auth/login', {redirect: 'manual'});
+  const authorization = new URL(login.headers.get('Location')!);
   assert(
-    session.user.email === 'developer@sentry.io',
-    'seeded local identity is explicit',
+    authorization.searchParams.get('client_id') === googleClientId,
+    'Google OAuth client is configured',
   );
+  assert(
+    authorization.searchParams.get('redirect_uri') === `${origin}/api/auth/callback`,
+    'Google OAuth loopback redirect is configured',
+  );
+
+  const session = await get('/api/session');
+  assert(session.user.role === 'member', 'seeded Google session starts as a member');
+  assert(session.user.email === 'developer@sentry.io', 'seeded Google user is explicit');
 
   const years = await get('/api/years');
   assert(
@@ -167,7 +186,7 @@ try {
   assert(memberAdmin.status === 403, 'member cannot use admin APIs');
 
   sql(
-    "UPDATE users SET is_admin = 1, updated_at = CURRENT_TIMESTAMP WHERE source_uid = 'local-browser-user' AND email = 'developer@sentry.io'",
+    "UPDATE users SET is_admin = 1, updated_at = CURRENT_TIMESTAMP WHERE google_subject = 'google-readiness-user' AND email = 'developer@sentry.io'",
   );
   const admin = await get('/api/session');
   assert(admin.user.role === 'admin', 'D1 promotion enables the admin role');
@@ -205,7 +224,7 @@ try {
     'local playback refuses to impersonate real Stream HLS',
   );
 
-  console.log('Local cutover readiness: 20 checks passed');
+  console.log('Local cutover readiness: 22 checks passed');
 } finally {
   await stopServer();
   await rm(rootDevVars, {force: true});
@@ -219,11 +238,10 @@ function readinessEnv() {
     CLOUDFLARE_VITE_DEV_VARS_PATH: '/dev/null',
     HACKWEEK_LOCAL_STATE_PATH: state,
     HACKWEEK_WRANGLER_CONFIG: path.join(state, 'wrangler.readiness.json'),
-    AUTH_MODE: 'local',
     APP_ORIGIN: origin,
-    LOCAL_AUTH_SUBJECT: 'local-browser-user',
-    LOCAL_AUTH_EMAIL: 'developer@sentry.io',
-    LOCAL_AUTH_NAME: 'Local Developer',
+    GOOGLE_CLIENT_ID: googleClientId,
+    GOOGLE_CLIENT_SECRET: googleClientSecret,
+    GOOGLE_REDIRECT_URI: `${origin}/api/auth/callback`,
     ALLOWED_EMAIL_DOMAIN: 'sentry.io',
     STREAM_MODE: 'fake',
     STREAM_ALLOWED_ORIGIN: 'localhost',
@@ -310,8 +328,10 @@ async function send(method: 'POST' | 'PUT', pathname: string, body: unknown) {
   return response.json() as Promise<any>;
 }
 
-function request(pathname: string, init?: RequestInit) {
-  return fetch(`${origin}${pathname}`, init);
+function request(pathname: string, init: RequestInit = {}) {
+  const headers = new Headers(init.headers);
+  headers.set('Cookie', `sentry-hackweek-session=${sessionToken}`);
+  return fetch(`${origin}${pathname}`, {...init, headers});
 }
 
 function assert(value: unknown, message: string): asserts value {

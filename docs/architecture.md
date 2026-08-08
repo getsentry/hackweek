@@ -13,9 +13,9 @@ The React 19 SPA uses Wouter and TanStack Query and retains the Sentry `#HACKWEE
 
 ## Authentication and authorization
 
-`AUTH_MODE=google` implements a standard application-owned OpenID Connect authorization-code flow. D1 stores ten-minute, single-use state/nonce/PKCE attempts and SHA-256 hashes of random eight-hour session tokens. The browser receives only an HttpOnly, Secure, SameSite=Lax cookie. Google ID tokens are validated against Google JWKS for signature, issuer, audience, expiry, nonce, verified email, and the exact `sentry.io` domain. D1 `users.is_admin` is the only role authority.
+Application-owned Google OpenID Connect is the only browser authentication path in every environment. D1 stores ten-minute, single-use state/nonce/PKCE attempts and SHA-256 hashes of random eight-hour session tokens. The browser receives only an HttpOnly, SameSite=Lax cookie, with `Secure` required outside HTTP loopback development. Google ID tokens are validated against Google JWKS for signature, issuer, audience, expiry, nonce, verified email, and the exact `sentry.io` domain. D1 `users.is_admin` is the only role authority.
 
-`AUTH_MODE=local` is an explicit same-origin loopback-only fixed identity for development. It still resolves the D1 user and role. There is no deployed local fallback, signed identity cookie, client role, Access header, or Firebase Auth path.
+Local development requires a real Google OAuth Web application configured for the exact loopback origin and callback in `.dev.vars`. There is no fixed local identity, signed identity cookie, client role, Access header, or Firebase Auth path.
 
 SameSite cookies plus mandatory exact Origin checks protect authenticated mutations/logout. OAuth callbacks are state protected. Login rotates existing sessions; logout revokes the current session. The signed Stream webhook and video job bearer token remain separate machine-auth boundaries.
 

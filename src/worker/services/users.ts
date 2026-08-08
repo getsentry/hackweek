@@ -83,40 +83,6 @@ export async function synchronizeGoogleUser(
   };
 }
 
-export async function findUserByLocalIdentity(
-  db: D1Database,
-  identity: SessionIdentity,
-): Promise<SessionUser> {
-  const user = await findByEmail(db, identity.email);
-  if (user) return toSessionUser(user);
-
-  const id = crypto.randomUUID();
-  try {
-    await db
-      .prepare(
-        `INSERT INTO users (id, source_uid, email, display_name, avatar_url)
-         VALUES (?, ?, ?, ?, ?)`,
-      )
-      .bind(
-        id,
-        identity.subject,
-        identity.email,
-        identity.displayName,
-        identity.avatarUrl,
-      )
-      .run();
-  } catch {
-    throw new UserIdentityConflictError();
-  }
-  return {
-    id,
-    email: identity.email,
-    displayName: identity.displayName,
-    avatarUrl: identity.avatarUrl,
-    role: 'member',
-  };
-}
-
 export async function updateUserProfile(
   db: D1Database,
   userId: string,

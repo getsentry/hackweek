@@ -1,24 +1,11 @@
 import {env} from 'cloudflare:test';
 import {importJWK, SignJWT, type JWTPayload} from 'jose';
 
-import {
-  LOCAL_SESSION_COOKIE_NAME,
-  SESSION_COOKIE_NAME,
-} from '../../src/worker/middleware/auth';
+import {SESSION_COOKIE_NAME} from '../../src/worker/middleware/auth';
 import {createSession} from '../../src/worker/services/sessions';
 import {synchronizeGoogleUser} from '../../src/worker/services/users';
 
-export const localBrowserAuthBindings = {
-  AUTH_MODE: 'local',
-  APP_ORIGIN: 'http://localhost:5173',
-  ALLOWED_EMAIL_DOMAIN: 'sentry.io',
-  LOCAL_AUTH_SUBJECT: 'local-browser-user',
-  LOCAL_AUTH_EMAIL: 'developer@sentry.io',
-  LOCAL_AUTH_NAME: 'Local Developer',
-} as const;
-
 export const googleAuthBindings = {
-  AUTH_MODE: 'google',
   APP_ORIGIN: 'https://hackweek.test',
   GOOGLE_CLIENT_ID: 'test-client.apps.googleusercontent.com',
   GOOGLE_CLIENT_SECRET: 'test-client-secret',
@@ -66,10 +53,7 @@ export function authenticatedHeaders(cookie: string, mutation = false) {
 
 export function cookieToken(setCookie: string) {
   const first = setCookie.split(';', 1)[0];
-  return first.startsWith(`${SESSION_COOKIE_NAME}=`) ||
-    first.startsWith(`${LOCAL_SESSION_COOKIE_NAME}=`)
-    ? first
-    : '';
+  return first.startsWith(`${SESSION_COOKIE_NAME}=`) ? first : '';
 }
 
 export async function signGoogleIdToken(overrides: JWTPayload = {}) {

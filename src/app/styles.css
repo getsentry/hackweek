@@ -252,6 +252,7 @@ main {
   align-items: end;
 }
 .archiveHero h1,
+.archiveHero h2,
 .projectsHero h1,
 .detailHero h1,
 .editorPage > header h1,
@@ -274,6 +275,109 @@ main {
   color: var(--muted);
   font-size: 1rem;
   line-height: 1.75;
+}
+
+.currentYearHero {
+  animation: rise 0.35s ease-out both;
+}
+.currentYearHeroMedia {
+  display: block;
+  overflow: hidden;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 1rem;
+}
+.currentYearHeroMedia .yearBanner,
+.currentYearHeroMedia .yearBannerFallback {
+  border-radius: 1rem;
+}
+.currentYearHeroMedia:hover .yearBanner,
+.currentYearHeroMedia:hover .yearBannerFallback {
+  transform: scale(1.01);
+}
+.currentYearHeroContent {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.9fr);
+  gap: clamp(2rem, 5vw, 4rem);
+  align-items: end;
+  width: calc(100% - clamp(1.5rem, 6vw, 5rem));
+  padding: clamp(1.75rem, 5vw, 3rem);
+  margin: clamp(-5rem, -8vw, -3.5rem) auto 0;
+  color: #fff;
+  border-radius: 1rem;
+  background: var(--dark-blurple);
+  box-shadow: 0 18px 40px rgba(29, 17, 39, 0.2);
+}
+.currentYearHero .kicker {
+  color: var(--pink);
+}
+.currentYearHero h1 {
+  margin: 0;
+  font-size: clamp(2.5rem, 6vw, 4rem);
+  line-height: 0.95;
+  letter-spacing: -0.055em;
+}
+.currentYearHeroCopy > p:last-child {
+  max-width: 34rem;
+  margin: 1rem 0 0;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.92rem;
+  line-height: 1.65;
+}
+.currentYearHeroDetails {
+  display: grid;
+  gap: 1.5rem;
+  justify-items: start;
+}
+.currentYearStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(1rem, 3vw, 2rem);
+  width: 100%;
+  margin: 0;
+}
+.currentYearStats div {
+  display: flex;
+  flex-direction: column-reverse;
+}
+.currentYearStats dt {
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+}
+.currentYearStats dd {
+  margin: 0 0 0.2rem;
+  font-size: clamp(1.6rem, 3vw, 2.25rem);
+  font-weight: 600;
+  line-height: 1;
+}
+.currentYearAction {
+  display: inline-flex;
+  min-height: 2.75rem;
+  padding: 0.7rem 1rem;
+  align-items: center;
+  color: var(--dark-blurple);
+  font-size: 0.84rem;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 0.65rem;
+  background: #fff;
+  transition:
+    color 100ms ease,
+    transform 100ms ease;
+}
+.currentYearAction:hover {
+  color: var(--blurple);
+  transform: translateY(-2px);
+}
+.archiveSection {
+  margin-top: clamp(4.5rem, 10vw, 8rem);
+}
+.archiveEmpty {
+  margin: 0;
+  color: var(--muted);
 }
 
 .yearTimeline {
@@ -1749,6 +1853,9 @@ kbd {
     grid-template-columns: 1fr;
     gap: 1.5rem;
   }
+  .currentYearHeroContent {
+    grid-template-columns: 1fr;
+  }
   .yearTimeline {
     gap: 2rem;
   }
@@ -1788,6 +1895,10 @@ kbd {
   }
   .identity span {
     display: none;
+  }
+  .currentYearHeroContent {
+    width: 100%;
+    margin-top: 1rem;
   }
   .yearTimeline,
   .projectGrid,

@@ -1,6 +1,6 @@
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import type {ReactNode} from 'react';
-import {render, screen, waitFor} from '@testing-library/react';
+import {render, screen, waitFor, within} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {Route, Router} from 'wouter';
 import {memoryLocation} from 'wouter/memory-location';
@@ -72,11 +72,67 @@ describe('clickable project routes', () => {
 
     const banner = await screen.findByAltText('2024 Hackweek banner');
     expect(banner.getAttribute('src')).toContain('year-2024.png');
+    expect(screen.getByText('3')).toBeTruthy();
+    expect(screen.getByRole('link', {name: /view archive/}).getAttribute('href')).toBe(
+      '/years/2024/projects',
+    );
+  });
+
+  it('promotes the latest year to the hero and renders earlier years as archives', async () => {
+    fetchMock.mockResolvedValue(
+      json({
+        years: [
+          {
+            id: '2025',
+            votingEnabled: false,
+            submissionsClosed: false,
+            projectCount: 4,
+            ideaCount: 2,
+            groupCount: 1,
+            participantCount: 8,
+          },
+          {
+            id: '2024',
+            votingEnabled: false,
+            submissionsClosed: true,
+            projectCount: 2,
+            ideaCount: 1,
+            groupCount: 1,
+            participantCount: 3,
+          },
+          {
+            id: '2023',
+            votingEnabled: false,
+            submissionsClosed: true,
+            projectCount: 1,
+            ideaCount: 0,
+            groupCount: 1,
+            participantCount: 2,
+          },
+        ],
+      }),
+    );
+
+    renderRoute(<YearsPage />, '/years');
+
+    const hero = await screen.findByRole('region', {name: 'Hackweek 2025'});
+    expect(within(hero).getByRole('heading', {name: 'Hackweek 2025'})).toBeTruthy();
+    expect(within(hero).getByText('8')).toBeTruthy();
+    expect(hero.querySelector('.yearBannerFallback')).toBeTruthy();
     expect(
-      screen
-        .getByRole('link', {name: /2024.*3 participants.*2 projects/i})
+      within(hero)
+        .getByRole('link', {name: /submissions open/})
         .getAttribute('href'),
-    ).toBe('/years/2024/projects');
+    ).toBe('/years/2025/projects');
+
+    const archives = screen.getByRole('region', {name: 'Archives'});
+    expect(
+      within(archives).getByRole('link', {name: /2024 Hackweek banner/}),
+    ).toBeTruthy();
+    expect(
+      within(archives).getByRole('link', {name: /2023.*2 participants/}),
+    ).toBeTruthy();
+    expect(within(archives).queryByText('2025')).toBeNull();
   });
 
   it('moves between project and idea query state from the route controls', async () => {

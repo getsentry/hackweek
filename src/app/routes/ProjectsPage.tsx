@@ -1,4 +1,4 @@
-import {type FormEvent, useState} from 'react';
+import {type FormEvent, useEffect, useState} from 'react';
 import {Link, useParams} from 'wouter';
 
 import {GroupManager} from '../components/GroupManager';
@@ -9,6 +9,7 @@ import {useProjects, useYear} from '../queries/projects';
 type ProjectsView = 'grid' | 'list';
 
 const PROJECTS_VIEW_STORAGE_KEY = 'hackweek.projectsView';
+const SEARCH_DEBOUNCE_MS = 300;
 
 function getProjectsView(): ProjectsView {
   try {
@@ -43,6 +44,13 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
     search || undefined,
   );
   const error = year.error ?? projects.error;
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      setSearch(searchInput.trim());
+    }, SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timeout);
+  }, [searchInput]);
 
   function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();

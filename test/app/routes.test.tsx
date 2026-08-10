@@ -343,7 +343,7 @@ describe('clickable project routes', () => {
     ).toBe('true');
   });
 
-  it('searches on the server while retaining listing filters and view controls', async () => {
+  it('debounces server search while retaining listing filters and view controls', async () => {
     fetchMock.mockImplementation(async (input) => {
       const url =
         typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
@@ -389,8 +389,6 @@ describe('clickable project routes', () => {
       within(activeSearch).getByLabelText('Search projects and ideas'),
       'useful experiment',
     );
-    await userEvent.click(within(activeSearch).getByRole('button', {name: 'search'}));
-
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         expect.stringMatching(

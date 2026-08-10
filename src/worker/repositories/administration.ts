@@ -1,4 +1,3 @@
-import type {SessionUser} from '../../shared/api';
 import type {
   AdminYearResponse,
   AnalyticsResponse,
@@ -626,5 +625,3 @@ function administrationConstraint(error: unknown, fallback: string) {
   if (known) return new ServiceError('VALIDATION_FAILED', known, 400);
   return new ServiceError('CONFLICT', fallback, 409);
 }
-
-export type AdministrationUser = Pick<SessionUser, 'id' | 'role'>;

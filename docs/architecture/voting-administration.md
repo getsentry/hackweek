@@ -16,6 +16,6 @@ The Cloudflare implementation enforces these rules twice where concurrency matte
 - Nominations are normalized rows rather than two nullable project fields. The API replaces both rows in one D1 batch.
 - Awards are limited to one winner per category and year, matching the legacy administration UI that filtered already-used categories.
 - Category deletion is rejected while referenced rather than cascading historical votes or awards. Operators must resolve those records explicitly.
-- Screening order is stored independently from `project_videos`. Admins can arrange active projects before later Stream records exist; video readiness will filter this order in the video slice.
+- Screening order is stored independently from `project_videos`, so active-project ordering remains valid while video is disabled. If real Stream is separately approved, only ready videos enter that order for playback.
 - Analytics use bounded D1 aggregate queries. The browser receives year totals and per-project/category counts, never raw voters or the full historical database.
 - The voting page emphasizes nominated projects in each category. Projects with no nominations remain eligible in every category, preserving the legacy "No Category" voting escape hatch without reproducing Firebase grouping state.

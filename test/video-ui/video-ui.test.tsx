@@ -80,6 +80,29 @@ describe('video user experience', () => {
     );
   });
 
+  it.each([
+    {streamMode: 'fake', expectedHref: null},
+    {streamMode: 'disabled', expectedHref: null},
+    {streamMode: 'real', expectedHref: '/years/2026/projects/project/video'},
+  ] as const)(
+    'handles project video playback in $streamMode stream mode',
+    ({streamMode, expectedHref}) => {
+      renderQuery(
+        <ProjectVideoPanel
+          projectId="project"
+          yearId="2026"
+          video={baseVideo}
+          canManage={false}
+          streamMode={streamMode}
+        />,
+      );
+
+      expect(
+        screen.queryByRole('link', {name: 'watch video'})?.getAttribute('href') ?? null,
+      ).toBe(expectedHref);
+    },
+  );
+
   it('shows disabled-video UX without upload or lifecycle actions', () => {
     renderQuery(
       <ProjectVideoPanel

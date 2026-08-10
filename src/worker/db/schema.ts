@@ -15,5 +15,3 @@ export const tableNames = [
   'screening_order',
   'stream_events',
 ] as const;
-
-export type TableName = (typeof tableNames)[number];

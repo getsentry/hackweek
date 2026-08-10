@@ -1,6 +1,6 @@
 # Sentry Hackweek
 
-Hackweek is an internal React + TypeScript application served by one Hono Cloudflare Worker. Application-owned Google OAuth authenticates users, D1 owns sessions/data/roles, private R2 stores attachments, and Cloudflare Stream handles resumable demo-video ingest and protected playback. The UI preserves the Sentry `#HACKWEEK` identity and archive hierarchy.
+Hackweek is an internal React + TypeScript application served by one Hono Cloudflare Worker. Application-owned Google OAuth authenticates users, D1 owns sessions/data/roles, and private R2 stores attachments. The core production rollout serves the SPA with Cloudflare Static Assets at `https://hackweek.getsentry.workers.dev` and keeps `STREAM_MODE=disabled`; Stream, video screening, and archive operations are dormant until a separately approved rollout. The UI preserves the Sentry `#HACKWEEK` identity and archive hierarchy.
 
 ## Requirements
 
@@ -36,7 +36,7 @@ Resetting `.wrangler/state` removes the promotion. Never run that command with `
 
 Google OAuth is the only browser authentication path in every environment, including local development. It uses the Authorization Code flow with PKCE, state, nonce, confidential server exchange, Google JWKS validation, exact verified `@sentry.io` enforcement, hashed opaque D1 sessions, and HttpOnly cookies.
 
-All browser APIs except health, the signed Stream webhook, and service-token video jobs require a D1-backed user. Authenticated mutations and logout require an exact same-origin `Origin` header. Logout revokes the current D1 session. Login rotates existing sessions. Google/client claims never grant admin access.
+All core browser APIs except health require a D1-backed user. Authenticated mutations and logout require an exact same-origin `Origin` header. Logout revokes the current D1 session. Login rotates existing sessions. Google/client claims never grant admin access. Dormant Stream webhook and video-job endpoints use separate machine-auth boundaries if real Stream is approved later.
 
 See [`docs/cloudflare-setup.md`](docs/cloudflare-setup.md) for exact Google Cloud Console origins/callbacks, `GOOGLE_CLIENT_SECRET` installation, single-environment Cloudflare setup, and secret boundaries.
 
@@ -46,7 +46,7 @@ See [`docs/cloudflare-setup.md`](docs/cloudflare-setup.md) for exact Google Clou
 npm run verify
 ```
 
-This generates binding types, typechecks, checks formatting/lint, runs Worker/frontend/migration/player tests, builds, performs a credential-free deployment dry run, and runs an isolated seeded D1/R2/fake-Stream journey. Local fakes do not prove real Google OAuth or Stream integration; follow [`docs/cloudflare-validation.md`](docs/cloudflare-validation.md) for the remote evidence gate.
+This generates binding types, typechecks, checks formatting/lint, runs Worker/frontend/migration/player tests, builds, performs a credential-free deployment dry run, and runs an isolated seeded D1/R2 journey with fake-Stream contract coverage. Local tests do not prove real Google OAuth, deployed bindings, or imported data; follow [`docs/cloudflare-validation.md`](docs/cloudflare-validation.md) for the core remote evidence gate. Real Stream is outside that gate.
 
 ## Documentation
 
@@ -54,6 +54,6 @@ This generates binding types, typechecks, checks formatting/lint, runs Worker/fr
 - [`docs/cloudflare-setup.md`](docs/cloudflare-setup.md) — one Cloudflare environment and Google OAuth setup
 - [`docs/cloudflare-validation.md`](docs/cloudflare-validation.md) — pre-cutover remote validation
 - [`docs/migration.md`](docs/migration.md) — export/import/reconciliation
-- [`docs/video-operations.md`](docs/video-operations.md) — Stream lifecycle, jobs, and archive
-- [`docs/screening.md`](docs/screening.md) — screening controls and rehearsal
-- [`docs/cutover.md`](docs/cutover.md) — manual DNS cutover and rollback
+- [`docs/video-operations.md`](docs/video-operations.md) — deferred real-Stream rollout and archive operations
+- [`docs/screening.md`](docs/screening.md) — deferred video-screening rollout
+- [`docs/cutover.md`](docs/cutover.md) — production traffic handoff and rollback

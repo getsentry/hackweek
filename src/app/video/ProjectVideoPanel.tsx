@@ -71,7 +71,7 @@ export function ProjectVideoPanel({
           <p className="kicker">demo reel</p>
           <h2 id="project-video-heading">project video</h2>
         </div>
-        {video?.status === 'ready' && (
+        {video?.status === 'ready' && streamMode === 'real' && (
           <Link
             className="primaryAction"
             href={`/years/${yearId}/projects/${projectId}/video`}

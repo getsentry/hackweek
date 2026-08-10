@@ -1,8 +1,0 @@
-{
-  "name": "Hackweek",
-  "short_name": "Hackweek",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#130f1c",
-  "theme_color": "#130f1c"
-}

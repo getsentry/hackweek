@@ -1,6 +1,6 @@
 # Video operations
 
-See [`screening.md`](screening.md) for presenter controls, state, day-of checks, Meet-style validation, and incident handling. See [`cloudflare-validation.md`](cloudflare-validation.md) for the remote evidence gate.
+> **Deferred rollout:** This entire runbook is inactive while production uses `STREAM_MODE=disabled`. Do not create Stream resources, install video secrets, run video jobs, promote historical media, or enable screening until a separate real-Stream rollout is approved. The core cutover gate is [`cloudflare-validation.md`](cloudflare-validation.md); it requires proof that video remains unavailable. After approval, use this runbook and [`screening.md`](screening.md) as the video rollout gate.
 
 The video platform has three deliberately different modes:
 
@@ -49,7 +49,7 @@ To exercise a webhook fixture, preserve the JSON body byte-for-byte and compute 
 
 ## Real Stream configuration
 
-Resource/binding/Google OAuth setup and credential boundaries are documented in [`cloudflare-setup.md`](cloudflare-setup.md). Do not configure production or treat local fake results as remote evidence.
+The core resource/binding and Google OAuth baseline is documented in [`cloudflare-setup.md`](cloudflare-setup.md). The video values and secrets below are additions for the separately approved rollout only. Do not configure production or treat local fake results as remote evidence before that approval.
 
 Create a least-privilege Cloudflare API token with Stream read/write for the Sentry Enterprise account, then configure Worker secrets/vars:
 
@@ -84,7 +84,7 @@ curl -X PUT \
   --data '{"notificationUrl":"https://<deployed-hackweek-host>/api/stream-webhook"}'
 ```
 
-Cloudflare's current documented contract differs from the original reel transcript in these material ways:
+The implementation relies on these Cloudflare Stream contracts:
 
 - webhooks occur after processing completes, not once for upload and again for processing;
 - webhook authentication uses `Webhook-Signature` timestamped HMAC-SHA256, not a bearer secret;
@@ -110,13 +110,13 @@ Do not claim real Stream validation based on local fake results.
 
 ## Loudness measurement
 
-The scheduled `.github/workflows/video-measure.yml` calls the service-authenticated queue, runs ffmpeg `loudnorm`, and reports integrated LUFS plus input duration. The Worker computes the only accepted gain value:
+The manually dispatched `.github/workflows/video-measure.yml` calls the service-authenticated queue, runs ffmpeg `loudnorm`, and reports integrated LUFS plus input duration. The Worker computes the only accepted gain value:
 
 ```text
 gain_db = clamp(-16 - loudness_i, -12, 12)
 ```
 
-Configure GitHub secrets `VIDEO_API_URL` and `VIDEO_SERVICE_TOKEN`. The service token is distinct from Google user identity and Stream credentials. Trigger manually when testing or allow the ten-minute schedule. A failed decode records `failed(measurement)` and may be retried by an authorized project user. Stream/download failures remain visible rather than entering playlists.
+Configure GitHub secrets `VIDEO_API_URL` and `VIDEO_SERVICE_TOKEN`. The service token is distinct from Google user identity and Stream credentials. Keep the workflow manual during rollout validation; adding a production schedule requires a separate reviewed change after real Stream is enabled. A failed decode records `failed(measurement)` and may be retried by an authorized project user. Stream/download failures remain visible rather than entering playlists.
 
 ## Drive archive
 
@@ -136,5 +136,3 @@ The job requests short-lived downloadable Stream URLs and uses `rclone copyurl -
 - **Archive failure:** correct Drive/rclone configuration and rerun the manual workflow; failed archive rows remain in its queue.
 - **Webhook outage:** Cloudflare events are safe to replay because `stream_events.event_id` is unique. Do not manually write video status or gain.
 - **Token/secret exposure:** rotate the affected Stream, webhook, job, or R2 credential independently. Client responses contain no API credential.
-
-Official references validated for this implementation: Cloudflare Stream direct creator uploads, resumable uploads, webhooks, signed URLs/tokens, and downloadable MP4 documentation/API references (reviewed 2026-08-04).

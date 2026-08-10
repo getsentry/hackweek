@@ -1,5 +1,7 @@
 # Screening operations
 
+> **Deferred rollout:** This entire screening runbook is inactive for the core production cutover because `STREAM_MODE=disabled`. Use it only after a separately approved real-Stream rollout completes the remote checks in [`video-operations.md`](video-operations.md).
+
 ## Before screening day
 
 - Complete every Cloudflare environment video check in [`video-operations.md`](video-operations.md); local fake Stream is insufficient.

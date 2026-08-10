@@ -21,26 +21,5 @@ jobs:
       - name: Install dependencies deterministically
         run: npm ci --no-audit --no-fund
 
-      - name: Generate Worker binding types
-        run: npm run cf-typegen
-
-      - name: Typecheck
-        run: npm run typecheck
-
-      - name: Check formatting
-        run: npm run format:check
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Apply D1 migrations to clean local state
-        run: rm -rf .wrangler/state && npm run db:migrate:local
-
-      - name: Test Worker, frontend, migration, and video contracts
-        run: npm test
-
-      - name: Build Worker and static assets
-        run: npm run build
-
-      - name: Run seeded local cutover-readiness journey
-        run: npm run test:readiness
+      - name: Verify
+        run: npm run verify

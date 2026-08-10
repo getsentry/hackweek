@@ -2,6 +2,7 @@ import {Hono} from 'hono';
 
 import type {GroupResponse, YearResponse, YearsResponse} from '../../shared/projects';
 import type {WorkerEnv} from '../index';
+import {streamMode} from '../integrations/stream';
 import {requireRole} from '../middleware/user';
 import {createGroup} from '../repositories/groups';
 import {
@@ -56,6 +57,7 @@ yearsRoutes.get('/:yearId', async (c) => {
         categoryName: award.category_name,
         name: award.name,
       })),
+      streamMode: streamMode(c.env),
     };
     return c.json(response);
   } catch (error) {

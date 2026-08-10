@@ -163,6 +163,48 @@ describe('clickable project routes', () => {
     expect(within(archives).queryByText('2025')).toBeNull();
   });
 
+  it.each([
+    {streamMode: 'fake', expectedHref: null},
+    {streamMode: 'disabled', expectedHref: null},
+    {streamMode: 'real', expectedHref: '/years/2026/watch'},
+  ] as const)(
+    'handles the watch reel link in $streamMode stream mode',
+    async ({streamMode, expectedHref}) => {
+      fetchMock.mockImplementation(async (input) => {
+        const url =
+          typeof input === 'string'
+            ? input
+            : input instanceof URL
+              ? input.href
+              : input.url;
+        if (url.includes('/api/years/2026')) {
+          return json({
+            year: {
+              id: '2026',
+              votingEnabled: false,
+              submissionsClosed: false,
+              projectCount: 0,
+              ideaCount: 0,
+              groupCount: 0,
+              participantCount: 0,
+            },
+            groups: [],
+            awards: [],
+            streamMode,
+          });
+        }
+        return json({projects: [], nextCursor: null});
+      });
+
+      renderRoute(<ProjectsPage />, '/years/2026/projects', '/years/:yearId/projects');
+
+      expect(await screen.findByRole('heading', {name: 'projects & ideas'})).toBeTruthy();
+      expect(
+        screen.queryByRole('link', {name: 'watch reel'})?.getAttribute('href') ?? null,
+      ).toBe(expectedHref);
+    },
+  );
+
   it('defaults to the grid view when storage is unavailable', async () => {
     fetchMock.mockImplementation(async (input) => {
       const url =

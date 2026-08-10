@@ -1,10 +1,12 @@
 # Firebase database and storage migration
 
-The migration CLI performs an operator-controlled, one-off transform from a Firebase Realtime Database JSON export and Storage export into D1 and private R2. Firebase is a source format only: the application has no Firebase SDK, deploy configuration, rules, runtime fallback, live reader, delete command, or dual-write path.
+The migration CLI performs an operator-controlled, one-off transform from a Firebase Realtime Database JSON export and Storage export into D1 and private R2. The production source is Firebase project `hackweek-34e1d`; `hackweek-34e1d-dev` is development and must never supply the final production export. Firebase is a source format only: the application has no Firebase SDK, deploy configuration, rules, runtime fallback, live reader, delete command, or dual-write path.
 
 ## Protect source data
 
 Keep real exports beneath ignored `migration-input/` or outside the repository. Never commit exports, objects, company identities, service-account files, Cloudflare credentials, or generated reports. The tracked `test/fixtures/firebase` data is synthetic and uses `example.invalid` identities.
+
+Before every real export, record and verify the selected Firebase project ID. Rehearsals may use reviewed snapshots from `hackweek-34e1d`; the final import requires a fresh export taken from `hackweek-34e1d` only after a human has frozen production writes and verified read-only behavior. Never substitute `hackweek-34e1d-dev` because its name looks similar.
 
 The database export is one JSON object with `users` and nested `years`. The storage manifest is:
 
@@ -98,4 +100,4 @@ npm run migrate:reconcile -- \
   --report migration-output/cloudflare-reconcile.migration-report.json
 ```
 
-Do not run these until bindings, Google OAuth, credentials, and approval are verified. Re-run import/reconciliation to prove idempotency, then inspect representative rendered records and authorized R2 downloads. The same environment is validated before cutover and serves production afterward; the human manually changes DNS. Only selected historical videos move from R2 to Stream.
+Do not run these until bindings, Google OAuth, credentials, source project, and approval are verified. Re-run import/reconciliation to prove idempotency, then inspect representative rendered records and authorized R2 downloads. The same `workers.dev` environment is validated before traffic handoff and serves production afterward; no DNS change is involved. Video promotion is outside the core import and deferred to [`video-operations.md`](video-operations.md).

@@ -32,10 +32,6 @@ export interface SessionResponse {
   user: SessionUser;
 }
 
-export interface UpdateSessionViewModeRequest {
-  mode: SessionViewMode;
-}
-
 export interface UpdateProfileRequest {
   displayName: string;
   avatarUrl: string | null;

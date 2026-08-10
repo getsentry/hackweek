@@ -1,5 +1,6 @@
 import type {AwardSummary} from './administration';
 import type {SessionUser} from './api';
+import type {StreamMode} from './videos';
 
 export type ProjectKind = 'project' | 'idea';
 
@@ -67,6 +68,7 @@ export interface YearResponse {
   year: YearSummary;
   groups: GroupSummary[];
   awards: AwardSummary[];
+  streamMode: StreamMode;
 }
 
 export interface ProjectsResponse {

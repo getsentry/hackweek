@@ -1,5 +1,5 @@
 import {createHash} from 'node:crypto';
-import {readFile, stat} from 'node:fs/promises';
+import {readFile} from 'node:fs/promises';
 import path from 'node:path';
 
 import {
@@ -621,23 +621,4 @@ export async function readStorageManifest(
       contentType: typeof entry.contentType === 'string' ? entry.contentType : undefined,
     };
   });
-}
-
-export async function hydrateManifestFromRoot(
-  entries: StorageManifestEntry[],
-  storageRoot: string,
-) {
-  return Promise.all(
-    entries.map(async (entry) => {
-      if (!entry.file) return entry;
-      const filename = safeStorageFile(storageRoot, entry.file);
-      if (!filename) return entry;
-      try {
-        const info = await stat(filename);
-        return {...entry, size: info.size};
-      } catch {
-        return entry;
-      }
-    }),
-  );
 }

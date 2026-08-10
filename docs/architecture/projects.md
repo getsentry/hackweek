@@ -31,9 +31,9 @@ The project and media IDs make keys deterministic and collision-resistant for mi
 reconciliation. Browser users never receive a public bucket URL. Authenticated downloads go
 through `/api/media/:id/content` with private caching and attachment response headers. Uploads
 are bounded to 25 MiB and pass through the Worker because an R2 binding cannot mint browser
-presigned S3 requests without introducing separate S3 credentials; demo videos and other
-large media use the later direct-to-Stream path instead. A failed upload is retained as failed
-metadata for visibility, and a missing R2 object marks its D1 row missing.
+presigned S3 requests without introducing separate S3 credentials. A failed upload is retained
+as failed metadata for visibility, and a missing R2 object marks its D1 row missing.
 
-Video URLs and embeds are intentionally absent from this slice. A project or idea without a
-video is a valid complete record; Stream lifecycle and playback are added separately.
+Video URLs and embeds are intentionally absent from the core disabled-mode rollout. A project
+or idea without a video is a valid complete record. The dormant Stream lifecycle is governed
+by the separately approved rollout in [`../video-operations.md`](../video-operations.md).

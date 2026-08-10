@@ -61,9 +61,11 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
               </p>
             </div>
             <div className="heroActions">
-              <Link className="textAction" href={`/years/${yearId}/watch`}>
-                watch reel
-              </Link>
+              {year.data.streamMode === 'real' && (
+                <Link className="textAction" href={`/years/${yearId}/watch`}>
+                  watch reel
+                </Link>
+              )}
               {year.data.year.votingEnabled && (
                 <Link className="textAction" href={`/years/${yearId}/vote`}>
                   vote

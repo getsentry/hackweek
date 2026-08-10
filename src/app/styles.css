@@ -593,6 +593,11 @@ main {
   border-radius: 0.5rem;
   background: #fff;
 }
+.projectSearchStatus {
+  color: var(--muted);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
 .segmented {
   display: inline-flex;
   gap: 2px;

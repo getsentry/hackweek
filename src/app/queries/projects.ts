@@ -1,4 +1,9 @@
-import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 
 import type {
   GroupResponse,
@@ -40,6 +45,7 @@ export function useProjects(
   return useQuery({
     queryKey: ['projects', yearId, kind, group, search],
     queryFn: () => apiRequest<ProjectsResponse>(`/projects?${query}`),
+    placeholderData: keepPreviousData,
   });
 }
 

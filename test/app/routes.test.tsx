@@ -343,7 +343,11 @@ describe('clickable project routes', () => {
     ).toBe('true');
   });
 
-  it('debounces server search while retaining listing filters and view controls', async () => {
+  it('live-updates server search without replacing the current list', async () => {
+    let resolveSearch!: (response: Response) => void;
+    const pendingSearch = new Promise<Response>((resolve) => {
+      resolveSearch = resolve;
+    });
     fetchMock.mockImplementation(async (input) => {
       const url =
         typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
@@ -363,6 +367,7 @@ describe('clickable project routes', () => {
           streamMode: 'disabled',
         });
       }
+      if (url.includes('q=useful+experiment')) return pendingSearch;
       return json({projects: [projectFixture], nextCursor: null});
     });
 
@@ -400,6 +405,17 @@ describe('clickable project routes', () => {
     expect(screen.getByRole('region', {name: 'project list'}).className).toBe(
       'projectList',
     );
+    expect(screen.getByRole('heading', {name: 'A small machine'})).toBeTruthy();
+    expect(screen.getByRole('status').textContent).toBe('updating…');
+
+    resolveSearch(
+      json({
+        projects: [{...projectFixture, id: 'search-match', name: 'Useful experiment'}],
+        nextCursor: null,
+      }),
+    );
+    expect(await screen.findByRole('heading', {name: 'Useful experiment'})).toBeTruthy();
+    await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
 
     await userEvent.click(
       within(screen.getByRole('search', {name: 'Search projects and ideas'})).getByRole(

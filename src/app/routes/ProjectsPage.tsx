@@ -1,4 +1,4 @@
-import {type FormEvent, useEffect, useState} from 'react';
+import {useEffect, useState} from 'react';
 import {Link, useParams} from 'wouter';
 
 import {GroupManager} from '../components/GroupManager';
@@ -52,11 +52,6 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
     return () => window.clearTimeout(timeout);
   }, [searchInput]);
 
-  function submitSearch(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSearch(searchInput.trim());
-  }
-
   return (
     <QueryState loading={year.isLoading || projects.isLoading} error={error}>
       {!year.data ? (
@@ -103,11 +98,10 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
               )}
             </div>
           </header>
-          <form
+          <div
             className="projectSearch"
             role="search"
             aria-label="Search projects and ideas"
-            onSubmit={submitSearch}
           >
             <label htmlFor="project-search">Search projects and ideas</label>
             <div>
@@ -131,11 +125,13 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                   clear
                 </button>
               )}
-              <button type="submit" className="primaryAction">
-                search
-              </button>
+              {projects.isFetching && (
+                <span className="projectSearchStatus" role="status">
+                  updating…
+                </span>
+              )}
             </div>
-          </form>
+          </div>
           <section className="projectControls" aria-label="Project filters">
             <div className="segmented">
               <button

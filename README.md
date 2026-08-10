@@ -38,22 +38,10 @@ Google OAuth is the only browser authentication path in every environment, inclu
 
 All core browser APIs except health require a D1-backed user. Authenticated mutations and logout require an exact same-origin `Origin` header. Logout revokes the current D1 session. Login rotates existing sessions. Google/client claims never grant admin access. Dormant Stream webhook and video-job endpoints use separate machine-auth boundaries if real Stream is approved later.
 
-See [`docs/cloudflare-setup.md`](docs/cloudflare-setup.md) for exact Google Cloud Console origins/callbacks, `GOOGLE_CLIENT_SECRET` installation, single-environment Cloudflare setup, and secret boundaries.
-
 ## Quality gates
 
 ```bash
 npm run verify
 ```
 
-This generates binding types, typechecks, checks formatting/lint, runs Worker/frontend/migration/player tests, builds, performs a credential-free deployment dry run, and runs an isolated seeded D1/R2 journey with fake-Stream contract coverage. Local tests do not prove real Google OAuth, deployed bindings, or imported data; follow [`docs/cloudflare-validation.md`](docs/cloudflare-validation.md) for the core remote evidence gate. Real Stream is outside that gate.
-
-## Documentation
-
-- [`docs/architecture.md`](docs/architecture.md) — system/data/security boundaries
-- [`docs/cloudflare-setup.md`](docs/cloudflare-setup.md) — one Cloudflare environment and Google OAuth setup
-- [`docs/cloudflare-validation.md`](docs/cloudflare-validation.md) — pre-cutover remote validation
-- [`docs/migration.md`](docs/migration.md) — export/import/reconciliation
-- [`docs/video-operations.md`](docs/video-operations.md) — deferred real-Stream rollout and archive operations
-- [`docs/screening.md`](docs/screening.md) — deferred video-screening rollout
-- [`docs/cutover.md`](docs/cutover.md) — production traffic handoff and rollback
+This generates binding types, typechecks, checks formatting/lint, runs Worker/frontend/migration/player tests, builds, performs a credential-free deployment dry run, and runs an isolated seeded D1/R2 journey with fake-Stream contract coverage. Local tests do not prove real Google OAuth, deployed bindings, or imported data. Real Stream is outside that gate.

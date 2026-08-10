@@ -39,5 +39,8 @@ junit.xml
 *.tsbuildinfo
 src/version.json
 
+# local documentation
+/docs/
+
 # local videos
 public/videos/

@@ -1418,10 +1418,6 @@ main {
   display: block;
   flex: none;
 }
-.pageState--error {
-  border-color: #f5a8b4;
-}
-
 .operationsHero h1 {
   max-width: 12ch;
 }

@@ -17,10 +17,11 @@
         ]
       }
     ],
-    "rewrites": [
+    "redirects": [
       {
         "source": "**",
-        "destination": "/index.html"
+        "destination": "https://hackweek.sentry.new",
+        "type": 302
       }
     ]
   },

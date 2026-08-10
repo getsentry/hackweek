@@ -32,10 +32,12 @@ projectsRoutes.get('/', async (c) => {
     const kind = kindQuery === 'project' || kindQuery === 'idea' ? kindQuery : undefined;
     const limit = boundedInteger(c.req.query('limit'), 24, 1, 50, 'Limit');
     const offset = boundedInteger(c.req.query('cursor'), 0, 0, 100_000, 'Cursor');
+    const search = boundedSearch(c.req.query('q'));
     const response: ProjectsResponse = await listProjects(c.env.DB, {
       yearId,
       kind,
       groupId: c.req.query('group'),
+      search,
       limit,
       offset,
     });
@@ -112,6 +114,18 @@ projectsRoutes.delete('/:projectId', async (c) => {
     return c.json(result.response, result.status);
   }
 });
+
+function boundedSearch(value: string | undefined) {
+  if (value === undefined) return undefined;
+  if (value.length > 100) {
+    throw new ServiceError(
+      'VALIDATION_FAILED',
+      'Search query must be at most 100 characters',
+      400,
+    );
+  }
+  return value.trim() || undefined;
+}
 
 function boundedInteger(
   value: string | undefined,

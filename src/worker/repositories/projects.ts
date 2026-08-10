@@ -152,6 +152,7 @@ export async function listProjects(
     yearId: string;
     kind?: 'project' | 'idea';
     groupId?: string;
+    search?: string;
     limit: number;
     offset: number;
   },
@@ -167,12 +168,30 @@ export async function listProjects(
     conditions.push('p.group_id = ?');
     bindings.push(options.groupId);
   }
+  let relevanceOrder = '';
+  if (options.search) {
+    const escapedSearch = escapeLikePattern(options.search);
+    const containsPattern = `%${escapedSearch}%`;
+    conditions.push(
+      `(LOWER(p.name) LIKE LOWER(?) ESCAPE '\\'
+        OR LOWER(COALESCE(p.summary, '')) LIKE LOWER(?) ESCAPE '\\')`,
+    );
+    bindings.push(containsPattern, containsPattern);
+    relevanceOrder = `CASE
+         WHEN LOWER(p.name) = LOWER(?) THEN 0
+         WHEN LOWER(p.name) LIKE LOWER(?) ESCAPE '\\' THEN 1
+         WHEN LOWER(p.name) LIKE LOWER(?) ESCAPE '\\' THEN 2
+         ELSE 3
+       END,`;
+    bindings.push(options.search, `${escapedSearch}%`, containsPattern);
+  }
   bindings.push(options.limit + 1, options.offset);
 
   const {results} = await db
     .prepare(
       `${projectSelect()} WHERE ${conditions.join(' AND ')}
-       ORDER BY p.needs_help DESC, p.name COLLATE NOCASE, p.id LIMIT ? OFFSET ?`,
+       ORDER BY ${relevanceOrder} p.needs_help DESC, p.name COLLATE NOCASE, p.id
+       LIMIT ? OFFSET ?`,
     )
     .bind(...bindings)
     .all<ProjectRow>();
@@ -186,6 +205,10 @@ export async function listProjects(
     nextCursor:
       results.length > options.limit ? String(options.offset + options.limit) : null,
   };
+}
+
+function escapeLikePattern(value: string) {
+  return value.replace(/[\\%_]/g, '\\$&');
 }
 
 export async function getProject(

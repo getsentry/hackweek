@@ -343,6 +343,84 @@ describe('clickable project routes', () => {
     ).toBe('true');
   });
 
+  it('searches on the server while retaining listing filters and view controls', async () => {
+    fetchMock.mockImplementation(async (input) => {
+      const url =
+        typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      if (url.includes('/api/years/2026')) {
+        return json({
+          year: {
+            id: '2026',
+            votingEnabled: false,
+            submissionsClosed: false,
+            projectCount: 1,
+            ideaCount: 0,
+            groupCount: 1,
+            participantCount: 1,
+          },
+          groups: [{id: 'group', yearId: '2026', name: 'Orbital', projectCount: 1}],
+          awards: [],
+          streamMode: 'disabled',
+        });
+      }
+      return json({projects: [projectFixture], nextCursor: null});
+    });
+
+    renderRoute(<ProjectsPage />, '/years/2026/projects', '/years/:yearId/projects');
+    await screen.findByRole('heading', {name: 'A small machine'});
+
+    const search = screen.getByRole('search', {name: 'Search projects and ideas'});
+    const input = within(search).getByLabelText('Search projects and ideas');
+    expect(input.getAttribute('type')).toBe('search');
+    expect(input.getAttribute('maxlength')).toBe('100');
+
+    await userEvent.selectOptions(screen.getByLabelText('Group'), 'group');
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining('group=group'),
+        undefined,
+      ),
+    );
+    await userEvent.click(screen.getByRole('button', {name: 'list view'}));
+    const activeSearch = screen.getByRole('search', {
+      name: 'Search projects and ideas',
+    });
+    await userEvent.type(
+      within(activeSearch).getByLabelText('Search projects and ideas'),
+      'useful experiment',
+    );
+    await userEvent.click(within(activeSearch).getByRole('button', {name: 'search'}));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringMatching(
+          /\/api\/projects\?(?=.*year=2026)(?=.*kind=project)(?=.*group=group)(?=.*q=useful\+experiment)/,
+        ),
+        undefined,
+      ),
+    );
+    expect(screen.getByRole('region', {name: 'project list'}).className).toBe(
+      'projectList',
+    );
+
+    await userEvent.click(
+      within(screen.getByRole('search', {name: 'Search projects and ideas'})).getByRole(
+        'button',
+        {name: 'clear'},
+      ),
+    );
+    await waitFor(() => {
+      const lastInput = fetchMock.mock.calls.at(-1)?.[0];
+      const lastUrl =
+        typeof lastInput === 'string'
+          ? lastInput
+          : lastInput instanceof URL
+            ? lastInput.href
+            : lastInput?.url;
+      expect(lastUrl).not.toContain('q=');
+    });
+  });
+
   it('renders an idea with no video and exposes the server claim permission', async () => {
     fetchMock.mockResolvedValue(
       json({

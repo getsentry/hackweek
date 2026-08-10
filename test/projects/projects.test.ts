@@ -74,6 +74,92 @@ describe('project and history APIs', () => {
     expect(page.body.projects[0].members).toBeInstanceOf(Array);
   });
 
+  it('searches titles and descriptions before pagination with relevant results first', async () => {
+    const exact = await createProject(memberToken, {
+      name: 'Signal',
+      summary: 'An exact title match.',
+    });
+    const prefix = await createProject(memberToken, {
+      name: 'Signal relay',
+      summary: 'A title prefix match.',
+    });
+    const description = await createProject(memberToken, {
+      name: 'Quiet engine',
+      summary: 'Routes an important signal between services.',
+    });
+    await createProject(memberToken, {
+      name: 'Unrelated project',
+      summary: 'Nothing to see here.',
+    });
+    await createProject(memberToken, {
+      name: 'Idea signal',
+      summary: 'A matching idea excluded by the kind filter.',
+      kind: 'idea',
+      groupId: null,
+    });
+
+    const matches = await api(
+      `/projects?year=${yearId}&kind=project&group=${groupId}&q=signal&limit=3`,
+      memberToken,
+    );
+    const secondPage = await api(
+      `/projects?year=${yearId}&kind=project&group=${groupId}&q=signal&limit=1&cursor=1`,
+      memberToken,
+    );
+
+    expect(matches.status).toBe(200);
+    expect(matches.body.projects.map((project: {id: string}) => project.id)).toEqual([
+      exact.id,
+      prefix.id,
+      description.id,
+    ]);
+    expect(secondPage.body.projects[0].id).toBe(prefix.id);
+    expect(secondPage.body.nextCursor).toBe('2');
+  });
+
+  it('treats SQL wildcards literally and bounds search input', async () => {
+    const percent = await createProject(memberToken, {
+      name: '100% reliable',
+      summary: 'A literal percentage marker.',
+    });
+    const underscore = await createProject(memberToken, {
+      name: 'Project_alpha',
+      summary: 'A literal underscore marker.',
+    });
+    await createProject(memberToken, {
+      name: '1000 reliable',
+      summary: 'Must not match the percentage query.',
+    });
+    await createProject(memberToken, {
+      name: 'ProjectXalpha',
+      summary: 'Must not match the underscore query.',
+    });
+
+    const percentMatches = await api(
+      `/projects?year=${yearId}&q=${encodeURIComponent('100%')}`,
+      memberToken,
+    );
+    const underscoreMatches = await api(
+      `/projects?year=${yearId}&q=${encodeURIComponent('Project_')}`,
+      memberToken,
+    );
+    const tooLong = await api(
+      `/projects?year=${yearId}&q=${'x'.repeat(101)}`,
+      memberToken,
+    );
+
+    expect(
+      percentMatches.body.projects.map((project: {id: string}) => project.id),
+    ).toEqual([percent.id]);
+    expect(
+      underscoreMatches.body.projects.map((project: {id: string}) => project.id),
+    ).toEqual([underscore.id]);
+    expect(tooLong).toMatchObject({
+      status: 400,
+      body: {error: {code: 'VALIDATION_FAILED'}},
+    });
+  });
+
   it('derives archived year flags and rejects project creation there', async () => {
     const archivedYearId = `project-archive-${suffix}`;
     await env.DB.prepare(

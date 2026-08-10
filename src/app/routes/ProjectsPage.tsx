@@ -1,4 +1,4 @@
-import {useState} from 'react';
+import {type FormEvent, useState} from 'react';
 import {Link, useParams} from 'wouter';
 
 import {GroupManager} from '../components/GroupManager';
@@ -32,10 +32,22 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
   const {yearId} = useParams<{yearId: string}>();
   const [kind, setKind] = useState<'project' | 'idea'>('project');
   const [group, setGroup] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
   const [view, setView] = useState<ProjectsView>(getProjectsView);
   const year = useYear(yearId);
-  const projects = useProjects(yearId, kind, group || undefined);
+  const projects = useProjects(
+    yearId,
+    kind,
+    kind === 'project' ? group || undefined : undefined,
+    search || undefined,
+  );
   const error = year.error ?? projects.error;
+
+  function submitSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSearch(searchInput.trim());
+  }
 
   return (
     <QueryState loading={year.isLoading || projects.isLoading} error={error}>
@@ -83,6 +95,39 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
               )}
             </div>
           </header>
+          <form
+            className="projectSearch"
+            role="search"
+            aria-label="Search projects and ideas"
+            onSubmit={submitSearch}
+          >
+            <label htmlFor="project-search">Search projects and ideas</label>
+            <div>
+              <input
+                id="project-search"
+                type="search"
+                value={searchInput}
+                maxLength={100}
+                placeholder="Search titles and descriptions"
+                onChange={(event) => setSearchInput(event.target.value)}
+              />
+              {search && (
+                <button
+                  type="button"
+                  className="textAction"
+                  onClick={() => {
+                    setSearchInput('');
+                    setSearch('');
+                  }}
+                >
+                  clear
+                </button>
+              )}
+              <button type="submit" className="primaryAction">
+                search
+              </button>
+            </div>
+          </form>
           <section className="projectControls" aria-label="Project filters">
             <div className="segmented">
               <button
@@ -154,7 +199,11 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
             <section className="emptyState">
               <span>∅</span>
               <h2>No {kind === 'idea' ? 'ideas' : 'projects'} found</h2>
-              <p>try another group or add the first {kind} for this Hackweek.</p>
+              <p>
+                {search
+                  ? 'try another search or adjust the filters.'
+                  : `try another group or add the first ${kind} for this Hackweek.`}
+              </p>
             </section>
           ) : (
             <section

@@ -565,6 +565,34 @@ main {
   margin-bottom: 2rem;
   border-bottom: 1px solid var(--line);
 }
+.projectSearch {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 0 0.75rem;
+}
+.projectSearch > label {
+  color: var(--ink);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.projectSearch > div {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  width: min(100%, 34rem);
+}
+.projectSearch input {
+  min-width: 0;
+  min-height: 2.5rem;
+  padding: 0.55rem 0.75rem;
+  flex: 1;
+  color: var(--ink);
+  border: 1px solid #c9c3d1;
+  border-radius: 0.5rem;
+  background: #fff;
+}
 .segmented {
   display: inline-flex;
   gap: 2px;
@@ -2098,11 +2126,15 @@ kbd {
   }
   .detailHero,
   .projectControls,
+  .projectSearch,
   .operationsBar,
   .groupManager > header,
   .nominationRow {
     align-items: stretch;
     flex-direction: column;
+  }
+  .projectSearch > div {
+    width: 100%;
   }
   .projectControlActions {
     width: 100%;

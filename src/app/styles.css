@@ -1359,6 +1359,9 @@ main {
   background: #fff;
   text-align: center;
 }
+.pageState {
+  margin-inline: auto;
+}
 .pageState::after,
 .authState::after {
   position: absolute;

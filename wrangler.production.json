@@ -31,5 +31,5 @@
     "ALLOWED_EMAIL_DOMAIN": "sentry.io",
     "STREAM_MODE": "disabled"
   },
-  "observability": { "enabled": true }
+  "observability": {"enabled": true}
 }

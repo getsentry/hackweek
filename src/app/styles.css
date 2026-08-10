@@ -1361,6 +1361,7 @@ main {
 }
 .pageState {
   margin-inline: auto;
+  border: 0;
 }
 .pageState::after,
 .authState::after {

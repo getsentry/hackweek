@@ -25,11 +25,11 @@
     }
   ],
   "vars": {
-    "APP_ORIGIN": "https://hackweek.getsentry.workers.dev",
-    "GOOGLE_REDIRECT_URI": "https://hackweek.getsentry.workers.dev/api/auth/callback",
+    "APP_ORIGIN": "https://hackweek.sentry.new",
+    "GOOGLE_REDIRECT_URI": "https://hackweek.sentry.new/api/auth/callback",
     "GOOGLE_CLIENT_ID": "694837489680-25m2umkr51lofdads5uvocgtcdqcs6c4.apps.googleusercontent.com",
     "ALLOWED_EMAIL_DOMAIN": "sentry.io",
     "STREAM_MODE": "disabled"
   },
-  "observability": {"enabled": true}
+  "observability": { "enabled": true }
 }

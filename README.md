@@ -52,23 +52,6 @@ Never run that command with `--remote`.
 - **Stale local data:** stop the app and remove only `.wrangler/state`, then repeat the local migrations. This never touches remote resources.
 - **Playback fails:** confirm the video is ready and signed-in playback returns `200` or `206`; unready, retired, and anonymous reads are intentionally rejected.
 
-## Automated real-byte readiness
-
-```bash
-npm run test:video-processor
-npm run test:readiness
-```
-
-`test:video-processor` builds the pinned image and covers loud, silent, rotated, low-resolution, malformed, over-duration, and forced-failure fixtures generated at runtime. `test:readiness` creates isolated temporary D1/R2 state, preserves the developer’s `.dev.vars`, uploads generated MP4 bytes through multipart R2, resumes the upload, runs the local Workflow and Container, probes the canonical output, verifies authenticated full/range playback and curated playlist inclusion, retires the submission, proves retained objects, then removes its processes and state.
-
-For a manual browser companion pass, run `npm run dev:video` and check:
-
-1. pause/reload during upload and resume from the recorded part;
-2. queued → processing → ready status;
-3. project playback seek (range delivery);
-4. curated reel overlay, pause, skip, fullscreen, and advance;
-5. retirement removes playback/reel visibility without deleting stored bytes.
-
 ## Authentication
 
 Google OAuth is the only browser authentication path. It uses Authorization Code with PKCE, state and nonce validation, Google JWKS verification, exact verified `@sentry.io` enforcement, hashed opaque D1 sessions, and HttpOnly cookies. D1 is the sole role authority. Authenticated mutations require the exact same-origin `Origin` header.
@@ -80,6 +63,4 @@ npm run verify
 npm audit --omit=dev --audit-level=high
 ```
 
-The deterministic gate generates binding types, typechecks, checks formatting/lint, runs Worker/frontend/migration/player tests, builds, performs a credential-free production dry run, builds and exercises the real pinned processor, and runs the isolated real-byte local E2E. It does not deploy, provision, access remote resources, or prove real Google OAuth.
-
-Production resource names, benchmark evidence, observability, rollout, smoke, rollback, and retained-storage policy are documented in [`VIDEO_ROLLOUT.md`](VIDEO_ROLLOUT.md). Every production mutation remains behind explicit later human approval.
+The gate generates binding types, typechecks, checks formatting/lint, runs the standard test suites, builds, and performs a credential-free production dry run. It does not deploy, provision, access remote resources, or prove real Google OAuth.

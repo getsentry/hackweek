@@ -55,6 +55,19 @@ async function prepareVideoUpload(projectId: string, file: File) {
   return created;
 }
 
+export function useRetryVideo(projectId: string) {
+  const cache = useQueryClient();
+  return useMutation({
+    mutationFn: () =>
+      apiRequest<ProjectVideoResponse>(
+        `/projects/${encodeURIComponent(projectId)}/video/retry`,
+        jsonRequest('POST', {}),
+      ),
+    onSuccess: (response) =>
+      cache.setQueryData<ProjectVideoResponse>(['project-video', projectId], response),
+  });
+}
+
 export function useDeleteVideo(projectId: string) {
   const cache = useQueryClient();
   return useMutation({

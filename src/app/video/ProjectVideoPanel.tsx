@@ -4,7 +4,7 @@ import {Link} from 'wouter';
 
 import type {PlaybackResponse, ProjectVideo} from '../../shared/videos';
 import {IndividualPlayer} from '../player/IndividualPlayer';
-import {useCreateVideoUpload, useDeleteVideo} from '../queries/videos';
+import {useCreateVideoUpload, useDeleteVideo, useRetryVideo} from '../queries/videos';
 import {createMultipartUpload, type ResumableUpload, type UploadSnapshot} from './upload';
 
 const INITIAL_UPLOAD: UploadSnapshot = {
@@ -38,6 +38,7 @@ export function ProjectVideoPanel(props: {
   } = props;
   const cache = useQueryClient();
   const createUpload = useCreateVideoUpload(projectId);
+  const retryProcessing = useRetryVideo(projectId);
   const remove = useDeleteVideo(projectId);
   const controller = useRef<ResumableUpload | null>(null);
   const [upload, setUpload] = useState<UploadSnapshot | null>(null);
@@ -77,7 +78,7 @@ export function ProjectVideoPanel(props: {
   }
 
   const isUploading = upload && upload.phase !== 'complete';
-  const actionError = error ?? remove.error?.message;
+  const actionError = error ?? retryProcessing.error?.message ?? remove.error?.message;
 
   return (
     <section className="videoPanel" aria-labelledby="project-video-heading">
@@ -173,6 +174,15 @@ export function ProjectVideoPanel(props: {
                 onChange={selectFile}
               />
             </label>
+          )}
+          {video?.status === 'failed' && (
+            <button
+              className="primaryAction"
+              disabled={retryProcessing.isPending}
+              onClick={() => retryProcessing.mutate()}
+            >
+              retry processing
+            </button>
           )}
           {video && (
             <button

@@ -136,7 +136,10 @@ describe('video user experience', () => {
     expect(screen.getByText(/private R2 storage/i)).toBeTruthy();
   });
 
-  it('requires retirement before a failed video can be replaced', () => {
+  it('retries failed processing without requiring another upload', async () => {
+    fetchMock.mockResolvedValue(
+      json({video: {...baseVideo, status: 'queued', processingAttempt: 2}}, 202),
+    );
     renderQuery(
       <ProjectVideoPanel
         projectId="project"
@@ -152,6 +155,11 @@ describe('video user experience', () => {
     );
     expect(screen.getByText('audio decode failed')).toBeTruthy();
     expect(screen.queryByLabelText('select project video')).toBeNull();
+    await userEvent.click(screen.getByRole('button', {name: 'retry processing'}));
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/projects/project/video/retry',
+      expect.objectContaining({method: 'POST'}),
+    );
     expect(screen.getByRole('button', {name: 'retire video'})).toBeTruthy();
   });
 

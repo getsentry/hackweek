@@ -2164,9 +2164,15 @@ kbd {
   .screeningControls {
     grid-template-columns: repeat(3, 1fr);
   }
-  .screeningControls > div {
-    grid-column: 1 / -1;
+  .screeningTimeline {
     grid-row: 1;
+  }
+  .screeningNowPlaying {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .screeningControls button {
+    grid-row: 3;
   }
   .screeningControls button:last-child {
     grid-column: auto;
@@ -2184,6 +2190,7 @@ kbd {
     grid-template-columns: 1fr 1fr;
   }
   .screeningControls button:last-child {
+    grid-row: 4;
     grid-column: 1 / -1;
   }
   .titleCard h2,

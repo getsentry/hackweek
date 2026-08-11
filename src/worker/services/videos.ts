@@ -46,8 +46,6 @@ interface ProcessingAttemptRow {
   attempt_status: string;
 }
 
-export class ProcessingCapacityError extends Error {}
-
 interface UploadRow {
   id: string;
   video_id: string;
@@ -622,7 +620,9 @@ export async function claimVideoProcessingAttempt(
   videoId: string,
   attempt: number,
   concurrency: number,
-): Promise<{status: 'claimed'; outputKey: string} | {status: 'stale'}> {
+): Promise<
+  {status: 'claimed'; outputKey: string} | {status: 'stale'} | {status: 'capacity'}
+> {
   const row = await processingAttempt(db, videoId, attempt);
   if (
     !row ||
@@ -637,9 +637,7 @@ export async function claimVideoProcessingAttempt(
       `SELECT COUNT(*) count FROM video_processing_attempts WHERE status = 'running'`,
     )
     .first<{count: number}>();
-  if ((running?.count ?? 0) >= concurrency) {
-    throw new ProcessingCapacityError('Video processor concurrency is currently full');
-  }
+  if ((running?.count ?? 0) >= concurrency) return {status: 'capacity'};
   const outputKey = videoProcessedKey(row.project_id, videoId, attempt);
   const results = await db.batch([
     db
@@ -673,7 +671,7 @@ export async function claimVideoProcessingAttempt(
   }
   const current = await processingAttempt(db, videoId, attempt);
   if (current?.video_status === 'queued' && current.attempt_status === 'queued') {
-    throw new ProcessingCapacityError('Video processor concurrency is currently full');
+    return {status: 'capacity'};
   }
   return {status: 'stale'};
 }

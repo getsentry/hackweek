@@ -40,6 +40,7 @@ export function createMultipartUpload(
   const bytesSent = () => parts.reduce((total, part) => total + part.sizeBytes, 0);
   const notify = () =>
     onChange({phase, bytesSent: bytesSent(), bytesTotal: file.size, error});
+  const isPaused = () => phase === 'paused';
 
   async function run() {
     if (running || phase === 'complete') return;
@@ -50,6 +51,7 @@ export function createMultipartUpload(
     try {
       const partCount = Math.ceil(file.size / session.partSize);
       for (let partNumber = 1; partNumber <= partCount; partNumber += 1) {
+        if (isPaused()) return;
         if (parts.some((part) => part.partNumber === partNumber)) continue;
         active = new AbortController();
         const start = (partNumber - 1) * session.partSize;
@@ -69,6 +71,7 @@ export function createMultipartUpload(
         notify();
       }
 
+      if (isPaused()) return;
       const completed = await fetch(`${uploadUrl(session)}/complete`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},

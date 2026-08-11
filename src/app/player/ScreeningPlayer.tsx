@@ -52,7 +52,6 @@ export const ScreeningPlayer = forwardRef<
   const [state, setState] = useState(
     initialState(initialIndex, playlist[initialIndex]?.durationSeconds ?? 0),
   );
-  const clip = playlist[state.index];
 
   const publishState = useCallback(
     (next: PlayerState) => {
@@ -117,7 +116,9 @@ export const ScreeningPlayer = forwardRef<
     );
   }
 
-  const activeSlot = state.index % 2;
+  const activeIndex = playlist[state.index] ? state.index : 0;
+  const clip = playlist[activeIndex];
+  const activeSlot = activeIndex % 2;
   const showingTitle = state.phase === 'title';
   const team =
     clip.teamMembers.map(({displayName}) => displayName).join(' · ') || 'Hackweek team';
@@ -141,7 +142,7 @@ export const ScreeningPlayer = forwardRef<
           aria-label="screening video two"
         />
         <div className={`titleCard ${showingTitle ? 'visible' : ''}`} aria-live="polite">
-          <p>#{String(state.index + 1).padStart(2, '0')} / Hackweek</p>
+          <p>#{String(activeIndex + 1).padStart(2, '0')} / Hackweek</p>
           <h2>{clip.projectName}</h2>
           {clip.groupName && <strong>{clip.groupName}</strong>}
           <span>{team}</span>
@@ -167,9 +168,9 @@ export const ScreeningPlayer = forwardRef<
             <p>{playlist.length} ready project videos</p>
             <button
               className="screeningStart"
-              onClick={() => void buildController()?.start(state.index)}
+              onClick={() => void buildController()?.start(activeIndex)}
             >
-              {state.index === 0 ? 'play all' : `play from ${clip.projectName}`}
+              {activeIndex === 0 ? 'play all' : `play from ${clip.projectName}`}
             </button>
             <small>sound starts only after you press play</small>
           </div>
@@ -190,7 +191,7 @@ export const ScreeningPlayer = forwardRef<
               className="screeningStart"
               onClick={() => void controller.current?.skip()}
             >
-              {state.index < playlist.length - 1 ? 'skip now' : 'finish reel'}
+              {activeIndex < playlist.length - 1 ? 'skip now' : 'finish reel'}
             </button>
           </div>
         )}
@@ -218,10 +219,10 @@ export const ScreeningPlayer = forwardRef<
         >
           {state.phase === 'paused' ? '▶ resume' : 'Ⅱ pause'} <kbd>space</kbd>
         </button>
-        <div aria-live="polite">
+        <div className="screeningNowPlaying" aria-live="polite">
           <strong>{clip.projectName}</strong>
           <span>
-            {state.index + 1} of {playlist.length}
+            {activeIndex + 1} of {playlist.length}
           </span>
         </div>
         <button

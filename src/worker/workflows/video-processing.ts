@@ -32,29 +32,42 @@ export class VideoProcessingWorkflow extends WorkflowEntrypoint<
 > {
   async run(event: WorkflowEvent<VideoProcessingParams>, step: WorkflowStep) {
     const {videoId, attempt} = event.payload;
-    let claim: Awaited<ReturnType<typeof claimVideoProcessingAttempt>>;
-    try {
-      claim = await step.do(
-        'claim current processing attempt',
-        {
-          retries: {limit: 360, delay: '5 seconds', backoff: 'constant'},
-          timeout: '30 seconds',
-        },
-        () =>
-          claimVideoProcessingAttempt(
-            this.env.DB,
-            videoId,
-            attempt,
-            processingConcurrency(this.env.VIDEO_PROCESSOR_CONCURRENCY),
-          ),
-      );
-    } catch (error) {
-      const message = errorMessage(error);
-      logVideoProcessing('error', 'claim_failed', {videoId, attempt, message});
-      await step.do('record claim failure', () =>
-        failVideoProcessingAttempt(this.env.DB, videoId, attempt, message),
-      );
-      return {status: 'failed', stage: 'claim'};
+    let claim: Exclude<
+      Awaited<ReturnType<typeof claimVideoProcessingAttempt>>,
+      {status: 'capacity'}
+    >;
+    for (;;) {
+      let candidate: Awaited<ReturnType<typeof claimVideoProcessingAttempt>>;
+      try {
+        candidate = await step.do(
+          'claim current processing attempt',
+          {
+            retries: {limit: 5, delay: '2 seconds', backoff: 'constant'},
+            timeout: '30 seconds',
+          },
+          () =>
+            claimVideoProcessingAttempt(
+              this.env.DB,
+              videoId,
+              attempt,
+              processingConcurrency(this.env.VIDEO_PROCESSOR_CONCURRENCY),
+            ),
+        );
+      } catch (error) {
+        const message = errorMessage(error);
+        logVideoProcessing('error', 'claim_failed', {videoId, attempt, message});
+        await step.do('record claim failure', () =>
+          failVideoProcessingAttempt(this.env.DB, videoId, attempt, message),
+        );
+        return {status: 'failed', stage: 'claim'};
+      }
+      if (candidate.status === 'capacity') {
+        logVideoProcessing('info', 'waiting_for_capacity', {videoId, attempt});
+        await step.sleep('wait for processing capacity', '15 seconds');
+        continue;
+      }
+      claim = candidate;
+      break;
     }
     if (claim.status === 'stale') {
       logVideoProcessing('info', 'stale_before_processing', {videoId, attempt});

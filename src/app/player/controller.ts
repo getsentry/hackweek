@@ -47,6 +47,7 @@ export function createScreeningController({
   let countdownSeconds: number | null = null;
   let currentTime = 0;
   let durationSeconds = playlist[0]?.durationSeconds ?? 0;
+  let stateError: string | null = null;
   let destroyed = false;
   let operation = 0;
   let transitionTimer: ReturnType<typeof setTimeout> | null = null;
@@ -54,8 +55,15 @@ export function createScreeningController({
   const attachments: [MediaAttachment | null, MediaAttachment | null] = [null, null];
   const attachedVideoIds: [string | null, string | null] = [null, null];
   const slotOperations: [number, number] = [0, 0];
-  const notify = (error: string | null = null) =>
-    onState({phase, index, error, countdownSeconds, currentTime, durationSeconds});
+  const notify = () =>
+    onState({
+      phase,
+      index,
+      error: stateError,
+      countdownSeconds,
+      currentTime,
+      durationSeconds,
+    });
 
   const endedHandlers = elements.map((_element, slot) => () => {
     if (phase === 'playing' && slot === active) void advance();
@@ -148,6 +156,7 @@ export function createScreeningController({
     const currentOperation = ++operation;
     currentTime = 0;
     durationSeconds = playlist[index]?.durationSeconds ?? 0;
+    stateError = null;
     phase = 'title';
     notify();
     await prepare(index, active);
@@ -164,23 +173,28 @@ export function createScreeningController({
     clearTransitionTimers();
     elements[active].pause();
     if (index >= playlist.length - 1) {
+      stateError = null;
       phase = 'complete';
       notify();
       return;
     }
     index += 1;
     active = active === 0 ? 1 : 0;
-    await playCurrent().catch((error: unknown) =>
-      fail(error instanceof Error ? error.message : 'playback could not start'),
-    );
+    try {
+      await audio.resume();
+      await playCurrent();
+    } catch (error) {
+      fail(error instanceof Error ? error.message : 'playback could not start');
+    }
   }
 
   function fail(message: string) {
     operation += 1;
     clearTransitionTimers();
     elements[active].pause();
+    stateError = message;
     phase = 'error';
-    notify(message);
+    notify();
     const failedOperation = operation;
     transitionTimer = setTimeout(() => {
       transitionTimer = null;

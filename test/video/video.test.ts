@@ -8,7 +8,6 @@ import {
   createMultipartVideoUpload,
   failVideoProcessingAttempt,
   MAX_VIDEO_BYTES,
-  ProcessingCapacityError,
   publishVideoProcessingAttempt,
   reapExpiredMultipartVideoUploads,
   VIDEO_PART_SIZE,
@@ -715,7 +714,7 @@ describe('R2 multipart video lifecycle', () => {
     expect(claimed.status).toBe('claimed');
     await expect(
       claimVideoProcessingAttempt(env.DB, right.video.id, 1, 1),
-    ).rejects.toBeInstanceOf(ProcessingCapacityError);
+    ).resolves.toEqual({status: 'capacity'});
     expect(
       await env.DB.prepare('SELECT status FROM video_submissions WHERE id = ?')
         .bind(right.video.id)

@@ -109,6 +109,34 @@ describe('video user experience', () => {
     expect(screen.queryByRole('progressbar')).toBeNull();
   });
 
+  it('does not start another part when pause races a completed request', async () => {
+    const file = new File(['abcdef'], 'pause.mp4', {type: 'video/mp4'});
+    const session = {...uploadSession, fileSize: file.size, partSize: 3};
+    let resolveFirstPart: ((response: Response) => void) | undefined;
+    fetchMock.mockImplementation(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolveFirstPart = resolve;
+        }),
+    );
+    const snapshots: UploadSnapshot[] = [];
+    const upload = createMultipartUpload(file, session, (snapshot) =>
+      snapshots.push(snapshot),
+    );
+
+    upload.start();
+    await vi.waitFor(() => expect(resolveFirstPart).toBeTypeOf('function'));
+    resolveFirstPart?.(
+      json({part: {partNumber: 1, etag: 'first', sizeBytes: session.partSize}}),
+    );
+    await upload.pause();
+
+    await vi.waitFor(() =>
+      expect(snapshots.at(-1)).toMatchObject({phase: 'paused', bytesSent: 3}),
+    );
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
   it('persists multipart resume identity and skips server-confirmed parts', async () => {
     const file = new File(['abcde'], 'resume.mp4', {
       type: 'video/mp4',
@@ -246,6 +274,26 @@ describe('video user experience', () => {
 
     renderQuery(<ScreeningPlayer playlist={[]} getPlayback={vi.fn()} />);
     expect(screen.getByRole('heading', {name: 'no videos are ready'})).toBeTruthy();
+  });
+
+  it('falls back safely when a refreshed playlist removes the selected clip', () => {
+    const view = render(
+      <ScreeningPlayer
+        playlist={playlist}
+        initialVideoId="video-2"
+        getPlayback={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('button', {name: 'play from Second project'})).toBeTruthy();
+
+    view.rerender(
+      <ScreeningPlayer
+        playlist={[playlist[0]]}
+        initialVideoId="video-2"
+        getPlayback={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('button', {name: 'play all'})).toBeTruthy();
   });
 
   it('exposes visible pause, skip, fullscreen controls and keyboard shortcuts', async () => {

@@ -60,6 +60,7 @@ describe('dual screening controller', () => {
 
     videos[0].dispatchEvent(new Event('ended'));
     await Promise.resolve();
+    expect(audio.resume).toHaveBeenCalledTimes(2);
     expect(states.at(-1)?.phase).toBe('title');
     expect(states.at(-1)?.index).toBe(1);
     await vi.advanceTimersByTimeAsync(10);
@@ -97,9 +98,10 @@ describe('dual screening controller', () => {
     expect(states.at(-1)).toMatchObject({phase: 'title', index: 0});
 
     const errors: PlayerState[] = [];
+    const errorVideos: [HTMLVideoElement, HTMLVideoElement] = [fakeVideo(), fakeVideo()];
     const errorController = createScreeningController({
       playlist,
-      elements: [fakeVideo(), fakeVideo()],
+      elements: errorVideos,
       audio: fakeAudio(),
       getPlayback: async (videoId) => {
         if (videoId === 'video-1') throw new Error('private source unavailable');
@@ -114,6 +116,11 @@ describe('dual screening controller', () => {
       errorDurationMs: 10,
     });
     await errorController.start();
+    expect(errors.at(-1)).toMatchObject({
+      phase: 'error',
+      error: 'private source unavailable',
+    });
+    errorVideos[0].dispatchEvent(new Event('durationchange'));
     expect(errors.at(-1)).toMatchObject({
       phase: 'error',
       error: 'private source unavailable',

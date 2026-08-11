@@ -41,6 +41,7 @@ export function WatchPage() {
             </div>
           </header>
           <ScreeningPlayer
+            key={playlist.data.videos.map(({videoId}) => videoId).join(':')}
             ref={player}
             playlist={playlist.data.videos}
             getPlayback={getPlayback}

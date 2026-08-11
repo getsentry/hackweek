@@ -1774,14 +1774,8 @@ main {
   font-size: clamp(1.6rem, 3vw, 2.4rem);
   letter-spacing: -0.035em;
 }
-.videoNotice,
-.videoFinePrint {
+.videoNotice {
   color: var(--muted);
-}
-.videoFinePrint {
-  max-width: 42rem;
-  font-size: 0.75rem;
-  line-height: 1.55;
 }
 .videoStatus,
 .uploadProgress {

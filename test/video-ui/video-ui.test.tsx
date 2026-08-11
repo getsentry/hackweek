@@ -1,5 +1,5 @@
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
-import {render, screen} from '@testing-library/react';
+import {act, render, screen} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {Route, Router} from 'wouter';
 import {memoryLocation} from 'wouter/memory-location';
@@ -45,25 +45,49 @@ describe('video user experience', () => {
       }
       return json({});
     });
+    let finishUpload: (() => void) | undefined;
     const uploadFactory = (
       file: File,
       _session: VideoUploadSession,
       onChange: (snapshot: UploadSnapshot) => void,
-    ): ResumableUpload => ({
-      start: () =>
-        onChange({phase: 'uploading', bytesSent: 2, bytesTotal: file.size, error: null}),
-      pause: async () =>
-        onChange({phase: 'paused', bytesSent: 2, bytesTotal: file.size, error: null}),
-      resume: () =>
-        onChange({phase: 'uploading', bytesSent: 2, bytesTotal: file.size, error: null}),
-      retry: () =>
-        onChange({phase: 'uploading', bytesSent: 2, bytesTotal: file.size, error: null}),
-    });
+    ): ResumableUpload => {
+      finishUpload = () =>
+        onChange({
+          phase: 'complete',
+          bytesSent: file.size,
+          bytesTotal: file.size,
+          error: null,
+        });
+      return {
+        start: () =>
+          onChange({
+            phase: 'uploading',
+            bytesSent: 2,
+            bytesTotal: file.size,
+            error: null,
+          }),
+        pause: async () =>
+          onChange({phase: 'paused', bytesSent: 2, bytesTotal: file.size, error: null}),
+        resume: () =>
+          onChange({
+            phase: 'uploading',
+            bytesSent: 2,
+            bytesTotal: file.size,
+            error: null,
+          }),
+        retry: () =>
+          onChange({
+            phase: 'uploading',
+            bytesSent: 2,
+            bytesTotal: file.size,
+            error: null,
+          }),
+      };
+    };
 
     renderQuery(
       <ProjectVideoPanel
         projectId="project"
-        yearId="2026"
         video={null}
         canManage
         uploadFactory={uploadFactory}
@@ -80,6 +104,9 @@ describe('video user experience', () => {
       '/api/projects/project/video/upload',
       expect.objectContaining({method: 'POST'}),
     );
+
+    await act(async () => finishUpload?.());
+    expect(screen.queryByRole('progressbar')).toBeNull();
   });
 
   it('persists multipart resume identity and skips server-confirmed parts', async () => {
@@ -115,25 +142,18 @@ describe('video user experience', () => {
     expect(readResumeRecord('project', file)).toBeNull();
   });
 
-  it('keeps ready playback and uploads independent of Stream configuration', () => {
+  it('removes redundant ready status, watch link, and storage fine print', () => {
     const ready = renderQuery(
-      <ProjectVideoPanel
-        projectId="project"
-        yearId="2026"
-        video={baseVideo}
-        canManage={false}
-      />,
+      <ProjectVideoPanel projectId="project" video={baseVideo} canManage={false} />,
     );
-    expect(screen.getByRole('link', {name: 'watch video'}).getAttribute('href')).toBe(
-      '/years/2026/projects/project/video',
-    );
+    expect(screen.queryByRole('link', {name: 'watch video'})).toBeNull();
+    expect(screen.queryByText('ready to watch')).toBeNull();
+    expect(screen.queryByText(/private R2 storage/i)).toBeNull();
     ready.unmount();
 
-    renderQuery(
-      <ProjectVideoPanel projectId="project" yearId="2026" video={null} canManage />,
-    );
+    renderQuery(<ProjectVideoPanel projectId="project" video={null} canManage />);
     expect(screen.getByLabelText('select project video')).toBeTruthy();
-    expect(screen.getByText(/private R2 storage/i)).toBeTruthy();
+    expect(screen.queryByText(/private R2 storage/i)).toBeNull();
   });
 
   it('retries failed processing without requiring another upload', async () => {
@@ -143,7 +163,6 @@ describe('video user experience', () => {
     renderQuery(
       <ProjectVideoPanel
         projectId="project"
-        yearId="2026"
         video={{
           ...baseVideo,
           status: 'failed',

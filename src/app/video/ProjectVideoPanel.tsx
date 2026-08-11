@@ -1,6 +1,5 @@
 import {useRef, useState, type ChangeEvent, type DragEvent} from 'react';
 import {useQueryClient} from '@tanstack/react-query';
-import {Link} from 'wouter';
 
 import type {PlaybackResponse, ProjectVideo} from '../../shared/videos';
 import {IndividualPlayer} from '../player/IndividualPlayer';
@@ -18,7 +17,6 @@ type UploadFactory = typeof createMultipartUpload;
 
 export function ProjectVideoPanel(props: {
   projectId: string;
-  yearId: string;
   video: ProjectVideo | null;
   canManage: boolean;
   loading?: boolean;
@@ -28,7 +26,6 @@ export function ProjectVideoPanel(props: {
 }) {
   const {
     projectId,
-    yearId,
     video,
     canManage,
     loading = false,
@@ -50,9 +47,11 @@ export function ProjectVideoPanel(props: {
     createUpload.mutate(file, {
       onSuccess: (result) => {
         const next = uploadFactory(file, result.upload, (snapshot) => {
-          setUpload(snapshot);
           if (snapshot.phase === 'complete') {
+            setUpload(null);
             void cache.invalidateQueries({queryKey: ['project-video', projectId]});
+          } else {
+            setUpload(snapshot);
           }
         });
         controller.current = next;
@@ -87,27 +86,19 @@ export function ProjectVideoPanel(props: {
           <p className="kicker">demo reel</p>
           <h2 id="project-video-heading">project video</h2>
         </div>
-        {video?.status === 'ready' && (
-          <Link
-            className="primaryAction"
-            href={`/years/${yearId}/projects/${projectId}/video`}
-          >
-            watch video
-          </Link>
-        )}
       </header>
 
       {loading ? (
         <p className="videoNotice" aria-live="polite">
           loading video status…
         </p>
-      ) : video ? (
-        <VideoStatusCard video={video} />
-      ) : (
+      ) : !video ? (
         <p className="videoNotice">
           no demo video yet. projects remain complete without one.
         </p>
-      )}
+      ) : video.status !== 'ready' ? (
+        <VideoStatusCard video={video} />
+      ) : null}
 
       {video?.status === 'ready' && playback && (
         <IndividualPlayer playback={playback} title="project demo" />
@@ -207,10 +198,6 @@ export function ProjectVideoPanel(props: {
           {actionError}
         </p>
       )}
-      <p className="videoFinePrint">
-        uploads are sent in resumable parts to private R2 storage. completed originals are
-        retained when a video is retired.
-      </p>
     </section>
   );
 }

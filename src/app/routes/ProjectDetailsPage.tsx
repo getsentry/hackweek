@@ -147,7 +147,6 @@ export function ProjectDetailsPage() {
           {project.data.project.kind === 'project' && (
             <ProjectVideoPanel
               projectId={projectId}
-              yearId={yearId}
               video={video.data?.video ?? null}
               loading={video.isLoading}
               canManage={project.data.project.permissions.canManageMedia}

@@ -78,6 +78,17 @@ input:disabled {
   color: #fff;
   background: var(--blurple);
 }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 
 .appFrame {
   display: flex;
@@ -798,11 +809,9 @@ main {
 .projectCard h2 a {
   text-decoration: none;
 }
-.projectCard > p {
+.projectCard > .markdown {
   display: -webkit-box;
   overflow: hidden;
-  margin: 0;
-  color: var(--muted);
   font-size: 0.95rem;
   line-height: 1.55;
   -webkit-box-orient: vertical;
@@ -1005,7 +1014,7 @@ main {
   gap: clamp(2rem, 6vw, 5rem);
   padding: clamp(2rem, 5vw, 4rem) 0;
 }
-.projectNarrative h2,
+.projectNarrative > h2,
 .teamPanel h2,
 .mediaSection h2,
 .ballotSection h2,
@@ -1016,11 +1025,99 @@ main {
   line-height: 1.15;
   letter-spacing: -0.035em;
 }
-.projectNarrative > p:not(.kicker) {
+.markdown {
+  overflow-wrap: anywhere;
   color: var(--muted);
   font-size: 1rem;
   line-height: 1.8;
-  white-space: pre-wrap;
+}
+.markdown > :first-child {
+  margin-top: 0;
+}
+.markdown > :last-child {
+  margin-bottom: 0;
+}
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4,
+.markdown h5,
+.markdown h6 {
+  margin: 1.5em 0 0.55em;
+  color: var(--ink);
+  font-size: 1.15rem;
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+}
+.markdown p,
+.markdown ul,
+.markdown ol,
+.markdown blockquote,
+.markdown pre,
+.markdown table {
+  margin: 0 0 1rem;
+}
+.markdown ul,
+.markdown ol {
+  padding-left: 1.5rem;
+}
+.markdown li + li {
+  margin-top: 0.3rem;
+}
+.markdown a {
+  color: var(--blurple);
+  font-weight: 500;
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.15em;
+}
+.markdown blockquote {
+  padding-left: 1rem;
+  border-left: 3px solid #d2bfff;
+}
+.markdown blockquote > :last-child {
+  margin-bottom: 0;
+}
+.markdown code {
+  padding: 0.12rem 0.3rem;
+  border-radius: 0.25rem;
+  background: var(--soft);
+  font-size: 0.9em;
+}
+.markdown pre {
+  overflow-x: auto;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: var(--soft);
+}
+.markdown pre code {
+  padding: 0;
+  background: transparent;
+}
+.markdown table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+.markdown th,
+.markdown td {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--line);
+}
+.markdown th {
+  color: var(--ink);
+  background: var(--soft);
+  text-align: left;
+}
+.markdown img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+}
+.markdown .contains-task-list {
+  padding-left: 0;
+  list-style: none;
 }
 .repoLink {
   display: inline-block;
@@ -1193,6 +1290,12 @@ main {
   border: 1px solid #c9c3d1;
   border-radius: 0.5rem;
   background: #fff;
+}
+.fieldHint {
+  display: block;
+  margin-top: 0.45rem;
+  color: var(--muted);
+  font-size: 0.72rem;
 }
 .projectForm input:focus,
 .projectForm textarea:focus,
@@ -1500,10 +1603,12 @@ main {
   margin: 1rem 0 0.5rem;
   font-size: 1.35rem;
 }
-.ballotCard p {
-  margin: 0;
-  color: var(--muted);
+.ballotCard .markdown {
+  display: -webkit-box;
+  overflow: hidden;
   line-height: 1.55;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
 }
 .ballotCard footer {
   display: flex;

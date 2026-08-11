@@ -146,6 +146,9 @@ export function ProjectForm({
           value={summary}
           onChange={(event) => setSummary(event.target.value)}
         />
+        <small className="fieldHint">
+          Markdown supported — add links, headings, lists, tables, and more.
+        </small>
       </label>
       {!project && !claim && (
         <fieldset className="kindPicker">

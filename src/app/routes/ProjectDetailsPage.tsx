@@ -2,6 +2,7 @@ import {useState, type ChangeEvent} from 'react';
 import {Link, useLocation, useParams} from 'wouter';
 
 import {QueryState} from '../components/AppLayout';
+import {Markdown} from '../components/Markdown';
 import {useProjectVideo} from '../queries/videos';
 import {ProjectVideoPanel} from '../video/ProjectVideoPanel';
 import {
@@ -96,7 +97,7 @@ export function ProjectDetailsPage() {
             <article className="projectNarrative">
               <p className="kicker">project summary</p>
               <h2>about this project</h2>
-              <p>{project.data.project.summary}</p>
+              <Markdown>{project.data.project.summary}</Markdown>
               {project.data.project.repository && (
                 <a
                   className="repoLink"

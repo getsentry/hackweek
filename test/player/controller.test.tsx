@@ -21,9 +21,8 @@ describe('dual screening controller', () => {
       elements: videos,
       audio,
       getPlayback: async (videoId) => ({
-        mode: 'stream',
-        manifestUrl: `https://stream/${videoId}.m3u8`,
-        expiresAt: 'later',
+        source: {kind: 'mp4', url: `/api/videos/${videoId}/content`},
+        expiresAt: null,
       }),
       attach: (_element, url) => {
         attached.push(url);
@@ -37,8 +36,8 @@ describe('dual screening controller', () => {
     await Promise.resolve();
     expect(states.at(-1)?.phase).toBe('title');
     expect(attached).toEqual([
-      'https://stream/video-1.m3u8',
-      'https://stream/video-2.m3u8',
+      '/api/videos/video-1/content',
+      '/api/videos/video-2/content',
     ]);
     expect(vi.mocked(audio.setGain).mock.calls).toEqual([
       [0, 6],
@@ -49,6 +48,10 @@ describe('dual screening controller', () => {
     await vi.advanceTimersByTimeAsync(10);
     expect(states.at(-1)?.phase).toBe('playing');
     expect(vi.mocked(videos[0].play).mock.calls).toHaveLength(1);
+    expect(states.at(-1)?.index).toBe(0);
+
+    videos[1].dispatchEvent(new Event('ended'));
+    await Promise.resolve();
     expect(states.at(-1)?.index).toBe(0);
 
     videos[0].dispatchEvent(new Event('ended'));
@@ -63,7 +66,7 @@ describe('dual screening controller', () => {
     expect(states.at(-1)?.phase).toBe('complete');
   });
 
-  it('supports pause, resume, explicit skip, and fake-manifest errors', async () => {
+  it('supports pause, resume, explicit skip, and recoverable source errors', async () => {
     const videos: [HTMLVideoElement, HTMLVideoElement] = [fakeVideo(), fakeVideo()];
     const states: PlayerState[] = [];
     const controller = createScreeningController({
@@ -71,9 +74,8 @@ describe('dual screening controller', () => {
       elements: videos,
       audio: fakeAudio(),
       getPlayback: async () => ({
-        mode: 'stream',
-        manifestUrl: 'manifest',
-        expiresAt: 'later',
+        source: {kind: 'mp4', url: '/api/videos/video/content'},
+        expiresAt: null,
       }),
       attach: () => ({destroy: vi.fn()}),
       onState: (state) => states.push(state),
@@ -89,19 +91,23 @@ describe('dual screening controller', () => {
     expect(states.at(-1)?.index).toBe(1);
 
     const errors: PlayerState[] = [];
-    const fakeController = createScreeningController({
+    const errorController = createScreeningController({
       playlist: [playlist[0]],
       elements: [fakeVideo(), fakeVideo()],
       audio: fakeAudio(),
-      getPlayback: async () => ({mode: 'fake', manifestUrl: null, expiresAt: 'later'}),
+      getPlayback: async () => {
+        throw new Error('private source unavailable');
+      },
       onState: (state) => errors.push(state),
       titleDurationMs: 1,
     });
-    await fakeController.start();
+    await errorController.start();
     expect(errors.at(-1)).toMatchObject({
       phase: 'error',
-      error: expect.stringContaining('fake Stream'),
+      error: 'private source unavailable',
     });
+    await errorController.skip();
+    expect(errors.at(-1)?.phase).toBe('complete');
   });
 });
 
@@ -128,6 +134,7 @@ const playlist: PlaylistItem[] = [
     videoId: 'video-1',
     projectId: 'project-1',
     projectName: 'First',
+    teamMembers: ['Ada', 'Grace'],
     durationSeconds: 10,
     gainDb: 6,
     position: 0,
@@ -136,6 +143,7 @@ const playlist: PlaylistItem[] = [
     videoId: 'video-2',
     projectId: 'project-2',
     projectName: 'Second',
+    teamMembers: ['Linus'],
     durationSeconds: 20,
     gainDb: -3,
     position: 1,

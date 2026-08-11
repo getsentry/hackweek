@@ -49,7 +49,7 @@ export function ScreeningPlayer({
       handleScreeningShortcut(event, {
         togglePause: () => void controller.current?.togglePause(),
         skip: () => void controller.current?.skip(),
-        fullscreen: () => void shell.current?.requestFullscreen(),
+        fullscreen: () => void shell.current?.requestFullscreen().catch(() => undefined),
       });
     }
     window.addEventListener('keydown', onKeyDown);
@@ -68,6 +68,7 @@ export function ScreeningPlayer({
 
   const activeSlot = state.index % 2;
   const showingTitle = state.phase === 'title';
+  const team = clip.teamMembers.join(' · ') || 'Hackweek team';
 
   return (
     <div className="screeningPlayer" ref={shell} tabIndex={-1}>
@@ -87,13 +88,19 @@ export function ScreeningPlayer({
         <div className={`titleCard ${showingTitle ? 'visible' : ''}`} aria-live="polite">
           <p>#{String(state.index + 1).padStart(2, '0')} / Hackweek</p>
           <h2>{clip.projectName}</h2>
-          <span>up next</span>
+          <span>{team}</span>
         </div>
+        {['playing', 'paused'].includes(state.phase) && (
+          <div className="clipOverlay" aria-live="polite">
+            <strong>{clip.projectName}</strong>
+            <span>{team}</span>
+          </div>
+        )}
         {state.phase === 'idle' && (
           <div className="startCard">
             <span className="screeningMark">#H</span>
             <h2>the Hackweek reel</h2>
-            <p>{playlist.length} ready project videos · normalized audio</p>
+            <p>{playlist.length} ready project videos · private progressive MP4</p>
             <button
               className="screeningStart"
               onClick={() => void buildController()?.start()}
@@ -114,12 +121,18 @@ export function ScreeningPlayer({
           <div className="playerError" role="alert">
             <strong>playback stopped</strong>
             <p>{state.error}</p>
+            <button
+              className="screeningStart"
+              onClick={() => void controller.current?.skip()}
+            >
+              {state.index < playlist.length - 1 ? 'skip to next project' : 'finish reel'}
+            </button>
           </div>
         )}
       </div>
       <div className="screeningControls" aria-label="Playback controls">
         <button
-          disabled={state.phase === 'idle' || state.phase === 'complete'}
+          disabled={!['playing', 'paused'].includes(state.phase)}
           onClick={() => void controller.current?.togglePause()}
         >
           {state.phase === 'paused' ? '▶ resume' : 'Ⅱ pause'} <kbd>space</kbd>
@@ -136,7 +149,9 @@ export function ScreeningPlayer({
         >
           skip → <kbd>→</kbd>
         </button>
-        <button onClick={() => void shell.current?.requestFullscreen()}>
+        <button
+          onClick={() => void shell.current?.requestFullscreen().catch(() => undefined)}
+        >
           fullscreen <kbd>f</kbd>
         </button>
       </div>

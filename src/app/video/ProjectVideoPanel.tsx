@@ -2,7 +2,8 @@ import {useRef, useState, type ChangeEvent, type DragEvent} from 'react';
 import {useQueryClient} from '@tanstack/react-query';
 import {Link} from 'wouter';
 
-import type {ProjectVideo, StreamMode} from '../../shared/videos';
+import type {PlaybackResponse, ProjectVideo} from '../../shared/videos';
+import {IndividualPlayer} from '../player/IndividualPlayer';
 import {useCreateVideoUpload, useDeleteVideo} from '../queries/videos';
 import {createMultipartUpload, type ResumableUpload, type UploadSnapshot} from './upload';
 
@@ -21,7 +22,8 @@ export function ProjectVideoPanel(props: {
   video: ProjectVideo | null;
   canManage: boolean;
   loading?: boolean;
-  streamMode?: StreamMode;
+  playback?: PlaybackResponse;
+  playbackError?: string;
   uploadFactory?: UploadFactory;
 }) {
   const {
@@ -30,6 +32,8 @@ export function ProjectVideoPanel(props: {
     video,
     canManage,
     loading = false,
+    playback,
+    playbackError,
     uploadFactory = createMultipartUpload,
   } = props;
   const cache = useQueryClient();
@@ -101,6 +105,15 @@ export function ProjectVideoPanel(props: {
       ) : (
         <p className="videoNotice">
           no demo video yet. projects remain complete without one.
+        </p>
+      )}
+
+      {video?.status === 'ready' && playback && (
+        <IndividualPlayer playback={playback} title="project demo" />
+      )}
+      {playbackError && (
+        <p className="formError" role="alert">
+          {playbackError}
         </p>
       )}
 

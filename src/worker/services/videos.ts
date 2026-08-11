@@ -1,5 +1,7 @@
 import type {SessionUser} from '../../shared/api';
 import type {
+  PlaybackResponse,
+  PlaylistItem,
   ProjectVideo,
   VideoUploadPart,
   VideoUploadSession,
@@ -21,6 +23,7 @@ interface VideoRow {
   size_bytes: number;
   status: string;
   processing_attempt: number;
+  processed_r2_key: string | null;
   duration_seconds: number | null;
   loudness_lufs: number | null;
   gain_db: number | null;
@@ -72,6 +75,131 @@ export async function getProjectVideo(db: D1Database, projectId: string) {
     .bind(projectId)
     .first<VideoRow>();
   return row ? mapVideo(row) : null;
+}
+
+export async function listPlaylist(
+  db: D1Database,
+  yearId: string,
+): Promise<PlaylistItem[]> {
+  const {results} = await db
+    .prepare(
+      `SELECT pv.id video_id, p.id project_id, p.name project_name,
+        pv.duration_seconds, pv.gain_db, so.position
+       FROM screening_order so
+       JOIN projects p ON p.id = so.project_id AND p.status = 'active'
+       JOIN project_videos pv ON pv.project_id = p.id
+       WHERE so.year_id = ? AND pv.status = 'ready' AND pv.retired_at IS NULL
+         AND pv.processed_r2_key IS NOT NULL
+         AND pv.duration_seconds IS NOT NULL AND pv.gain_db IS NOT NULL
+       ORDER BY so.position, p.id`,
+    )
+    .bind(yearId)
+    .all<{
+      video_id: string;
+      project_id: string;
+      project_name: string;
+      duration_seconds: number;
+      gain_db: number;
+      position: number;
+    }>();
+  if (!results.length) return [];
+
+  const membersByProject = new Map<string, string[]>();
+  const projectIds = results.map((row) => row.project_id);
+  const members = await db
+    .prepare(
+      `SELECT pm.project_id, u.display_name
+       FROM project_members pm JOIN users u ON u.id = pm.user_id
+       WHERE pm.project_id IN (${projectIds.map(() => '?').join(', ')})
+       ORDER BY pm.project_id, u.display_name COLLATE NOCASE, u.id`,
+    )
+    .bind(...projectIds)
+    .all<{project_id: string; display_name: string}>();
+  for (const member of members.results) {
+    const names = membersByProject.get(member.project_id) ?? [];
+    names.push(member.display_name);
+    membersByProject.set(member.project_id, names);
+  }
+
+  return results.map((row) => ({
+    videoId: row.video_id,
+    projectId: row.project_id,
+    projectName: row.project_name,
+    teamMembers: membersByProject.get(row.project_id) ?? [],
+    durationSeconds: row.duration_seconds,
+    gainDb: row.gain_db,
+    position: row.position,
+  }));
+}
+
+export async function issuePlayback(
+  db: D1Database,
+  videoId: string,
+): Promise<PlaybackResponse> {
+  await requireReadyVideo(db, videoId);
+  return {
+    source: {
+      kind: 'mp4',
+      url: `/api/videos/${encodeURIComponent(videoId)}/content`,
+    },
+    expiresAt: null,
+  };
+}
+
+export async function getVideoContent(
+  db: D1Database,
+  bucket: R2Bucket,
+  videoId: string,
+  rangeHeader?: string,
+) {
+  const video = await requireReadyVideo(db, videoId);
+  const key = video.processed_r2_key!;
+  const head = await bucket.head(key);
+  if (!head) throw new ServiceError('NOT_FOUND', 'Video content is missing', 404);
+
+  const range =
+    rangeHeader === undefined ? null : parseVideoRange(rangeHeader, head.size);
+  const object = await bucket.get(
+    key,
+    range ? {range: {offset: range.start, length: range.length}} : undefined,
+  );
+  if (!object) throw new ServiceError('NOT_FOUND', 'Video content is missing', 404);
+  return {object, range, size: head.size, etag: head.httpEtag};
+}
+
+export class VideoRangeError extends Error {
+  constructor(readonly size: number) {
+    super('Requested video range is not satisfiable');
+  }
+}
+
+export function parseVideoRange(value: string, size: number) {
+  if (!Number.isSafeInteger(size) || size <= 0) throw new VideoRangeError(size);
+  const match = /^bytes=(\d*)-(\d*)$/.exec(value.trim());
+  if (!match || (!match[1] && !match[2])) throw new VideoRangeError(size);
+
+  let start: number;
+  let end: number;
+  if (!match[1]) {
+    const suffix = Number(match[2]);
+    if (!Number.isSafeInteger(suffix) || suffix <= 0) throw new VideoRangeError(size);
+    start = Math.max(0, size - suffix);
+    end = size - 1;
+  } else {
+    start = Number(match[1]);
+    end = match[2] ? Number(match[2]) : size - 1;
+    if (
+      !Number.isSafeInteger(start) ||
+      !Number.isSafeInteger(end) ||
+      start < 0 ||
+      start >= size ||
+      end < start
+    ) {
+      throw new VideoRangeError(size);
+    }
+    end = Math.min(end, size - 1);
+  }
+  return {start, end, length: end - start + 1};
 }
 
 export async function createMultipartVideoUpload(
@@ -715,8 +843,22 @@ function mapVideo(row: VideoRow): ProjectVideo {
 
 function videoSelect() {
   return `SELECT id, project_id, original_name, content_type, size_bytes, status,
-    processing_attempt, duration_seconds, loudness_lufs, gain_db, error_message,
-    created_at FROM project_videos`;
+    processing_attempt, processed_r2_key, duration_seconds, loudness_lufs, gain_db,
+    error_message, created_at FROM project_videos`;
+}
+
+async function requireReadyVideo(db: D1Database, videoId: string) {
+  const video = await db
+    .prepare(
+      `${videoSelect()} WHERE id = ? AND status = 'ready' AND retired_at IS NULL
+        AND processed_r2_key IS NOT NULL`,
+    )
+    .bind(videoId)
+    .first<VideoRow>();
+  if (!video) {
+    throw new ServiceError('CONFLICT', 'Video is not ready for playback', 409);
+  }
+  return video;
 }
 
 async function listStoredParts(db: D1Database, uploadId: string) {

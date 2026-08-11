@@ -5,6 +5,7 @@ import {Route, Router} from 'wouter';
 import {memoryLocation} from 'wouter/memory-location';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 
+import {IndividualPlayer} from '../../src/app/player/IndividualPlayer';
 import {
   handleScreeningShortcut,
   ScreeningPlayer,
@@ -114,40 +115,23 @@ describe('video user experience', () => {
     expect(readResumeRecord('project', file)).toBeNull();
   });
 
-  it.each([
-    {streamMode: 'fake'},
-    {streamMode: 'disabled'},
-    {streamMode: 'real'},
-  ] as const)(
-    'keeps R2 lifecycle state independent of $streamMode Stream configuration',
-    ({streamMode}) => {
-      renderQuery(
-        <ProjectVideoPanel
-          projectId="project"
-          yearId="2026"
-          video={baseVideo}
-          canManage={false}
-          streamMode={streamMode}
-        />,
-      );
-
-      expect(screen.getByRole('link', {name: 'watch video'}).getAttribute('href')).toBe(
-        '/years/2026/projects/project/video',
-      );
-    },
-  );
-
-  it('keeps uploads available without depending on Stream configuration', () => {
-    renderQuery(
+  it('keeps ready playback and uploads independent of Stream configuration', () => {
+    const ready = renderQuery(
       <ProjectVideoPanel
         projectId="project"
         yearId="2026"
-        video={null}
-        canManage
-        streamMode="disabled"
+        video={baseVideo}
+        canManage={false}
       />,
     );
+    expect(screen.getByRole('link', {name: 'watch video'}).getAttribute('href')).toBe(
+      '/years/2026/projects/project/video',
+    );
+    ready.unmount();
 
+    renderQuery(
+      <ProjectVideoPanel projectId="project" yearId="2026" video={null} canManage />,
+    );
     expect(screen.getByLabelText('select project video')).toBeTruthy();
     expect(screen.getByText(/private R2 storage/i)).toBeTruthy();
   });
@@ -171,27 +155,50 @@ describe('video user experience', () => {
     expect(screen.getByRole('button', {name: 'retire video'})).toBeTruthy();
   });
 
+  it('attaches authenticated progressive MP4 directly to an HTML video element', async () => {
+    const load = vi
+      .spyOn(HTMLMediaElement.prototype, 'load')
+      .mockImplementation(() => undefined);
+    const pause = vi
+      .spyOn(HTMLMediaElement.prototype, 'pause')
+      .mockImplementation(() => undefined);
+    const view = renderQuery(
+      <IndividualPlayer
+        playback={{
+          source: {kind: 'mp4', url: '/api/videos/video-1/content'},
+          expiresAt: null,
+        }}
+        title="First project"
+      />,
+    );
+    const video = screen.getByLabelText('First project video') as HTMLVideoElement;
+    expect(video.getAttribute('src')).toBe('/api/videos/video-1/content');
+    expect(video.preload).toBe('auto');
+
+    video.dispatchEvent(new Event('error'));
+    expect((await screen.findByRole('alert')).textContent).toContain(
+      'private video could not be loaded',
+    );
+    view.unmount();
+    expect(video.hasAttribute('src')).toBe(false);
+    expect(load).toHaveBeenCalled();
+    expect(pause).toHaveBeenCalled();
+    load.mockRestore();
+    pause.mockRestore();
+  });
+
   it('renders accessible empty reel and individual ready-video permalinks', async () => {
-    fetchMock.mockResolvedValue(json({videos: playlist, streamMode: 'fake'}));
+    fetchMock.mockResolvedValue(json({videos: playlist}));
     renderRoute(<WatchPage />, '/years/2026/watch', '/years/:yearId/watch');
     expect(await screen.findByRole('heading', {name: 'play the reel'})).toBeTruthy();
     expect(screen.getByRole('button', {name: 'play all'})).toBeTruthy();
+    expect(screen.getByText('Ada Lovelace · Grace Hopper')).toBeTruthy();
     expect(screen.getByRole('link', {name: /First project/}).getAttribute('href')).toBe(
       '/years/2026/watch/video-1',
     );
 
     renderQuery(<ScreeningPlayer playlist={[]} getPlayback={vi.fn()} />);
     expect(screen.getByRole('heading', {name: 'no videos are ready'})).toBeTruthy();
-  });
-
-  it('renders a clear disabled screening state without implying playback works', async () => {
-    fetchMock.mockResolvedValue(json({videos: [], streamMode: 'disabled'}));
-    renderRoute(<WatchPage />, '/years/2026/watch', '/years/:yearId/watch');
-
-    expect(
-      await screen.findByRole('heading', {name: 'video screening unavailable'}),
-    ).toBeTruthy();
-    expect(screen.queryByRole('button', {name: 'play all'})).toBeNull();
   });
 
   it('exposes visible pause, skip, fullscreen controls and keyboard shortcuts', async () => {
@@ -285,6 +292,7 @@ const playlist: PlaylistItem[] = [
     videoId: 'video-1',
     projectId: 'project',
     projectName: 'First project',
+    teamMembers: ['Ada Lovelace', 'Grace Hopper'],
     durationSeconds: 30,
     gainDb: 0,
     position: 0,

@@ -1906,6 +1906,28 @@ main {
 .screeningStage video.active {
   opacity: 1;
 }
+.clipOverlay {
+  position: absolute;
+  z-index: 1;
+  right: 1rem;
+  bottom: 1rem;
+  left: 1rem;
+  max-width: 32rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0.55rem;
+  background: rgba(17, 11, 23, 0.78);
+  backdrop-filter: blur(10px);
+}
+.clipOverlay strong,
+.clipOverlay span {
+  display: block;
+}
+.clipOverlay span {
+  margin-top: 0.2rem;
+  color: #d9cae5;
+  font-size: 0.78rem;
+}
 .titleCard,
 .startCard,
 .playerError {

@@ -373,6 +373,129 @@ describe('R2 multipart video lifecycle', () => {
     expect(await env.VIDEOS.head(second.outputKey)).not.toBeNull();
   });
 
+  it('serves authenticated canonical MP4 bytes with exact single-range semantics', async () => {
+    const bytes = '0123456789';
+    const ready = await publishReadyVideo(projectId, ownerToken, bytes);
+
+    const unauthorizedDescriptor = await SELF.fetch(
+      `${base}/videos/${ready.video.id}/playback`,
+    );
+    const unauthorizedContent = await SELF.fetch(
+      `${base}/videos/${ready.video.id}/content`,
+    );
+    expect(unauthorizedDescriptor.status).toBe(401);
+    expect(unauthorizedContent.status).toBe(401);
+
+    const descriptor = await api(`/videos/${ready.video.id}/playback`, ownerToken);
+    expect(descriptor.status).toBe(200);
+    expect(descriptor.body).toEqual({
+      source: {kind: 'mp4', url: `/api/videos/${ready.video.id}/content`},
+      expiresAt: null,
+    });
+    expect(descriptor.headers.get('cache-control')).toBe('private, no-store');
+
+    const full = await fetchVideoContent(ready.video.id, ownerToken);
+    expect(full.status).toBe(200);
+    expect(await responseText(full)).toBe(bytes);
+    expect(full.headers.get('accept-ranges')).toBe('bytes');
+    expect(full.headers.get('content-length')).toBe('10');
+    expect(full.headers.get('content-type')).toBe('video/mp4');
+    expect(full.headers.get('content-disposition')).toBe('inline');
+    expect(full.headers.get('cache-control')).toBe('private, max-age=300');
+    expect(full.headers.get('etag')).toBeTruthy();
+
+    for (const [range, body, contentRange] of [
+      ['bytes=2-5', '2345', 'bytes 2-5/10'],
+      ['bytes=7-', '789', 'bytes 7-9/10'],
+      ['bytes=-3', '789', 'bytes 7-9/10'],
+      ['bytes=0-99', bytes, 'bytes 0-9/10'],
+    ]) {
+      const partial = await fetchVideoContent(ready.video.id, ownerToken, range);
+      expect(partial.status, range).toBe(206);
+      expect(await responseText(partial), range).toBe(body);
+      expect(partial.headers.get('content-range'), range).toBe(contentRange);
+      expect(partial.headers.get('content-length'), range).toBe(String(body.length));
+      expect(partial.headers.get('accept-ranges'), range).toBe('bytes');
+    }
+
+    for (const range of [
+      'bytes=10-',
+      'bytes=5-2',
+      'bytes=-0',
+      'bytes=',
+      'items=0-1',
+      'bytes=0-1,3-4',
+    ]) {
+      const rejected = await fetchVideoContent(ready.video.id, ownerToken, range);
+      expect(rejected.status, range).toBe(416);
+      expect(rejected.headers.get('content-range'), range).toBe('bytes */10');
+      expect(rejected.headers.get('accept-ranges'), range).toBe('bytes');
+      expect(await responseText(rejected), range).toBe('');
+    }
+  });
+
+  it('returns only ready active videos in curated order with team display names', async () => {
+    const firstProject = await createProject('Curated first');
+    const secondProject = await createProject('Curated second');
+    const unreadyProject = await createProject('Curated unready');
+    const first = await publishReadyVideo(firstProject, ownerToken, 'first canonical');
+    const second = await publishReadyVideo(secondProject, ownerToken, 'second canonical');
+    const unready = await completeSmallUpload(unreadyProject, ownerToken, 'not ready');
+    await env.DB.batch([
+      env.DB.prepare(
+        'INSERT INTO project_members (project_id, user_id) VALUES (?, ?)',
+      ).bind(firstProject, memberId),
+      env.DB.prepare(
+        'INSERT INTO screening_order (year_id, project_id, position) VALUES (?, ?, 0)',
+      ).bind(yearId, secondProject),
+      env.DB.prepare(
+        'INSERT INTO screening_order (year_id, project_id, position) VALUES (?, ?, 1)',
+      ).bind(yearId, unreadyProject),
+      env.DB.prepare(
+        'INSERT INTO screening_order (year_id, project_id, position) VALUES (?, ?, 2)',
+      ).bind(yearId, firstProject),
+    ]);
+
+    const playlist = await api(`/videos/playlist?year=${yearId}`, ownerToken);
+    expect(playlist.status).toBe(200);
+    expect(playlist.body.videos.map((item: {videoId: string}) => item.videoId)).toEqual([
+      second.video.id,
+      first.video.id,
+    ]);
+    expect(playlist.body.videos[0]).toMatchObject({
+      projectName: 'Curated second',
+      position: 0,
+      teamMembers: ['Hackweek Member'],
+    });
+    expect(playlist.body.videos[1]).toMatchObject({
+      projectName: 'Curated first',
+      position: 2,
+      teamMembers: ['Hackweek Member', 'Hackweek Member'],
+    });
+    expect(
+      playlist.body.videos.some(
+        (item: {videoId: string}) => item.videoId === unready.video.id,
+      ),
+    ).toBe(false);
+    expect((await api(`/videos/${unready.video.id}/playback`, ownerToken)).status).toBe(
+      409,
+    );
+
+    const retired = await api(`/projects/${secondProject}/video`, ownerToken, {
+      method: 'DELETE',
+      body: {confirmed: true},
+    });
+    expect(retired.status).toBe(204);
+    expect(await env.VIDEOS.head(second.outputKey)).not.toBeNull();
+    expect((await api(`/videos/${second.video.id}/playback`, ownerToken)).status).toBe(
+      409,
+    );
+    const afterRetirement = await api(`/videos/playlist?year=${yearId}`, ownerToken);
+    expect(
+      afterRetirement.body.videos.map((item: {videoId: string}) => item.videoId),
+    ).toEqual([first.video.id]);
+  });
+
   it('limits local processing to one while independent projects remain queued', async () => {
     const leftProject = await createProject('Processor left');
     const rightProject = await createProject('Processor right');
@@ -413,6 +536,32 @@ const canonicalResult: VideoProcessorResult = {
   fastStart: true,
   sha256: 'a'.repeat(64),
 };
+
+async function publishReadyVideo(project: string, token: string, bytes: string) {
+  const completed = await completeSmallUpload(project, token, bytes);
+  const claim = await claimVideoProcessingAttempt(env.DB, completed.video.id, 1, 1);
+  if (claim.status !== 'claimed') throw new Error('attempt was not claimed');
+  await env.VIDEOS.put(claim.outputKey, bytes, {
+    httpMetadata: {contentType: 'video/mp4'},
+  });
+  expect(
+    await publishVideoProcessingAttempt(env.DB, completed.video.id, 1, claim.outputKey, {
+      ...canonicalResult,
+      durationSeconds: bytes.length,
+    }),
+  ).toBe(true);
+  return {...completed, outputKey: claim.outputKey};
+}
+
+function fetchVideoContent(videoId: string, token: string, range?: string) {
+  return SELF.fetch(`${base}/videos/${videoId}/content`, {
+    headers: {Cookie: token, ...(range ? {Range: range} : {})},
+  });
+}
+
+async function responseText(response: Response) {
+  return new TextDecoder().decode(await response.arrayBuffer());
+}
 
 async function completeSmallUpload(project: string, token: string, bytes: string) {
   const created = await createUpload(project, token, bytes.length);

@@ -4,9 +4,10 @@ import type {
   CompleteVideoUploadRequest,
   DirectUploadRequest,
   DirectUploadResponse,
+  PlaybackResponse,
+  PlaylistResponse,
   ProjectVideoResponse,
 } from '../../shared/videos';
-import {streamMode} from '../integrations/stream';
 import type {WorkerEnv} from '../index';
 import {errorResponse, ServiceError} from '../services/errors';
 import {
@@ -14,21 +15,75 @@ import {
   completeVideoUpload,
   createMultipartVideoUpload,
   getProjectVideo,
+  getVideoContent,
   getVideoUpload,
+  issuePlayback,
+  listPlaylist,
   MAX_VIDEO_BYTES,
   retireProjectVideo,
   retryProjectVideo,
   uploadVideoPart,
+  VideoRangeError,
 } from '../services/videos';
 
 export const videosRoutes = new Hono<WorkerEnv>();
 export const projectVideoRoutes = new Hono<WorkerEnv>();
 
+videosRoutes.get('/playlist', async (c) => {
+  try {
+    const year = c.req.query('year');
+    if (!year) invalid('Year is required');
+    const response: PlaylistResponse = {videos: await listPlaylist(c.env.DB, year)};
+    return c.json(response, 200, {'Cache-Control': 'private, no-store'});
+  } catch (error) {
+    return respondError(c, error);
+  }
+});
+
+videosRoutes.get('/:videoId/playback', async (c) => {
+  try {
+    const response: PlaybackResponse = await issuePlayback(
+      c.env.DB,
+      c.req.param('videoId'),
+    );
+    return c.json(response, 200, {'Cache-Control': 'private, no-store'});
+  } catch (error) {
+    return respondError(c, error);
+  }
+});
+
+videosRoutes.get('/:videoId/content', async (c) => {
+  try {
+    const content = await getVideoContent(
+      c.env.DB,
+      c.env.VIDEOS,
+      c.req.param('videoId'),
+      c.req.header('Range'),
+    );
+    const headers = videoContentHeaders(content);
+    return new Response(content.object.body, {
+      status: content.range ? 206 : 200,
+      headers,
+    });
+  } catch (error) {
+    if (error instanceof VideoRangeError) {
+      return new Response(null, {
+        status: 416,
+        headers: {
+          'Accept-Ranges': 'bytes',
+          'Content-Range': `bytes */${error.size}`,
+          'Cache-Control': 'private, max-age=300',
+        },
+      });
+    }
+    return respondError(c, error);
+  }
+});
+
 projectVideoRoutes.get('/:projectId/video', async (c) => {
   try {
     const response: ProjectVideoResponse = {
       video: await getProjectVideo(c.env.DB, c.req.param('projectId')),
-      streamMode: streamMode(c.env),
     };
     return c.json(response);
   } catch (error) {
@@ -237,6 +292,31 @@ function parseCompletion(value: unknown): CompleteVideoUploadRequest {
 function parseRetirement(value: unknown) {
   if (!value || typeof value !== 'object') invalid('Request body must be an object');
   return (value as Record<string, unknown>).confirmed === true;
+}
+
+function videoContentHeaders(content: {
+  object: R2ObjectBody;
+  range: {start: number; end: number; length: number} | null;
+  size: number;
+  etag: string;
+}) {
+  const headers = new Headers();
+  headers.set('Accept-Ranges', 'bytes');
+  headers.set('Cache-Control', 'private, max-age=300');
+  headers.set('Content-Disposition', 'inline');
+  headers.set('Content-Type', 'video/mp4');
+  headers.set('ETag', content.etag);
+  headers.set('X-Content-Type-Options', 'nosniff');
+  if (content.range) {
+    headers.set(
+      'Content-Range',
+      `bytes ${content.range.start}-${content.range.end}/${content.size}`,
+    );
+    headers.set('Content-Length', String(content.range.length));
+  } else {
+    headers.set('Content-Length', String(content.size));
+  }
+  return headers;
 }
 
 function parsePartNumber(value: string) {

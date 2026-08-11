@@ -64,13 +64,9 @@ export function useDeleteVideo(projectId: string) {
         jsonRequest('DELETE', {confirmed: true}),
       ),
     onSuccess: () =>
-      cache.setQueryData<ProjectVideoResponse>(
-        ['project-video', projectId],
-        (current) => ({
-          video: null,
-          streamMode: current?.streamMode ?? 'fake',
-        }),
-      ),
+      cache.setQueryData<ProjectVideoResponse>(['project-video', projectId], () => ({
+        video: null,
+      })),
   });
 }
 

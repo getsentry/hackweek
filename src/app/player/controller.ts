@@ -1,6 +1,6 @@
 import type {PlaylistItem, PlaybackResponse} from '../../shared/videos';
 import type {PlayerAudioGraph} from './audio';
-import {attachProtectedHls, type MediaAttachment} from './media';
+import {attachMp4, type MediaAttachment} from './media';
 
 export type PlayerPhase = 'idle' | 'title' | 'playing' | 'paused' | 'complete' | 'error';
 
@@ -24,7 +24,7 @@ export function createScreeningController({
   getPlayback,
   onState,
   titleDurationMs = 1_800,
-  attach = attachProtectedHls,
+  attach = attachMp4,
 }: {
   playlist: PlaylistItem[];
   elements: [HTMLVideoElement, HTMLVideoElement];
@@ -32,49 +32,73 @@ export function createScreeningController({
   getPlayback: (videoId: string) => Promise<PlaybackResponse>;
   onState: (state: PlayerState) => void;
   titleDurationMs?: number;
-  attach?: typeof attachProtectedHls;
+  attach?: typeof attachMp4;
 }): ScreeningController {
   let index = 0;
   let active: 0 | 1 = 0;
   let phase: PlayerPhase = 'idle';
   let destroyed = false;
+  let operation = 0;
   let titleTimer: ReturnType<typeof setTimeout> | null = null;
   const attachments: [MediaAttachment | null, MediaAttachment | null] = [null, null];
   const attachedVideoIds: [string | null, string | null] = [null, null];
+  const slotOperations: [number, number] = [0, 0];
   const notify = (error: string | null = null) => onState({phase, index, error});
 
-  const onEnded = () => {
-    if (phase === 'playing') void advance();
-  };
-  elements.forEach((element) => element.addEventListener('ended', onEnded));
+  const endedHandlers = elements.map((_element, slot) => () => {
+    if (phase === 'playing' && slot === active) void advance();
+  });
+  elements.forEach((element, slot) =>
+    element.addEventListener('ended', endedHandlers[slot]),
+  );
 
   async function prepare(clipIndex: number, slot: 0 | 1) {
     const clip = playlist[clipIndex];
     if (!clip || attachedVideoIds[slot] === clip.videoId) return;
+    const slotOperation = ++slotOperations[slot];
     const playback = await getPlayback(clip.videoId);
-    if (!playback.manifestUrl) {
-      throw new Error(
-        playback.mode === 'fake'
-          ? 'local fake Stream does not provide playable HLS'
-          : 'protected playback is unavailable',
-      );
+    if (destroyed || slotOperation !== slotOperations[slot]) return;
+    if (playback.source.kind !== 'mp4') {
+      throw new Error('protected MP4 playback is unavailable');
     }
+
     attachments[slot]?.destroy();
-    elements[slot].pause();
-    elements[slot].removeAttribute('src');
-    attach(elements[slot], playback.manifestUrl, undefined, fail);
+    attachments[slot] = null;
+    attachedVideoIds[slot] = null;
+    const attachment = attach(
+      elements[slot],
+      playback.source.url,
+      undefined,
+      (message) => {
+        if (destroyed || slotOperation !== slotOperations[slot]) return;
+        attachments[slot]?.destroy();
+        attachments[slot] = null;
+        attachedVideoIds[slot] = null;
+        if (slot === active && clipIndex === index) fail(message);
+      },
+    );
+    if (destroyed || slotOperation !== slotOperations[slot]) {
+      attachment.destroy();
+      return;
+    }
+    attachments[slot] = attachment;
     attachedVideoIds[slot] = clip.videoId;
     audio.setGain(slot, clip.gainDb);
   }
 
   async function playCurrent() {
     if (destroyed) return;
+    const currentOperation = ++operation;
     phase = 'title';
     notify();
     await prepare(index, active);
-    void prepare(index + 1, active === 0 ? 1 : 0).catch(() => undefined);
+    if (destroyed || currentOperation !== operation || phase !== 'title') return;
+
+    const nextSlot = active === 0 ? 1 : 0;
+    void prepare(index + 1, nextSlot).catch(() => undefined);
     titleTimer = setTimeout(() => {
-      if (destroyed || phase !== 'title') return;
+      titleTimer = null;
+      if (destroyed || currentOperation !== operation || phase !== 'title') return;
       phase = 'playing';
       notify();
       void elements[active]
@@ -86,6 +110,11 @@ export function createScreeningController({
   }
 
   async function advance() {
+    operation += 1;
+    if (titleTimer) {
+      clearTimeout(titleTimer);
+      titleTimer = null;
+    }
     elements[active].pause();
     if (index >= playlist.length - 1) {
       phase = 'complete';
@@ -94,17 +123,25 @@ export function createScreeningController({
     }
     index += 1;
     active = active === 0 ? 1 : 0;
-    await playCurrent();
+    await playCurrent().catch((error: unknown) =>
+      fail(error instanceof Error ? error.message : 'playback could not start'),
+    );
   }
 
   function fail(message: string) {
+    operation += 1;
+    if (titleTimer) {
+      clearTimeout(titleTimer);
+      titleTimer = null;
+    }
+    elements[active].pause();
     phase = 'error';
     notify(message);
   }
 
   return {
     async start() {
-      if (!playlist.length) return;
+      if (!playlist.length || phase !== 'idle') return;
       await audio.resume();
       await playCurrent().catch((error: unknown) =>
         fail(error instanceof Error ? error.message : 'playback could not start'),
@@ -116,23 +153,29 @@ export function createScreeningController({
         phase = 'paused';
         notify();
       } else if (phase === 'paused') {
-        await audio.resume();
-        await elements[active].play();
-        phase = 'playing';
-        notify();
+        try {
+          await audio.resume();
+          await elements[active].play();
+          phase = 'playing';
+          notify();
+        } catch (error) {
+          fail(error instanceof Error ? error.message : 'playback could not resume');
+        }
       }
     },
     async skip() {
       if (phase === 'idle' || phase === 'complete') return;
-      if (titleTimer) clearTimeout(titleTimer);
       await advance();
     },
     destroy() {
       destroyed = true;
+      operation += 1;
+      slotOperations[0] += 1;
+      slotOperations[1] += 1;
       if (titleTimer) clearTimeout(titleTimer);
-      elements.forEach((element) => {
+      elements.forEach((element, slot) => {
         element.pause();
-        element.removeEventListener('ended', onEnded);
+        element.removeEventListener('ended', endedHandlers[slot]);
       });
       attachments.forEach((attachment) => attachment?.destroy());
       void audio.close();

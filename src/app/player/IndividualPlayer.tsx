@@ -1,7 +1,7 @@
 import {useEffect, useRef, useState} from 'react';
 
 import type {PlaybackResponse} from '../../shared/videos';
-import {attachProtectedHls} from './media';
+import {attachMp4} from './media';
 
 export function IndividualPlayer({
   playback,
@@ -14,24 +14,11 @@ export function IndividualPlayer({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!video.current || !playback.manifestUrl) return;
-    const attachment = attachProtectedHls(
-      video.current,
-      playback.manifestUrl,
-      undefined,
-      setError,
-    );
+    if (!video.current || playback.source.kind !== 'mp4') return;
+    setError(null);
+    const attachment = attachMp4(video.current, playback.source.url, undefined, setError);
     return () => attachment.destroy();
-  }, [playback.manifestUrl]);
-
-  if (!playback.manifestUrl) {
-    return (
-      <p className="formError" role="alert">
-        local fake Stream has no HLS manifest. protected playback must be validated in the
-        Cloudflare environment.
-      </p>
-    );
-  }
+  }, [playback.source]);
 
   return (
     <div className="individualPlayer">

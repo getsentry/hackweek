@@ -7,9 +7,5 @@ GOOGLE_REDIRECT_URI=http://localhost:5173/api/auth/callback
 ALLOWED_EMAIL_DOMAIN="sentry.io"
 
 # R2 uploads are processed by the local Workflow and pinned FFmpeg Container.
-# Stream fake mode remains only for the playback surface pending its R2 cutover.
-STREAM_MODE="fake"
-STREAM_ALLOWED_ORIGIN="localhost"
-STREAM_DELIVERY_HOST="customer-fake.cloudflarestream.com"
-STREAM_WEBHOOK_SECRET="replace-with-a-local-signing-secret"
+# Ready derivatives play through the authenticated same-origin MP4 endpoint.
 VIDEO_SERVICE_TOKEN="replace-with-a-local-job-token"

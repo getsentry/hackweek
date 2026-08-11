@@ -62,15 +62,15 @@ export interface CompleteVideoUploadRequest {
 }
 
 export interface PlaybackResponse {
-  mode: 'stream' | 'fake';
-  manifestUrl: string | null;
-  expiresAt: string;
+  source: {kind: 'mp4'; url: string};
+  expiresAt: null;
 }
 
 export interface PlaylistItem {
   videoId: string;
   projectId: string;
   projectName: string;
+  teamMembers: string[];
   durationSeconds: number;
   gainDb: number;
   position: number;
@@ -78,10 +78,8 @@ export interface PlaylistItem {
 
 export interface ProjectVideoResponse {
   video: ProjectVideo | null;
-  streamMode: StreamMode;
 }
 
 export interface PlaylistResponse {
   videos: PlaylistItem[];
-  streamMode: StreamMode;
 }

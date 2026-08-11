@@ -18,7 +18,7 @@
     "deploy:dry-run": "wrangler deploy --dry-run --config wrangler.production.json --outdir .wrangler/deploy-dry-run",
     "build": "vp build",
     "preview": "vp preview",
-    "cf-typegen": "wrangler types worker-configuration.d.ts",
+    "cf-typegen": "wrangler types worker-configuration.d.ts --config wrangler.production.json",
     "db:migrate:local": "wrangler d1 migrations apply hackweek-db --local",
     "migrate:validate": "tsx scripts/migrate/cli.ts validate",
     "migrate:dry-run": "tsx scripts/migrate/cli.ts dry-run",

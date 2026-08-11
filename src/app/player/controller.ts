@@ -181,7 +181,7 @@ export function createScreeningController({
     index += 1;
     active = active === 0 ? 1 : 0;
     try {
-      await audio.resume();
+      void audio.resume().catch(() => undefined);
       await playCurrent();
     } catch (error) {
       fail(error instanceof Error ? error.message : 'playback could not start');

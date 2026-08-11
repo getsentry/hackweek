@@ -16,6 +16,9 @@ describe('dual screening controller', () => {
     const states: PlayerState[] = [];
     const attached: string[] = [];
     const audio = fakeAudio();
+    vi.mocked(audio.resume)
+      .mockResolvedValueOnce(undefined)
+      .mockImplementationOnce(() => new Promise<void>(() => undefined));
     const controller = createScreeningController({
       playlist,
       elements: videos,

@@ -62,7 +62,7 @@ describe('video rollout preparation', () => {
     expect(readiness).toContain('/api/videos/playlist?year=9999');
     expect(readiness).toContain("output('ffprobe'");
     expect(readiness).not.toContain('STREAM_MODE');
-    expect(readiness).not.toMatch(/UPDATE project_videos SET status\s*=\s*'ready'/);
+    expect(readiness).not.toMatch(/UPDATE video_submissions SET status\s*=\s*'ready'/);
   });
 
   it('documents retained storage and the explicit production approval boundary', async () => {
@@ -71,5 +71,23 @@ describe('video rollout preparation', () => {
     expect(runbook).toContain('max_instances: 2');
     expect(runbook).toContain('No automatic deletion');
     expect(runbook).toContain('hackweek-video-media-production');
+  });
+
+  it('keeps migration, deployment, rollback, and future contraction compatible', async () => {
+    const [migration, workflow, runbook] = await Promise.all([
+      readFile('migrations/0007_r2_video_lifecycle.sql', 'utf8'),
+      readFile('.github/workflows/deploy.yml', 'utf8'),
+      readFile('VIDEO_ROLLOUT.md', 'utf8'),
+    ]);
+
+    expect(migration).toContain('CREATE TABLE video_submissions');
+    expect(migration).not.toMatch(/ALTER TABLE project_videos|DROP TABLE stream_events/);
+    expect(workflow).toContain('Apply expand-compatible D1 migrations');
+    expect(workflow.indexOf('Apply expand-compatible D1 migrations')).toBeLessThan(
+      workflow.indexOf('Deploy Worker and static assets'),
+    );
+    expect(runbook).toContain('recorded pre-release Worker version');
+    expect(runbook).toContain('does not alter `project_videos` or `stream_events`');
+    expect(runbook).toContain('Future contraction (separate approval required)');
   });
 });

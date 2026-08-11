@@ -1,5 +1,6 @@
 import {readFile} from 'node:fs/promises';
 import path from 'node:path';
+import {DatabaseSync} from 'node:sqlite';
 import {describe, expect, it} from 'vitest';
 
 import {migrationSql} from '../../scripts/migrate/import';
@@ -23,18 +24,155 @@ async function fixture(name: string) {
 }
 
 describe('Firebase migration transformation', () => {
-  it('adds the forward R2 video history and multipart constraints', async () => {
-    const sql = await readFile(
-      path.resolve('migrations/0007_r2_video_lifecycle.sql'),
-      'utf8',
-    );
+  it('keeps populated legacy SQL rollback-compatible while adding the R2 lifecycle', async () => {
+    const database = new DatabaseSync(':memory:');
+    try {
+      for (let version = 1; version <= 6; version += 1) {
+        const name = String(version).padStart(4, '0');
+        const migration = await readFile(
+          path.resolve(
+            'migrations',
+            `${name}_${
+              [
+                'initial',
+                'access_identity',
+                'voting_administration',
+                'stream_video_lifecycle',
+                'google_oauth_sessions',
+                'session_view_mode',
+              ][version - 1]
+            }.sql`,
+          ),
+          'utf8',
+        );
+        database.exec(migration);
+      }
+      database.exec(`
+        INSERT INTO users (id, source_uid, email, display_name)
+        VALUES ('legacy-user', 'legacy-source', 'legacy@example.com', 'Legacy User');
+        INSERT INTO years (id) VALUES ('legacy-year');
+        INSERT INTO projects (id, source_id, year_id, creator_id, name)
+        VALUES
+          ('legacy-project', 'legacy-project', 'legacy-year', 'legacy-user', 'Legacy Project'),
+          ('r2-project', 'r2-project', 'legacy-year', 'legacy-user', 'R2 Project');
+        INSERT INTO media (
+          id, source_id, project_id, original_name, r2_key, media_type, status
+        ) VALUES (
+          'legacy-media', 'legacy-media', 'legacy-project', 'legacy.mp4',
+          'legacy/media.mp4', 'video/mp4', 'available'
+        );
+        INSERT INTO project_videos (
+          id, project_id, stream_uid, source_media_id, status, duration_seconds,
+          loudness_lufs, gain_db, sort_order, upload_expires_at, failure_stage,
+          measurement_attempts, archive_status, archive_attempts
+        ) VALUES (
+          'legacy-video', 'legacy-project', 'stream-before', 'legacy-media', 'ready',
+          42, -18, 2, 1, NULL, NULL, 1, 'pending', 0
+        );
+        INSERT INTO stream_events (event_id, stream_uid, event_type)
+        VALUES ('legacy-event', 'stream-before', 'video.ready');
+      `);
 
-    expect(sql).toContain('ALTER TABLE project_videos RENAME TO legacy_project_videos');
-    expect(sql).toContain('CREATE TABLE video_uploads');
-    expect(sql).toContain('CREATE TABLE video_upload_parts');
-    expect(sql).toContain('CREATE TABLE video_processing_attempts');
-    expect(sql).toContain('WHERE retired_at IS NULL');
-    expect(sql).toContain("status IN ('creating', 'uploading', 'completing')");
+      const expand = await readFile(
+        path.resolve('migrations/0007_r2_video_lifecycle.sql'),
+        'utf8',
+      );
+      expect(expand).not.toMatch(/ALTER TABLE project_videos|DROP TABLE stream_events/);
+      database.exec(expand);
+
+      expect(
+        database
+          .prepare(`SELECT id, project_id, stream_uid, source_media_id, status,
+            duration_seconds, loudness_lufs, gain_db, error_message, failure_stage,
+            archive_status, archive_error FROM project_videos WHERE stream_uid = ?`)
+          .get('stream-before'),
+      ).toMatchObject({
+        id: 'legacy-video',
+        project_id: 'legacy-project',
+        source_media_id: 'legacy-media',
+        status: 'ready',
+        duration_seconds: 42,
+      });
+      expect(
+        database
+          .prepare('SELECT event_type FROM stream_events WHERE event_id = ?')
+          .get('legacy-event'),
+      ).toMatchObject({event_type: 'video.ready'});
+
+      database.exec(`
+        INSERT INTO stream_events (event_id, stream_uid, event_type)
+        VALUES ('rollback-event', 'stream-before', 'video.uploading');
+        INSERT INTO project_videos (
+          id, project_id, stream_uid, status, upload_expires_at,
+          error_message, failure_stage, duration_seconds, loudness_lufs, gain_db,
+          archive_status, archive_error
+        ) VALUES (
+          'ignored-on-conflict', 'legacy-project', 'stream-after', 'uploading',
+          '2030-01-01T00:00:00.000Z', NULL, NULL, NULL, NULL, NULL, 'pending', NULL
+        ) ON CONFLICT(project_id) DO UPDATE SET
+          stream_uid = excluded.stream_uid, source_media_id = NULL, status = 'uploading',
+          upload_expires_at = excluded.upload_expires_at, duration_seconds = NULL,
+          loudness_lufs = NULL, gain_db = NULL, error_message = NULL,
+          failure_stage = NULL, archive_status = 'pending', archive_error = NULL,
+          archived_at = NULL, updated_at = CURRENT_TIMESTAMP;
+      `);
+      expect(
+        database
+          .prepare('SELECT stream_uid, status FROM project_videos WHERE project_id = ?')
+          .get('legacy-project'),
+      ).toMatchObject({stream_uid: 'stream-after', status: 'uploading'});
+      expect(
+        database.prepare('SELECT COUNT(*) count FROM stream_events').get(),
+      ).toMatchObject({count: 2});
+
+      database.exec(`
+        INSERT INTO video_uploads (
+          id, video_id, project_id, creator_id, r2_upload_id, original_r2_key,
+          original_name, content_type, expected_size_bytes, part_size_bytes,
+          status, expires_at, completed_at
+        ) VALUES (
+          'r2-upload', 'r2-video', 'r2-project', 'legacy-user', 'multipart-id',
+          'r2/original.mp4', 'original.mp4', 'video/mp4', 11, 5242880,
+          'completed', '2030-01-01T00:00:00.000Z', CURRENT_TIMESTAMP
+        );
+        INSERT INTO video_submissions (
+          id, project_id, original_name, content_type, size_bytes, original_r2_key,
+          status, processing_attempt
+        ) VALUES (
+          'r2-video', 'r2-project', 'original.mp4', 'video/mp4', 11,
+          'r2/original.mp4', 'queued', 1
+        );
+        INSERT INTO video_processing_attempts (video_id, attempt, status)
+        VALUES ('r2-video', 1, 'queued');
+      `);
+      expect(
+        database
+          .prepare(`SELECT vs.status, vs.original_r2_key, vpa.status attempt_status
+            FROM video_submissions vs
+            JOIN video_processing_attempts vpa ON vpa.video_id = vs.id
+            WHERE vs.id = 'r2-video' AND vpa.attempt = 1`)
+          .get(),
+      ).toMatchObject({
+        status: 'queued',
+        original_r2_key: 'r2/original.mp4',
+        attempt_status: 'queued',
+      });
+      expect(() =>
+        database.exec(`INSERT INTO video_submissions (
+          id, project_id, original_name, size_bytes, original_r2_key
+        ) VALUES ('r2-conflict', 'r2-project', 'conflict.mp4', 5, 'r2/conflict.mp4')`),
+      ).toThrow(/UNIQUE constraint failed/);
+      database.exec(`
+        UPDATE video_submissions SET status = 'retired', retired_at = CURRENT_TIMESTAMP
+        WHERE id = 'r2-video';
+        INSERT INTO video_submissions (
+          id, project_id, original_name, size_bytes, original_r2_key
+        ) VALUES ('r2-replacement', 'r2-project', 'replacement.mp4', 5, 'r2/replacement.mp4');
+      `);
+      expect(database.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
+    } finally {
+      database.close();
+    }
   });
 
   it('preserves deterministic IDs, relationships, and storage keys', async () => {

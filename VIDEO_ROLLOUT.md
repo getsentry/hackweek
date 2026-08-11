@@ -14,13 +14,15 @@ The production declaration in `wrangler.production.json` uses these isolated fut
 | Container application       | `hackweek-video-processor-production`                    | Digest-pinned `Dockerfile.video-processor` image               |
 | `DB`                        | Existing `hackweek-db` binding                           | Upload, attempt, fencing, state, and retained-object inventory |
 
+Migration 0007 is an expand-only transition. The R2 Worker uses `video_submissions`, `video_uploads`, `video_upload_parts`, and `video_processing_attempts`; the legacy `project_videos` columns and `stream_events` table remain unchanged solely so the recorded pre-release Worker can run before deployment or after rollback. The R2 Worker has no active Stream path.
+
 Production declares both `max_instances: 2` and `VIDEO_PROCESSOR_CONCURRENCY=2`. Keep the two values equal. Local development uses one. The Container has no Internet access and receives no R2 account credential; its outbound handler scopes source/output access to the current D1 attempt.
 
 Required non-secret variables are `APP_ORIGIN`, `GOOGLE_REDIRECT_URI`, `GOOGLE_CLIENT_ID`, `ALLOWED_EMAIL_DOMAIN`, `VIDEO_PROCESSOR_CONCURRENCY`, and `VIDEO_PROCESSING_AUTOSTART`. `GOOGLE_CLIENT_SECRET` remains the required Worker secret. There is no Stream, HLS, public-R2, service-token, Queue, or general R2 credential binding.
 
 ## Explicit approval boundary
 
-A human production owner must approve the exact commit, account, names, expected storage growth, benchmark/tuning decision, D1 backup window, and smoke/rollback operators before any command below that uses `--remote`, `r2 bucket create`, `secret put`, `deploy`, or `rollback` is run.
+A human production owner must approve the exact commit, account, names, expected storage growth, benchmark/tuning decision, D1 backup window, smoke/rollback operators, and recorded pre-release Worker version before any command below that uses `--remote`, `r2 bucket create`, `secret put`, `deploy`, or `rollback` is run. The release record must include the passing populated-legacy expand/old-query/new-query/FK migration test for that exact commit.
 
 Until that approval, only these non-mutating local checks are allowed:
 
@@ -53,8 +55,8 @@ Before production approval, repeat the benchmark on the release commit and run a
 
 The following is an operator checklist, not deployment automation. Stop if the configured Cloudflare account is not `773afa1f62ff86c80db4f24f7ff1e9c8` or any proposed resource name is already owned for another purpose.
 
-1. Record the release commit and current Worker version ID for rollback. Obtain an explicit go/no-go from the production owner.
-2. Run all local checks from the approval section and archive their output with the release record.
+1. Record the release commit and current pre-release Worker version ID for rollback. Confirm it is the version covered by the legacy `project_videos`/`stream_events` SQL contract in the migration test. Obtain an explicit go/no-go from the production owner.
+2. Run all local checks from the approval section and archive their output with the release record, including `npm run test:migration -- test/migration/migration.test.ts test/e2e/video-rollout.test.ts`.
 3. Create the isolated private video bucket:
 
    ```bash
@@ -75,6 +77,8 @@ The following is an operator checklist, not deployment automation. Stop if the c
    npx wrangler d1 migrations apply hackweek-db \
      --remote --config wrangler.production.json
    ```
+
+   Migration 0007 only expands the schema. The still-deployed pre-release Worker continues to read and write its unchanged `project_videos` columns and `stream_events`; the new R2 tables can be queried independently. If migration application or the following deploy fails, leave the pre-release Worker serving and investigate—do not attempt a destructive schema reversal.
 
 6. Deploy the reviewed declaration:
 
@@ -123,7 +127,7 @@ Create dashboard/alert ownership before rollout for:
 - queued depth above 2 for 10 minutes (capacity pressure at cap two);
 - Worker `/api/projects/*/video*` and `/api/videos/*/content` 5xx rate >1% over 5 minutes;
 - Container CPU, memory, scratch disk, restart, and timeout pressure;
-- `project_videos.status='failed'` growth and retries per video;
+- `video_submissions.status='failed'` growth and retries per video;
 - R2 object count/bytes and monthly growth for `hackweek-video-media-production`.
 
 Never place full request headers, session cookies, source/output object keys, or media payloads in an alert. Link alerts to this runbook and name an event-time operator.
@@ -132,19 +136,27 @@ Never place full request headers, session cookies, source/output object keys, or
 
 Rollback is state-preserving. Do not delete R2 objects, Workflow instances, D1 rows, or the Container application during incident response.
 
-1. Pause new video completion/processing by preparing `VIDEO_PROCESSING_AUTOSTART=false` on the reviewed incident commit and deploying it through the same approved path. New completed uploads remain queued rather than being published incorrectly.
-2. If the Worker release itself is faulty, roll back to the recorded compatible Worker version:
+1. Pause new R2 video completion/processing by preparing `VIDEO_PROCESSING_AUTOSTART=false` on a reviewed incident commit when the Worker is healthy enough to deploy that change. New completed R2 uploads remain queued rather than being published incorrectly.
+2. If the Worker release itself is faulty, roll back to the recorded pre-release Worker version that was captured and compatibility-tested before rollout:
 
    ```bash
-   npx wrangler rollback <recorded-version-id> \
+   npx wrangler rollback <recorded-pre-release-version-id> \
      --name hackweek --message "Rollback video rollout: <incident>"
    ```
 
-3. Leave queued/running/failed attempt rows and all original/derivative objects intact. Inspect current attempt fencing before any retry. A late result cannot publish over a retired or newer attempt.
-4. Restore service only after `npm run verify`, the production smoke subset, and incident-owner approval pass on the corrective release. Re-enable autostart and keep concurrency at or below two.
+   This target remains schema-compatible after 0007 because the migration does not alter `project_videos` or `stream_events`. Do not select an older unrecorded version. The rollback version may use its original Stream lifecycle; no Stream behavior is present in the new R2 Worker.
+
+3. Do not reverse migration 0007. Leave legacy rows/events, R2 queued/running/failed attempt rows, and all original/derivative objects intact. A late R2 result cannot publish over a retired or newer attempt.
+4. Restore the R2 release only after `npm run verify`, the production smoke subset, reconciliation of any legacy writes made during rollback, and incident-owner approval pass on the corrective release. Re-enable autostart and keep concurrency at or below two.
 5. Reconcile status and inventory; do not manually mark a video ready and do not copy an unprobed object into a canonical key.
 
-D1 migration 0007 is forward-only. Rollback does not reverse it or restore the old Stream lifecycle.
+D1 migration 0007 is a forward-only expansion. Worker rollback does not reverse it, and no database downgrade is required.
+
+## Future contraction (separate approval required)
+
+Do not drop, rename, or repurpose `project_videos`, its legacy columns/indexes, or `stream_events` in this release. They define the tested pre-release rollback contract.
+
+A later contraction requires a separate production-owner approval and release after this rollback target is retired. Before contraction, inventory and reconcile legacy rows/events—including writes made during any rollback—record a new R2-compatible rollback target, prove no deployed Worker queries the legacy schema, and take the approved D1 backup. Only then may a new migration remove the legacy tables. Renaming `video_submissions` is not part of 0007; if desired, it requires its own expand/deploy/contract sequence rather than an in-place destructive rename.
 
 ## Retained-storage policy
 

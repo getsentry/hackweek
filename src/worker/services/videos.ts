@@ -87,7 +87,7 @@ export async function listPlaylist(
         pv.duration_seconds, pv.gain_db, so.position
        FROM screening_order so
        JOIN projects p ON p.id = so.project_id AND p.status = 'active'
-       JOIN project_videos pv ON pv.project_id = p.id
+       JOIN video_submissions pv ON pv.project_id = p.id
        WHERE so.year_id = ? AND pv.status = 'ready' AND pv.retired_at IS NULL
          AND pv.processed_r2_key IS NOT NULL
          AND pv.duration_seconds IS NOT NULL AND pv.gain_db IS NOT NULL
@@ -438,7 +438,7 @@ export async function completeVideoUpload(
         .bind(upload.id),
       db
         .prepare(
-          `INSERT INTO project_videos (
+          `INSERT INTO video_submissions (
             id, project_id, original_name, content_type, size_bytes, original_r2_key,
             status, processing_attempt
           ) VALUES (?, ?, ?, ?, ?, ?, 'queued', 1)`,
@@ -531,7 +531,7 @@ export async function retryProjectVideo(
   const results = await db.batch([
     db
       .prepare(
-        `UPDATE project_videos SET status = 'queued', processing_attempt = ?,
+        `UPDATE video_submissions SET status = 'queued', processing_attempt = ?,
           duration_seconds = NULL, loudness_lufs = NULL, gain_db = NULL,
           error_message = NULL, processed_r2_key = NULL,
           updated_at = CURRENT_TIMESTAMP
@@ -543,7 +543,7 @@ export async function retryProjectVideo(
       .prepare(
         `INSERT INTO video_processing_attempts (video_id, attempt, status)
          SELECT ?, ?, 'queued' WHERE EXISTS (
-           SELECT 1 FROM project_videos WHERE id = ?
+           SELECT 1 FROM video_submissions WHERE id = ?
              AND processing_attempt = ? AND status = 'queued' AND retired_at IS NULL
          )`,
       )
@@ -589,14 +589,14 @@ export async function claimVideoProcessingAttempt(
          WHERE video_id = ? AND attempt = ? AND status = 'queued'
            AND (SELECT COUNT(*) FROM video_processing_attempts WHERE status = 'running') < ?
            AND EXISTS (
-             SELECT 1 FROM project_videos WHERE id = ? AND processing_attempt = ?
+             SELECT 1 FROM video_submissions WHERE id = ? AND processing_attempt = ?
                AND status = 'queued' AND retired_at IS NULL
            )`,
       )
       .bind(outputKey, videoId, attempt, concurrency, videoId, attempt),
     db
       .prepare(
-        `UPDATE project_videos SET status = 'processing', error_message = NULL,
+        `UPDATE video_submissions SET status = 'processing', error_message = NULL,
           updated_at = CURRENT_TIMESTAMP
          WHERE id = ? AND processing_attempt = ? AND status = 'queued'
            AND retired_at IS NULL AND EXISTS (
@@ -627,7 +627,7 @@ export async function publishVideoProcessingAttempt(
   const updates = await db.batch([
     db
       .prepare(
-        `UPDATE project_videos SET status = 'ready', processed_r2_key = ?,
+        `UPDATE video_submissions SET status = 'ready', processed_r2_key = ?,
           duration_seconds = ?, loudness_lufs = ?, gain_db = 0,
           error_message = NULL, updated_at = CURRENT_TIMESTAMP
          WHERE id = ? AND processing_attempt = ? AND status = 'processing'
@@ -654,7 +654,7 @@ export async function publishVideoProcessingAttempt(
           finished_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
          WHERE video_id = ? AND attempt = ? AND status = 'running'
            AND output_r2_key = ? AND EXISTS (
-             SELECT 1 FROM project_videos WHERE id = ? AND processing_attempt = ?
+             SELECT 1 FROM video_submissions WHERE id = ? AND processing_attempt = ?
                AND status = 'ready' AND retired_at IS NULL AND processed_r2_key = ?
            )`,
       )
@@ -673,7 +673,7 @@ export async function failVideoProcessingAttempt(
   const updates = await db.batch([
     db
       .prepare(
-        `UPDATE project_videos SET status = 'failed', error_message = ?,
+        `UPDATE video_submissions SET status = 'failed', error_message = ?,
           updated_at = CURRENT_TIMESTAMP
          WHERE id = ? AND processing_attempt = ? AND retired_at IS NULL
            AND status IN ('queued', 'processing')
@@ -689,7 +689,7 @@ export async function failVideoProcessingAttempt(
           finished_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
          WHERE video_id = ? AND attempt = ? AND status IN ('queued', 'running')
            AND EXISTS (
-             SELECT 1 FROM project_videos WHERE id = ? AND processing_attempt = ?
+             SELECT 1 FROM video_submissions WHERE id = ? AND processing_attempt = ?
                AND status = 'failed' AND retired_at IS NULL
            )`,
       )
@@ -720,7 +720,7 @@ export async function retireProjectVideo(
   await db.batch([
     db
       .prepare(
-        `UPDATE project_videos SET status = 'retired', retired_at = CURRENT_TIMESTAMP,
+        `UPDATE video_submissions SET status = 'retired', retired_at = CURRENT_TIMESTAMP,
           updated_at = CURRENT_TIMESTAMP WHERE id = ? AND retired_at IS NULL`,
       )
       .bind(video.id),
@@ -844,7 +844,7 @@ function mapVideo(row: VideoRow): ProjectVideo {
 function videoSelect() {
   return `SELECT id, project_id, original_name, content_type, size_bytes, status,
     processing_attempt, processed_r2_key, duration_seconds, loudness_lufs, gain_db,
-    error_message, created_at FROM project_videos`;
+    error_message, created_at FROM video_submissions`;
 }
 
 async function requireReadyVideo(db: D1Database, videoId: string) {
@@ -942,7 +942,7 @@ async function processingAttempt(db: D1Database, videoId: string, attempt: numbe
     .prepare(
       `SELECT pv.id video_id, pv.project_id, pv.original_r2_key,
         pv.processing_attempt, pv.status video_status, vpa.status attempt_status
-       FROM project_videos pv
+       FROM video_submissions pv
        JOIN video_processing_attempts vpa
          ON vpa.video_id = pv.id AND vpa.attempt = ?
        WHERE pv.id = ?`,

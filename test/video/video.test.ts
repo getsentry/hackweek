@@ -130,7 +130,7 @@ describe('R2 multipart video lifecycle', () => {
     expect(duplicateCompletion.body.video.id).toBe(completed.body.video.id);
 
     const stored = await env.DB.prepare(
-      `SELECT original_r2_key FROM project_videos WHERE id = ?`,
+      `SELECT original_r2_key FROM video_submissions WHERE id = ?`,
     )
       .bind(completed.body.video.id)
       .first<{original_r2_key: string}>();
@@ -162,7 +162,7 @@ describe('R2 multipart video lifecycle', () => {
 
     const activeIndex = await env.DB.prepare(
       `SELECT sql FROM sqlite_master WHERE type = 'index'
-       AND name = 'project_videos_active_project_idx'`,
+       AND name = 'video_submissions_active_project_idx'`,
     ).first<{sql: string}>();
     expect(activeIndex?.sql).toContain('WHERE retired_at IS NULL');
   });
@@ -182,7 +182,7 @@ describe('R2 multipart video lifecycle', () => {
     expect(retired.status).toBe(204);
     expect(await env.VIDEOS.head(key)).not.toBeNull();
     const retiredRow = await env.DB.prepare(
-      'SELECT status, original_r2_key FROM project_videos WHERE id = ?',
+      'SELECT status, original_r2_key FROM video_submissions WHERE id = ?',
     )
       .bind(video.id)
       .first<{status: string; original_r2_key: string}>();
@@ -308,7 +308,7 @@ describe('R2 multipart video lifecycle', () => {
     ).toBe(false);
     const stored = await env.DB.prepare(
       `SELECT status, original_r2_key, processed_r2_key, duration_seconds,
-        loudness_lufs, processing_attempt FROM project_videos WHERE id = ?`,
+        loudness_lufs, processing_attempt FROM video_submissions WHERE id = ?`,
     )
       .bind(video.id)
       .first();
@@ -508,7 +508,7 @@ describe('R2 multipart video lifecycle', () => {
       claimVideoProcessingAttempt(env.DB, right.video.id, 1, 1),
     ).rejects.toBeInstanceOf(ProcessingCapacityError);
     expect(
-      await env.DB.prepare('SELECT status FROM project_videos WHERE id = ?')
+      await env.DB.prepare('SELECT status FROM video_submissions WHERE id = ?')
         .bind(right.video.id)
         .first('status'),
     ).toBe('queued');
@@ -587,7 +587,7 @@ async function completeSmallUpload(project: string, token: string, bytes: string
   );
   expect(completed.status).toBe(200);
   const stored = await env.DB.prepare(
-    'SELECT original_r2_key FROM project_videos WHERE id = ?',
+    'SELECT original_r2_key FROM video_submissions WHERE id = ?',
   )
     .bind(completed.body.video.id)
     .first<{original_r2_key: string}>();

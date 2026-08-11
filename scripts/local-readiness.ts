@@ -321,7 +321,7 @@ try {
     processed_r2_key: string;
     status: string;
   }>(
-    `SELECT original_r2_key, processed_r2_key, status FROM project_videos WHERE id = '${escapeSql(videoId)}'`,
+    `SELECT original_r2_key, processed_r2_key, status FROM video_submissions WHERE id = '${escapeSql(videoId)}'`,
   );
   assert(
     row.status === 'retired' && row.original_r2_key !== row.processed_r2_key,

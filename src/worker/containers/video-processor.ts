@@ -78,7 +78,7 @@ async function currentStorage(db: D1Database, scope: VideoProcessingParams) {
   return db
     .prepare(
       `SELECT pv.original_r2_key, vpa.output_r2_key
-       FROM project_videos pv
+       FROM video_submissions pv
        JOIN video_processing_attempts vpa
          ON vpa.video_id = pv.id AND vpa.attempt = ?
        WHERE pv.id = ? AND pv.processing_attempt = ?

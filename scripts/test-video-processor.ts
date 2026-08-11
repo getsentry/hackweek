@@ -24,6 +24,7 @@ try {
 
   await chmod(work, 0o777);
   const audible = path.join(work, 'audible.mp4');
+  const peakLimited = path.join(work, 'peak-limited.mp4');
   const lowSilent = path.join(work, 'low-silent.mp4');
   const rotationBase = path.join(work, 'rotation-base.mp4');
   const rotated = path.join(work, 'rotated.mp4');
@@ -51,6 +52,26 @@ try {
     'aac',
     '-shortest',
     audible,
+  ]);
+  ffmpeg([
+    '-f',
+    'lavfi',
+    '-i',
+    'color=size=320x180:rate=15:color=black',
+    '-f',
+    'lavfi',
+    '-i',
+    'aevalsrc=0.003*sin(2*PI*440*t)+if(between(t\\,1\\,1.005)\\,0.5\\,0):s=48000:c=stereo',
+    '-t',
+    '3.5',
+    '-c:v',
+    'libx264',
+    '-preset',
+    'ultrafast',
+    '-c:a',
+    'aac',
+    '-shortest',
+    peakLimited,
   ]);
   ffmpeg([
     '-f',
@@ -97,8 +118,8 @@ try {
   ]);
   await writeFile(malformed, 'not a media file');
   await Promise.all(
-    [audible, lowSilent, rotationBase, rotated, overDuration, malformed].map((file) =>
-      chmod(file, 0o644),
+    [audible, peakLimited, lowSilent, rotationBase, rotated, overDuration, malformed].map(
+      (file) => chmod(file, 0o644),
     ),
   );
 
@@ -117,6 +138,22 @@ try {
   assert(
     await fastStart(path.join(work, 'audible-output.mp4')),
     'MP4 moov precedes mdat',
+  );
+
+  const peakLimitedResult = processFixture('peak-limited.mp4', 'peak-limited-output.mp4');
+  assertCanonical(probe(path.join(work, 'peak-limited-output.mp4')));
+  assert(
+    peakLimitedResult.audioMode === 'normalized',
+    'peak-limited input remains normalized',
+  );
+  assert(
+    typeof peakLimitedResult.loudnessLufs === 'number' &&
+      Math.abs(peakLimitedResult.loudnessLufs + 16) <= 0.7,
+    `peak-limited output is ${String(peakLimitedResult.loudnessLufs)} LUFS within ±0.7 LU`,
+  );
+  assert(
+    await fastStart(path.join(work, 'peak-limited-output.mp4')),
+    'corrective audio pass preserves MP4 fast start',
   );
 
   const silentResult = processFixture('low-silent.mp4', 'low-silent-output.mp4');
@@ -145,7 +182,7 @@ try {
   expectFixtureFailure('over-duration.mp4', 'over-output.mp4', 'exceeds 600s');
   expectFixtureFailure('audible.mp4', 'missing/output.mp4', 'No such file');
 
-  console.log('Video processor: 28 checks passed');
+  console.log('Video processor: 36 checks passed');
 } finally {
   await rm(work, {recursive: true, force: true});
 }

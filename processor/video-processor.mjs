@@ -1,6 +1,6 @@
 import {createHash} from 'node:crypto';
 import {createReadStream, createWriteStream} from 'node:fs';
-import {mkdtemp, open, rm, stat} from 'node:fs/promises';
+import {mkdtemp, open, rename, rm, stat} from 'node:fs/promises';
 import {createServer} from 'node:http';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
@@ -39,62 +39,35 @@ export async function processFile(inputPath, outputPath) {
   const normalizeAudio = firstPass !== null && firstPass.inputI > -70;
   await transcode(inputPath, outputPath, firstPass, normalizeAudio);
 
-  const output = await probe(outputPath);
-  const video = output.streams.find((stream) => stream.codec_type === 'video');
-  const audio = output.streams.find((stream) => stream.codec_type === 'audio');
-  const outputDuration = mediaDuration(output);
-  if (
-    !video ||
-    !audio ||
-    video.codec_name !== 'h264' ||
-    audio.codec_name !== 'aac' ||
-    video.pix_fmt !== 'yuv420p' ||
-    !positive(video.width) ||
-    !positive(video.height) ||
-    video.width > 1920 ||
-    video.height > 1080 ||
-    outputDuration > MAX_DURATION_SECONDS + 0.05
-  ) {
-    throw new ProcessorError(
-      'Canonical output failed codec, pixel, size, or duration checks',
-    );
+  let canonical = await validateCanonicalOutput(outputPath, sourceVideo);
+  let measured = await analyzeLoudness(outputPath);
+  let loudnessLufs = measured?.inputI ?? null;
+  if (normalizeAudio && measured && outsideLoudnessTolerance(loudnessLufs)) {
+    const correctedPath = `${outputPath}.loudness.mp4`;
+    await correctLoudness(outputPath, correctedPath, measured);
+    await rename(correctedPath, outputPath);
+    canonical = await validateCanonicalOutput(outputPath, sourceVideo);
+    measured = await analyzeLoudness(outputPath);
+    loudnessLufs = measured?.inputI ?? null;
   }
-
-  const rotation = sourceRotation(sourceVideo);
-  const sourceWidth =
-    Math.abs(rotation) % 180 === 90 ? sourceVideo.height : sourceVideo.width;
-  const sourceHeight =
-    Math.abs(rotation) % 180 === 90 ? sourceVideo.width : sourceVideo.height;
-  if (video.width > sourceWidth || video.height > sourceHeight) {
-    throw new ProcessorError('Canonical output unexpectedly upscaled the source');
-  }
-
-  const fastStart = await hasFastStart(outputPath);
-  if (!fastStart) throw new ProcessorError('Canonical MP4 is not fast-start enabled');
-  const measured = await analyzeLoudness(outputPath);
-  const loudnessLufs = measured?.inputI ?? null;
-  if (
-    normalizeAudio &&
-    (loudnessLufs === null ||
-      Math.abs(loudnessLufs - TARGET_LUFS) > LOUDNESS_TOLERANCE_LU)
-  ) {
+  if (normalizeAudio && outsideLoudnessTolerance(loudnessLufs)) {
     throw new ProcessorError(
       `Output loudness ${String(loudnessLufs)} LUFS is outside ${LOUDNESS_TOLERANCE_LU} LU of ${TARGET_LUFS}`,
     );
   }
 
   return {
-    durationSeconds: outputDuration,
-    width: video.width,
-    height: video.height,
-    videoCodec: video.codec_name,
-    audioCodec: audio.codec_name,
-    pixelFormat: video.pix_fmt,
+    durationSeconds: canonical.outputDuration,
+    width: canonical.video.width,
+    height: canonical.video.height,
+    videoCodec: canonical.video.codec_name,
+    audioCodec: canonical.audio.codec_name,
+    pixelFormat: canonical.video.pix_fmt,
     loudnessLufs,
     loudnessTargetLufs: TARGET_LUFS,
     loudnessToleranceLu: LOUDNESS_TOLERANCE_LU,
     audioMode: normalizeAudio ? 'normalized' : 'generated-silence',
-    fastStart,
+    fastStart: canonical.fastStart,
     sha256: await sha256(outputPath),
   };
 }
@@ -106,23 +79,7 @@ async function transcode(inputPath, outputPath, firstPass, normalizeAudio) {
   }
   args.push('-map', '0:v:0', '-map', normalizeAudio ? '0:a:0' : '1:a:0');
   args.push('-vf', SCALE_FILTER);
-  if (normalizeAudio) {
-    args.push(
-      '-af',
-      [
-        `loudnorm=I=${TARGET_LUFS}`,
-        'LRA=11',
-        'TP=-1.5',
-        `measured_I=${firstPass.inputI}`,
-        `measured_LRA=${firstPass.inputLra}`,
-        `measured_TP=${firstPass.inputTp}`,
-        `measured_thresh=${firstPass.inputThresh}`,
-        `offset=${firstPass.targetOffset}`,
-        'linear=true',
-        'print_format=summary',
-      ].join(':'),
-    );
-  }
+  if (normalizeAudio) args.push('-af', loudnormFilter(firstPass));
   args.push(
     '-c:v',
     'libx264',
@@ -158,6 +115,97 @@ async function transcode(inputPath, outputPath, firstPass, normalizeAudio) {
     outputPath,
   );
   await run('ffmpeg', args);
+}
+
+async function correctLoudness(inputPath, outputPath, measured) {
+  await run('ffmpeg', [
+    '-hide_banner',
+    '-nostdin',
+    '-y',
+    '-i',
+    inputPath,
+    '-map',
+    '0:v:0',
+    '-map',
+    '0:a:0',
+    '-c:v',
+    'copy',
+    '-af',
+    loudnormFilter(measured),
+    '-c:a',
+    'aac',
+    '-b:a',
+    '192k',
+    '-ar',
+    '48000',
+    '-ac',
+    '2',
+    '-map_metadata',
+    '-1',
+    '-sn',
+    '-dn',
+    '-movflags',
+    '+faststart',
+    '-shortest',
+    outputPath,
+  ]);
+}
+
+function loudnormFilter(measured) {
+  return [
+    `loudnorm=I=${TARGET_LUFS}`,
+    'LRA=11',
+    'TP=-1.5',
+    `measured_I=${measured.inputI}`,
+    `measured_LRA=${measured.inputLra}`,
+    `measured_TP=${measured.inputTp}`,
+    `measured_thresh=${measured.inputThresh}`,
+    `offset=${measured.targetOffset}`,
+    'linear=true',
+    'print_format=summary',
+  ].join(':');
+}
+
+async function validateCanonicalOutput(outputPath, sourceVideo) {
+  const output = await probe(outputPath);
+  const video = output.streams.find((stream) => stream.codec_type === 'video');
+  const audio = output.streams.find((stream) => stream.codec_type === 'audio');
+  const outputDuration = mediaDuration(output);
+  if (
+    !video ||
+    !audio ||
+    video.codec_name !== 'h264' ||
+    audio.codec_name !== 'aac' ||
+    video.pix_fmt !== 'yuv420p' ||
+    !positive(video.width) ||
+    !positive(video.height) ||
+    video.width > 1920 ||
+    video.height > 1080 ||
+    outputDuration > MAX_DURATION_SECONDS + 0.05
+  ) {
+    throw new ProcessorError(
+      'Canonical output failed codec, pixel, size, or duration checks',
+    );
+  }
+
+  const rotation = sourceRotation(sourceVideo);
+  const sourceWidth =
+    Math.abs(rotation) % 180 === 90 ? sourceVideo.height : sourceVideo.width;
+  const sourceHeight =
+    Math.abs(rotation) % 180 === 90 ? sourceVideo.width : sourceVideo.height;
+  if (video.width > sourceWidth || video.height > sourceHeight) {
+    throw new ProcessorError('Canonical output unexpectedly upscaled the source');
+  }
+
+  const fastStart = await hasFastStart(outputPath);
+  if (!fastStart) throw new ProcessorError('Canonical MP4 is not fast-start enabled');
+  return {video, audio, outputDuration, fastStart};
+}
+
+function outsideLoudnessTolerance(loudnessLufs) {
+  return (
+    loudnessLufs === null || Math.abs(loudnessLufs - TARGET_LUFS) > LOUDNESS_TOLERANCE_LU
+  );
 }
 
 async function analyzeLoudness(file) {

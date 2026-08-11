@@ -1,0 +1,3 @@
+*
+!Dockerfile.video-processor
+!processor/video-processor.mjs

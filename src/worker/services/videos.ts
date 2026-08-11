@@ -5,6 +5,8 @@ import type {
   VideoUploadSession,
 } from '../../shared/videos';
 import {currentYearIdSql, effectiveYearFlags} from '../repositories/years';
+import type {VideoProcessingParams, VideoProcessorResult} from '../video-processing';
+import {videoWorkflowInstanceId} from '../video-processing';
 import {ServiceError} from './errors';
 
 export const MAX_VIDEO_BYTES = 5 * 1024 * 1024 * 1024;
@@ -25,6 +27,17 @@ interface VideoRow {
   error_message: string | null;
   created_at: string;
 }
+
+interface ProcessingAttemptRow {
+  video_id: string;
+  project_id: string;
+  original_r2_key: string;
+  processing_attempt: number;
+  video_status: string;
+  attempt_status: string;
+}
+
+export class ProcessingCapacityError extends Error {}
 
 interface UploadRow {
   id: string;
@@ -221,6 +234,7 @@ export async function uploadVideoPart(
 export async function completeVideoUpload(
   db: D1Database,
   bucket: R2Bucket,
+  workflow: Workflow<VideoProcessingParams> | null,
   projectId: string,
   uploadId: string,
   suppliedParts: Array<{partNumber: number; etag: string}>,
@@ -230,7 +244,11 @@ export async function completeVideoUpload(
   await authorizeVideoWrite(db, projectId, user);
   const upload = await requireUpload(db, projectId, uploadId);
   if (upload.status === 'completed') {
-    return mapVideo(await requireVideoById(db, upload.video_id));
+    const video = await requireVideoById(db, upload.video_id);
+    if (workflow) {
+      await ensureVideoProcessingWorkflow(workflow, video.id, video.processing_attempt);
+    }
+    return mapVideo(video);
   }
   await assertUploadIsWritable(db, bucket, upload, now);
   if (!upload.r2_upload_id || !['uploading', 'completing'].includes(upload.status)) {
@@ -319,7 +337,11 @@ export async function completeVideoUpload(
       .first<VideoRow>();
     if (!existing) throw error;
   }
-  return mapVideo(await requireVideoById(db, upload.video_id));
+  const video = await requireVideoById(db, upload.video_id);
+  if (workflow) {
+    await ensureVideoProcessingWorkflow(workflow, video.id, video.processing_attempt);
+  }
+  return mapVideo(video);
 }
 
 export async function abortVideoUpload(
@@ -360,6 +382,192 @@ export async function abortVideoUpload(
     )
     .bind(upload.id)
     .run();
+}
+
+export async function retryProjectVideo(
+  db: D1Database,
+  workflow: Workflow<VideoProcessingParams> | null,
+  projectId: string,
+  user: SessionUser,
+) {
+  await authorizeVideoWrite(db, projectId, user);
+  const video = await db
+    .prepare(`${videoSelect()} WHERE project_id = ? AND retired_at IS NULL`)
+    .bind(projectId)
+    .first<VideoRow>();
+  if (!video) throw new ServiceError('NOT_FOUND', 'Video not found', 404);
+  if (video.status !== 'failed') {
+    throw new ServiceError('CONFLICT', 'Only a failed video can be retried', 409);
+  }
+  const attempt = video.processing_attempt + 1;
+  const results = await db.batch([
+    db
+      .prepare(
+        `UPDATE project_videos SET status = 'queued', processing_attempt = ?,
+          duration_seconds = NULL, loudness_lufs = NULL, gain_db = NULL,
+          error_message = NULL, processed_r2_key = NULL,
+          updated_at = CURRENT_TIMESTAMP
+         WHERE id = ? AND processing_attempt = ? AND status = 'failed'
+           AND retired_at IS NULL`,
+      )
+      .bind(attempt, video.id, video.processing_attempt),
+    db
+      .prepare(
+        `INSERT INTO video_processing_attempts (video_id, attempt, status)
+         SELECT ?, ?, 'queued' WHERE EXISTS (
+           SELECT 1 FROM project_videos WHERE id = ?
+             AND processing_attempt = ? AND status = 'queued' AND retired_at IS NULL
+         )`,
+      )
+      .bind(video.id, attempt, video.id, attempt),
+  ]);
+  if (results.some((result) => result.meta.changes !== 1)) {
+    throw new ServiceError('CONFLICT', 'Video retry was superseded', 409);
+  }
+  if (workflow) await ensureVideoProcessingWorkflow(workflow, video.id, attempt);
+  return mapVideo(await requireVideoById(db, video.id));
+}
+
+export async function claimVideoProcessingAttempt(
+  db: D1Database,
+  videoId: string,
+  attempt: number,
+  concurrency: number,
+): Promise<{status: 'claimed'; outputKey: string} | {status: 'stale'}> {
+  const row = await processingAttempt(db, videoId, attempt);
+  if (
+    !row ||
+    row.processing_attempt !== attempt ||
+    row.video_status !== 'queued' ||
+    row.attempt_status !== 'queued'
+  ) {
+    return {status: 'stale'};
+  }
+  const running = await db
+    .prepare(
+      `SELECT COUNT(*) count FROM video_processing_attempts WHERE status = 'running'`,
+    )
+    .first<{count: number}>();
+  if ((running?.count ?? 0) >= concurrency) {
+    throw new ProcessingCapacityError('Video processor concurrency is currently full');
+  }
+  const outputKey = videoProcessedKey(row.project_id, videoId, attempt);
+  const results = await db.batch([
+    db
+      .prepare(
+        `UPDATE video_processing_attempts
+         SET status = 'running', output_r2_key = ?, started_at = CURRENT_TIMESTAMP,
+           updated_at = CURRENT_TIMESTAMP
+         WHERE video_id = ? AND attempt = ? AND status = 'queued'
+           AND (SELECT COUNT(*) FROM video_processing_attempts WHERE status = 'running') < ?
+           AND EXISTS (
+             SELECT 1 FROM project_videos WHERE id = ? AND processing_attempt = ?
+               AND status = 'queued' AND retired_at IS NULL
+           )`,
+      )
+      .bind(outputKey, videoId, attempt, concurrency, videoId, attempt),
+    db
+      .prepare(
+        `UPDATE project_videos SET status = 'processing', error_message = NULL,
+          updated_at = CURRENT_TIMESTAMP
+         WHERE id = ? AND processing_attempt = ? AND status = 'queued'
+           AND retired_at IS NULL AND EXISTS (
+             SELECT 1 FROM video_processing_attempts
+             WHERE video_id = ? AND attempt = ? AND status = 'running'
+               AND output_r2_key = ?
+           )`,
+      )
+      .bind(videoId, attempt, videoId, attempt, outputKey),
+  ]);
+  if (results.every((result) => result.meta.changes === 1)) {
+    return {status: 'claimed', outputKey};
+  }
+  const current = await processingAttempt(db, videoId, attempt);
+  if (current?.video_status === 'queued' && current.attempt_status === 'queued') {
+    throw new ProcessingCapacityError('Video processor concurrency is currently full');
+  }
+  return {status: 'stale'};
+}
+
+export async function publishVideoProcessingAttempt(
+  db: D1Database,
+  videoId: string,
+  attempt: number,
+  outputKey: string,
+  result: VideoProcessorResult,
+) {
+  const updates = await db.batch([
+    db
+      .prepare(
+        `UPDATE project_videos SET status = 'ready', processed_r2_key = ?,
+          duration_seconds = ?, loudness_lufs = ?, gain_db = 0,
+          error_message = NULL, updated_at = CURRENT_TIMESTAMP
+         WHERE id = ? AND processing_attempt = ? AND status = 'processing'
+           AND retired_at IS NULL AND processed_r2_key IS NULL
+           AND EXISTS (
+             SELECT 1 FROM video_processing_attempts
+             WHERE video_id = ? AND attempt = ? AND status = 'running'
+               AND output_r2_key = ?
+           )`,
+      )
+      .bind(
+        outputKey,
+        result.durationSeconds,
+        result.loudnessLufs,
+        videoId,
+        attempt,
+        videoId,
+        attempt,
+        outputKey,
+      ),
+    db
+      .prepare(
+        `UPDATE video_processing_attempts SET status = 'succeeded',
+          finished_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+         WHERE video_id = ? AND attempt = ? AND status = 'running'
+           AND output_r2_key = ? AND EXISTS (
+             SELECT 1 FROM project_videos WHERE id = ? AND processing_attempt = ?
+               AND status = 'ready' AND retired_at IS NULL AND processed_r2_key = ?
+           )`,
+      )
+      .bind(videoId, attempt, outputKey, videoId, attempt, outputKey),
+  ]);
+  return updates.every((update) => update.meta.changes === 1);
+}
+
+export async function failVideoProcessingAttempt(
+  db: D1Database,
+  videoId: string,
+  attempt: number,
+  error: string,
+) {
+  const message = boundedProcessingError(error);
+  const updates = await db.batch([
+    db
+      .prepare(
+        `UPDATE project_videos SET status = 'failed', error_message = ?,
+          updated_at = CURRENT_TIMESTAMP
+         WHERE id = ? AND processing_attempt = ? AND retired_at IS NULL
+           AND status IN ('queued', 'processing')
+           AND EXISTS (
+             SELECT 1 FROM video_processing_attempts
+             WHERE video_id = ? AND attempt = ? AND status IN ('queued', 'running')
+           )`,
+      )
+      .bind(message, videoId, attempt, videoId, attempt),
+    db
+      .prepare(
+        `UPDATE video_processing_attempts SET status = 'failed', error_message = ?,
+          finished_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+         WHERE video_id = ? AND attempt = ? AND status IN ('queued', 'running')
+           AND EXISTS (
+             SELECT 1 FROM project_videos WHERE id = ? AND processing_attempt = ?
+               AND status = 'failed' AND retired_at IS NULL
+           )`,
+      )
+      .bind(message, videoId, attempt, videoId, attempt),
+  ]);
+  return updates.every((update) => update.meta.changes === 1);
 }
 
 export async function retireProjectVideo(
@@ -585,6 +793,53 @@ function isVideoSlotConflict(error: unknown) {
     message.includes('active project video exists') ||
     message.includes('UNIQUE constraint failed: video_uploads.project_id')
   );
+}
+
+async function processingAttempt(db: D1Database, videoId: string, attempt: number) {
+  return db
+    .prepare(
+      `SELECT pv.id video_id, pv.project_id, pv.original_r2_key,
+        pv.processing_attempt, pv.status video_status, vpa.status attempt_status
+       FROM project_videos pv
+       JOIN video_processing_attempts vpa
+         ON vpa.video_id = pv.id AND vpa.attempt = ?
+       WHERE pv.id = ?`,
+    )
+    .bind(attempt, videoId)
+    .first<ProcessingAttemptRow>();
+}
+
+async function ensureVideoProcessingWorkflow(
+  workflow: Workflow<VideoProcessingParams>,
+  videoId: string,
+  attempt: number,
+) {
+  const id = videoWorkflowInstanceId(videoId, attempt);
+  try {
+    await workflow.create({
+      id,
+      params: {videoId, attempt},
+      retention: {successRetention: '30 days', errorRetention: '30 days'},
+    });
+  } catch (error) {
+    try {
+      const existing = await workflow.get(id);
+      const status = await existing.status();
+      if (status.status !== 'unknown') return;
+    } catch {
+      // Preserve the original create failure when no deterministic instance exists.
+    }
+    throw error;
+  }
+}
+
+function boundedProcessingError(error: string) {
+  const normalized = error.replace(/\s+/g, ' ').trim();
+  return (normalized || 'Video processing failed').slice(0, 500);
+}
+
+function videoProcessedKey(projectId: string, videoId: string, attempt: number) {
+  return `projects/${encodeURIComponent(projectId)}/videos/${videoId}/processed/attempt-${attempt}.mp4`;
 }
 
 function videoOriginalKey(projectId: string, videoId: string, fileName: string) {

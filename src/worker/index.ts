@@ -1,5 +1,7 @@
+import {ContainerProxy} from '@cloudflare/containers';
 import {Hono} from 'hono';
 
+import type {VideoProcessorContainer} from './containers/video-processor';
 import type {AuthBindings, AuthVariables} from './middleware/auth';
 import {authenticateRequest, protectMutationOrigin} from './middleware/auth';
 import {requireRole} from './middleware/user';
@@ -14,6 +16,11 @@ import {sessionRoutes} from './routes/session';
 import {projectVideoRoutes, videosRoutes} from './routes/videos';
 import {votesRoutes} from './routes/votes';
 import {yearsRoutes} from './routes/years';
+import type {VideoProcessingParams} from './video-processing';
+
+export {ContainerProxy};
+export {VideoProcessorContainer} from './containers/video-processor';
+export {VideoProcessingWorkflow} from './workflows/video-processing';
 
 export interface VideoBindings {
   VIDEOS: R2Bucket;
@@ -24,10 +31,10 @@ export interface VideoBindings {
   STREAM_ALLOWED_ORIGIN?: string;
   STREAM_DELIVERY_HOST?: string;
   VIDEO_SERVICE_TOKEN?: string;
-  R2_ACCOUNT_ID?: string;
-  R2_BUCKET_NAME?: string;
-  R2_ACCESS_KEY_ID?: string;
-  R2_SECRET_ACCESS_KEY?: string;
+  VIDEO_PROCESSING_WORKFLOW: Workflow<VideoProcessingParams>;
+  VIDEO_PROCESSOR: DurableObjectNamespace<VideoProcessorContainer>;
+  VIDEO_PROCESSOR_CONCURRENCY: string;
+  VIDEO_PROCESSING_AUTOSTART: string;
 }
 
 export type WorkerEnv = {

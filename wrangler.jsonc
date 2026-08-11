@@ -26,6 +26,41 @@
       "bucket_name": "hackweek-videos-local",
     },
   ],
+  "workflows": [
+    {
+      "binding": "VIDEO_PROCESSING_WORKFLOW",
+      "name": "hackweek-video-processing-local",
+      "class_name": "VideoProcessingWorkflow",
+    },
+  ],
+  "containers": [
+    {
+      "name": "hackweek-video-processor-local",
+      "class_name": "VideoProcessorContainer",
+      "image": "./Dockerfile.video-processor",
+      "image_build_context": ".",
+      "max_instances": 1,
+      "instance_type": "standard-2",
+    },
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "VIDEO_PROCESSOR",
+        "class_name": "VideoProcessorContainer",
+      },
+    ],
+  },
+  "migrations": [
+    {
+      "tag": "video-processor-v1",
+      "new_sqlite_classes": ["VideoProcessorContainer"],
+    },
+  ],
+  "vars": {
+    "VIDEO_PROCESSOR_CONCURRENCY": "1",
+    "VIDEO_PROCESSING_AUTOSTART": "true",
+  },
   "observability": {
     "enabled": true,
   },

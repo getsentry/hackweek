@@ -22,9 +22,46 @@
     {
       "binding": "ATTACHMENTS",
       "bucket_name": "hackweek-attachments"
+    },
+    {
+      "binding": "VIDEOS",
+      "bucket_name": "hackweek-videos"
+    }
+  ],
+  "workflows": [
+    {
+      "binding": "VIDEO_PROCESSING_WORKFLOW",
+      "name": "hackweek-video-processing",
+      "class_name": "VideoProcessingWorkflow"
+    }
+  ],
+  "containers": [
+    {
+      "name": "hackweek-video-processor",
+      "class_name": "VideoProcessorContainer",
+      "image": "./Dockerfile.video-processor",
+      "image_build_context": ".",
+      "max_instances": 2,
+      "instance_type": "standard-2"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "VIDEO_PROCESSOR",
+        "class_name": "VideoProcessorContainer"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "video-processor-v1",
+      "new_sqlite_classes": ["VideoProcessorContainer"]
     }
   ],
   "vars": {
+    "VIDEO_PROCESSOR_CONCURRENCY": "2",
+    "VIDEO_PROCESSING_AUTOSTART": "true",
     "APP_ORIGIN": "https://hackweek.sentry.new",
     "GOOGLE_REDIRECT_URI": "https://hackweek.sentry.new/api/auth/callback",
     "GOOGLE_CLIENT_ID": "694837489680-25m2umkr51lofdads5uvocgtcdqcs6c4.apps.googleusercontent.com",

@@ -2,7 +2,15 @@ import {env, SELF} from 'cloudflare:test';
 import {beforeEach, describe, expect, it} from 'vitest';
 
 import type {ProjectWriteRequest} from '../../src/shared/projects';
-import {MAX_VIDEO_BYTES, VIDEO_PART_SIZE} from '../../src/worker/services/videos';
+import {
+  claimVideoProcessingAttempt,
+  failVideoProcessingAttempt,
+  MAX_VIDEO_BYTES,
+  ProcessingCapacityError,
+  publishVideoProcessingAttempt,
+  VIDEO_PART_SIZE,
+} from '../../src/worker/services/videos';
+import type {VideoProcessorResult} from '../../src/worker/video-processing';
 import {createSessionCookie} from '../auth/fixture';
 
 const base = 'https://hackweek.test/api';
@@ -268,7 +276,143 @@ describe('R2 multipart video lifecycle', () => {
     expect(first.status).toBe(204);
     expect(duplicate.status).toBe(204);
   });
+
+  it('conditionally publishes canonical metadata exactly once for the current attempt', async () => {
+    const {video, key: originalKey} = await completeSmallUpload(
+      projectId,
+      ownerToken,
+      'canonical source',
+    );
+    const claim = await claimVideoProcessingAttempt(env.DB, video.id, 1, 1);
+    expect(claim.status).toBe('claimed');
+    if (claim.status !== 'claimed') throw new Error('attempt was not claimed');
+    expect(claim.outputKey).not.toBe(originalKey);
+
+    expect(
+      await publishVideoProcessingAttempt(
+        env.DB,
+        video.id,
+        1,
+        claim.outputKey,
+        canonicalResult,
+      ),
+    ).toBe(true);
+    expect(
+      await publishVideoProcessingAttempt(
+        env.DB,
+        video.id,
+        1,
+        claim.outputKey,
+        canonicalResult,
+      ),
+    ).toBe(false);
+    const stored = await env.DB.prepare(
+      `SELECT status, original_r2_key, processed_r2_key, duration_seconds,
+        loudness_lufs, processing_attempt FROM project_videos WHERE id = ?`,
+    )
+      .bind(video.id)
+      .first();
+    expect(stored).toEqual({
+      status: 'ready',
+      original_r2_key: originalKey,
+      processed_r2_key: claim.outputKey,
+      duration_seconds: canonicalResult.durationSeconds,
+      loudness_lufs: canonicalResult.loudnessLufs,
+      processing_attempt: 1,
+    });
+  });
+
+  it('fences retirement, failure, retry, and late attempt completion while retaining bytes', async () => {
+    const {video, key: originalKey} = await completeSmallUpload(
+      projectId,
+      ownerToken,
+      'retry source',
+    );
+    const first = await claimVideoProcessingAttempt(env.DB, video.id, 1, 1);
+    if (first.status !== 'claimed') throw new Error('attempt was not claimed');
+    await env.VIDEOS.put(first.outputKey, 'retained stale derivative');
+    expect(await failVideoProcessingAttempt(env.DB, video.id, 1, 'ffmpeg failed')).toBe(
+      true,
+    );
+
+    const retried = await api(`/projects/${projectId}/video/retry`, ownerToken, {
+      method: 'POST',
+    });
+    expect(retried.status).toBe(202);
+    expect(retried.body.video).toMatchObject({status: 'queued', processingAttempt: 2});
+    const second = await claimVideoProcessingAttempt(env.DB, video.id, 2, 1);
+    if (second.status !== 'claimed') throw new Error('retry was not claimed');
+    expect(second.outputKey).not.toBe(first.outputKey);
+    expect(
+      await publishVideoProcessingAttempt(
+        env.DB,
+        video.id,
+        1,
+        first.outputKey,
+        canonicalResult,
+      ),
+    ).toBe(false);
+
+    await env.VIDEOS.put(second.outputKey, 'retained current derivative');
+    const retired = await api(`/projects/${projectId}/video`, ownerToken, {
+      method: 'DELETE',
+      body: {confirmed: true},
+    });
+    expect(retired.status).toBe(204);
+    expect(
+      await publishVideoProcessingAttempt(
+        env.DB,
+        video.id,
+        2,
+        second.outputKey,
+        canonicalResult,
+      ),
+    ).toBe(false);
+    expect(await env.VIDEOS.head(originalKey)).not.toBeNull();
+    expect(await env.VIDEOS.head(first.outputKey)).not.toBeNull();
+    expect(await env.VIDEOS.head(second.outputKey)).not.toBeNull();
+  });
+
+  it('limits local processing to one while independent projects remain queued', async () => {
+    const leftProject = await createProject('Processor left');
+    const rightProject = await createProject('Processor right');
+    const left = await completeSmallUpload(leftProject, ownerToken, 'left source');
+    const right = await completeSmallUpload(rightProject, ownerToken, 'right source');
+
+    const claimed = await claimVideoProcessingAttempt(env.DB, left.video.id, 1, 1);
+    expect(claimed.status).toBe('claimed');
+    await expect(
+      claimVideoProcessingAttempt(env.DB, right.video.id, 1, 1),
+    ).rejects.toBeInstanceOf(ProcessingCapacityError);
+    expect(
+      await env.DB.prepare('SELECT status FROM project_videos WHERE id = ?')
+        .bind(right.video.id)
+        .first('status'),
+    ).toBe('queued');
+
+    await failVideoProcessingAttempt(env.DB, left.video.id, 1, 'fixture release');
+    expect(await claimVideoProcessingAttempt(env.DB, right.video.id, 1, 1)).toMatchObject(
+      {
+        status: 'claimed',
+      },
+    );
+  });
 });
+
+const canonicalResult: VideoProcessorResult = {
+  durationSeconds: 2,
+  width: 1280,
+  height: 720,
+  videoCodec: 'h264',
+  audioCodec: 'aac',
+  pixelFormat: 'yuv420p',
+  loudnessLufs: -16,
+  loudnessTargetLufs: -16,
+  loudnessToleranceLu: 0.7,
+  audioMode: 'normalized',
+  fastStart: true,
+  sha256: 'a'.repeat(64),
+};
 
 async function completeSmallUpload(project: string, token: string, bytes: string) {
   const created = await createUpload(project, token, bytes.length);

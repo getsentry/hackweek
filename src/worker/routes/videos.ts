@@ -17,6 +17,7 @@ import {
   getVideoUpload,
   MAX_VIDEO_BYTES,
   retireProjectVideo,
+  retryProjectVideo,
   uploadVideoPart,
 } from '../services/videos';
 
@@ -97,12 +98,31 @@ projectVideoRoutes.post('/:projectId/video/upload/:uploadId/complete', async (c)
     const video = await completeVideoUpload(
       c.env.DB,
       c.env.VIDEOS,
+      String(c.env.VIDEO_PROCESSING_AUTOSTART) === 'false'
+        ? null
+        : c.env.VIDEO_PROCESSING_WORKFLOW,
       c.req.param('projectId'),
       c.req.param('uploadId'),
       input.parts,
       c.get('user'),
     );
     return c.json({video}, 200, {'Cache-Control': 'private, no-store'});
+  } catch (error) {
+    return respondError(c, error);
+  }
+});
+
+projectVideoRoutes.post('/:projectId/video/retry', async (c) => {
+  try {
+    const video = await retryProjectVideo(
+      c.env.DB,
+      String(c.env.VIDEO_PROCESSING_AUTOSTART) === 'false'
+        ? null
+        : c.env.VIDEO_PROCESSING_WORKFLOW,
+      c.req.param('projectId'),
+      c.get('user'),
+    );
+    return c.json({video}, 202, {'Cache-Control': 'private, no-store'});
   } catch (error) {
     return respondError(c, error);
   }

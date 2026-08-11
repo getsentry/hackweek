@@ -14,6 +14,8 @@ import {ServiceError} from './errors';
 export const MAX_VIDEO_BYTES = 5 * 1024 * 1024 * 1024;
 export const VIDEO_PART_SIZE = 50 * 1024 * 1024;
 export const UPLOAD_EXPIRY_MINUTES = 24 * 60;
+const UPLOAD_COMPLETION_LEASE_MINUTES = 15;
+const MAX_EXPIRED_UPLOAD_SWEEP = 100;
 
 interface VideoRow {
   id: string;
@@ -55,6 +57,12 @@ interface UploadRow {
   part_size_bytes: number;
   status: VideoUploadSession['status'];
   expires_at: string;
+}
+
+interface ReapExpiredUploadOptions {
+  projectId?: string;
+  now?: Date;
+  limit?: number;
 }
 
 interface ProjectAuthorizationRow {
@@ -211,6 +219,7 @@ export async function createMultipartVideoUpload(
   now = new Date(),
 ) {
   await authorizeVideoWrite(db, projectId, user);
+  await reapExpiredMultipartVideoUploads(db, bucket, {projectId, now, limit: 1});
   const uploadId = crypto.randomUUID();
   const videoId = crypto.randomUUID();
   const originalKey = videoOriginalKey(projectId, videoId, input.fileName);
@@ -274,6 +283,44 @@ export async function createMultipartVideoUpload(
   return getVideoUpload(db, bucket, projectId, uploadId, user, now);
 }
 
+export async function reapExpiredMultipartVideoUploads(
+  db: D1Database,
+  bucket: R2Bucket,
+  options: ReapExpiredUploadOptions = {},
+) {
+  const now = options.now ?? new Date();
+  const limit = options.limit ?? MAX_EXPIRED_UPLOAD_SWEEP;
+  if (!Number.isInteger(limit) || limit < 1 || limit > MAX_EXPIRED_UPLOAD_SWEEP) {
+    throw new Error(
+      `Expired video upload sweep limit must be between 1 and ${MAX_EXPIRED_UPLOAD_SWEEP}`,
+    );
+  }
+
+  const projectClause = options.projectId ? 'AND project_id = ?' : '';
+  const bindings: Array<string | number> = [now.toISOString()];
+  if (options.projectId) bindings.push(options.projectId);
+  bindings.push(limit);
+  const {results} = await db
+    .prepare(
+      `SELECT id, video_id, project_id, creator_id, r2_upload_id, original_r2_key,
+        original_name, content_type, expected_size_bytes, part_size_bytes,
+        status, expires_at
+       FROM video_uploads
+       WHERE (status = 'expiring' OR (
+         status IN ('creating', 'uploading', 'completing') AND expires_at <= ?
+       )) ${projectClause}
+       ORDER BY expires_at, id LIMIT ?`,
+    )
+    .bind(...bindings)
+    .all<UploadRow>();
+
+  let reaped = 0;
+  for (const upload of results) {
+    if (await reapExpiredMultipartUpload(db, bucket, upload, now)) reaped += 1;
+  }
+  return reaped;
+}
+
 export async function getVideoUpload(
   db: D1Database,
   bucket: R2Bucket,
@@ -283,16 +330,10 @@ export async function getVideoUpload(
   now = new Date(),
 ) {
   await authorizeVideoWrite(db, projectId, user);
-  const upload = await requireUpload(db, projectId, uploadId);
-  if (isExpired(upload, now)) {
-    if (upload.r2_upload_id) {
-      await bucket
-        .resumeMultipartUpload(upload.original_r2_key, upload.r2_upload_id)
-        .abort()
-        .catch(() => undefined);
-    }
-    await markExpired(db, upload.id);
-    upload.status = 'expired';
+  let upload = await requireUpload(db, projectId, uploadId);
+  if (isExpired(upload, now) || upload.status === 'expiring') {
+    await reapExpiredMultipartUpload(db, bucket, upload, now);
+    upload = await requireUpload(db, projectId, uploadId);
   }
   const video =
     upload.status === 'completed' ? await requireVideoById(db, upload.video_id) : null;
@@ -386,19 +427,24 @@ export async function completeVideoUpload(
   const storedParts = await listStoredParts(db, upload.id);
   validateCompletionParts(upload, storedParts, suppliedParts);
 
-  if (upload.status === 'uploading') {
-    const claimed = await db
-      .prepare(
-        `UPDATE video_uploads SET status = 'completing', updated_at = CURRENT_TIMESTAMP
-         WHERE id = ? AND status = 'uploading'`,
-      )
-      .bind(upload.id)
-      .run();
-    if (!claimed.meta.changes) {
-      throw new ServiceError('CONFLICT', 'Upload completion is already in progress', 409);
-    }
-    upload.status = 'completing';
+  const completionLease = new Date(
+    now.getTime() + UPLOAD_COMPLETION_LEASE_MINUTES * 60_000,
+  ).toISOString();
+  const claimed = await db
+    .prepare(
+      `UPDATE video_uploads SET status = 'completing',
+        expires_at = CASE WHEN expires_at < ? THEN ? ELSE expires_at END,
+        updated_at = CURRENT_TIMESTAMP
+       WHERE id = ? AND status IN ('uploading', 'completing') AND expires_at > ?`,
+    )
+    .bind(completionLease, completionLease, upload.id, now.toISOString())
+    .run();
+  if (!claimed.meta.changes) {
+    throw new ServiceError('CONFLICT', 'Upload completion was superseded', 409);
   }
+  upload.status = 'completing';
+  upload.expires_at =
+    upload.expires_at < completionLease ? completionLease : upload.expires_at;
 
   let object = await bucket.head(upload.original_r2_key);
   if (!object) {
@@ -482,13 +528,9 @@ export async function abortVideoUpload(
   await authorizeVideoWrite(db, projectId, user);
   const upload = await requireUpload(db, projectId, uploadId);
   if (upload.status === 'aborted') return;
-  if (upload.status === 'expired') {
-    if (upload.r2_upload_id) {
-      await bucket
-        .resumeMultipartUpload(upload.original_r2_key, upload.r2_upload_id)
-        .abort()
-        .catch(() => undefined);
-    }
+  if (upload.status === 'expired') return;
+  if (upload.status === 'expiring') {
+    await reapExpiredMultipartUpload(db, bucket, upload, new Date());
     return;
   }
   if (upload.status === 'completed') {
@@ -740,19 +782,102 @@ async function assertUploadIsWritable(
   upload: UploadRow,
   now: Date,
 ) {
-  if (isExpired(upload, now)) {
-    if (upload.r2_upload_id) {
-      await bucket
-        .resumeMultipartUpload(upload.original_r2_key, upload.r2_upload_id)
-        .abort()
-        .catch(() => undefined);
-    }
-    await markExpired(db, upload.id);
+  if (isExpired(upload, now) || upload.status === 'expiring') {
+    await reapExpiredMultipartUpload(db, bucket, upload, now);
     throw new ServiceError('CONFLICT', 'Upload session has expired', 409);
   }
   if (upload.status === 'aborted' || upload.status === 'expired') {
     throw new ServiceError('CONFLICT', 'Upload session is no longer active', 409);
   }
+}
+
+async function reapExpiredMultipartUpload(
+  db: D1Database,
+  bucket: R2Bucket,
+  upload: UploadRow,
+  now: Date,
+) {
+  if (upload.status !== 'expiring') {
+    const fenced = await db
+      .prepare(
+        `UPDATE video_uploads SET status = 'expiring', updated_at = CURRENT_TIMESTAMP
+         WHERE id = ? AND project_id = ? AND video_id = ? AND original_r2_key = ?
+           AND status = ? AND expires_at = ? AND expires_at <= ?
+           AND (r2_upload_id = ? OR (r2_upload_id IS NULL AND ? IS NULL))`,
+      )
+      .bind(
+        upload.id,
+        upload.project_id,
+        upload.video_id,
+        upload.original_r2_key,
+        upload.status,
+        upload.expires_at,
+        now.toISOString(),
+        upload.r2_upload_id,
+        upload.r2_upload_id,
+      )
+      .run();
+    if (!fenced.meta.changes) return false;
+    upload.status = 'expiring';
+  }
+
+  if (upload.r2_upload_id) {
+    try {
+      await bucket
+        .resumeMultipartUpload(upload.original_r2_key, upload.r2_upload_id)
+        .abort();
+    } catch (error) {
+      if (!isMissingMultipartUpload(error)) throw uploadCleanupUnavailable();
+    }
+
+    let completedObject: R2Object | null;
+    try {
+      completedObject = await bucket.head(upload.original_r2_key);
+    } catch {
+      throw uploadCleanupUnavailable();
+    }
+    if (completedObject) {
+      throw new ServiceError(
+        'CONFLICT',
+        'Video upload completed while expiration cleanup was running',
+        409,
+      );
+    }
+  }
+
+  const expired = await db
+    .prepare(
+      `UPDATE video_uploads SET status = 'expired', updated_at = CURRENT_TIMESTAMP
+       WHERE id = ? AND project_id = ? AND video_id = ? AND status = 'expiring'
+         AND original_r2_key = ?
+         AND (r2_upload_id = ? OR (r2_upload_id IS NULL AND ? IS NULL))`,
+    )
+    .bind(
+      upload.id,
+      upload.project_id,
+      upload.video_id,
+      upload.original_r2_key,
+      upload.r2_upload_id,
+      upload.r2_upload_id,
+    )
+    .run();
+  return expired.meta.changes === 1;
+}
+
+function uploadCleanupUnavailable() {
+  return new ServiceError(
+    'SERVICE_UNAVAILABLE',
+    'Expired video upload cleanup could not confirm storage abort; retry the upload request',
+    503,
+  );
+}
+
+function isMissingMultipartUpload(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    message.includes('(10024)') ||
+    message.includes('The specified multipart upload does not exist')
+  );
 }
 
 async function authorizeVideoWrite(db: D1Database, projectId: string, user: SessionUser) {
@@ -916,16 +1041,6 @@ function isExpired(upload: UploadRow, now: Date) {
     ['creating', 'uploading', 'completing'].includes(upload.status) &&
     Date.parse(upload.expires_at) <= now.getTime()
   );
-}
-
-function markExpired(db: D1Database, uploadId: string) {
-  return db
-    .prepare(
-      `UPDATE video_uploads SET status = 'expired', updated_at = CURRENT_TIMESTAMP
-       WHERE id = ? AND status IN ('creating', 'uploading', 'completing')`,
-    )
-    .bind(uploadId)
-    .run();
 }
 
 function isVideoSlotConflict(error: unknown) {

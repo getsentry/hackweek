@@ -4,10 +4,13 @@ import {beforeEach, describe, expect, it} from 'vitest';
 import type {ProjectWriteRequest} from '../../src/shared/projects';
 import {
   claimVideoProcessingAttempt,
+  completeVideoUpload,
+  createMultipartVideoUpload,
   failVideoProcessingAttempt,
   MAX_VIDEO_BYTES,
   ProcessingCapacityError,
   publishVideoProcessingAttempt,
+  reapExpiredMultipartVideoUploads,
   VIDEO_PART_SIZE,
 } from '../../src/worker/services/videos';
 import type {VideoProcessorResult} from '../../src/worker/video-processing';
@@ -165,6 +168,202 @@ describe('R2 multipart video lifecycle', () => {
        AND name = 'video_submissions_active_project_idx'`,
     ).first<{sql: string}>();
     expect(activeIndex?.sql).toContain('WHERE retired_at IS NULL');
+  });
+
+  it('reaps an expired upload with lost resume state before creating a fresh upload', async () => {
+    const stale = await createUpload(projectId, ownerToken, 11);
+    const staleUploadId = stale.body.upload.uploadId as string;
+    expect(
+      (
+        await putPart(
+          projectId,
+          staleUploadId,
+          1,
+          new TextEncoder().encode('stale video'),
+          ownerToken,
+        )
+      ).status,
+    ).toBe(200);
+    const staleStorage = await uploadStorage(staleUploadId);
+    await expireUpload(staleUploadId);
+
+    const fresh = await createUpload(projectId, ownerToken, 12);
+    expect(fresh.status).toBe(201);
+    expect(fresh.body.upload.uploadId).not.toBe(staleUploadId);
+    expect(
+      await env.DB.prepare('SELECT status FROM video_uploads WHERE id = ?')
+        .bind(staleUploadId)
+        .first('status'),
+    ).toBe('expired');
+    expect(await env.VIDEOS.head(staleStorage.original_r2_key)).toBeNull();
+    await expect(
+      env.VIDEOS.resumeMultipartUpload(
+        staleStorage.original_r2_key,
+        staleStorage.r2_upload_id,
+      ).uploadPart(1, new Uint8Array([1]).buffer),
+    ).rejects.toThrow(/multipart upload does not exist|10024/i);
+  });
+
+  it('retries idempotent expiry cleanup without releasing after transient R2 failure', async () => {
+    const stale = await createUpload(projectId, ownerToken, 10);
+    const staleUploadId = stale.body.upload.uploadId as string;
+    await expireUpload(staleUploadId);
+    const failingBucket = {
+      resumeMultipartUpload() {
+        return {
+          abort: async () => {
+            throw new Error('temporary R2 outage');
+          },
+        };
+      },
+    } as unknown as R2Bucket;
+
+    await expect(
+      reapExpiredMultipartVideoUploads(env.DB, failingBucket, {projectId, limit: 1}),
+    ).rejects.toMatchObject({code: 'SERVICE_UNAVAILABLE', status: 503});
+    expect(
+      await env.DB.prepare('SELECT status FROM video_uploads WHERE id = ?')
+        .bind(staleUploadId)
+        .first('status'),
+    ).toBe('expiring');
+    expect((await createUpload(projectId, ownerToken, 12)).status).toBe(201);
+    expect(
+      await env.DB.prepare('SELECT status FROM video_uploads WHERE id = ?')
+        .bind(staleUploadId)
+        .first('status'),
+    ).toBe('expired');
+  });
+
+  it('handles missing multipart state and simultaneous fresh creates idempotently', async () => {
+    const stale = await createUpload(projectId, ownerToken, 10);
+    const staleUploadId = stale.body.upload.uploadId as string;
+    const staleStorage = await uploadStorage(staleUploadId);
+    await env.VIDEOS.resumeMultipartUpload(
+      staleStorage.original_r2_key,
+      staleStorage.r2_upload_id,
+    ).abort();
+    await expireUpload(staleUploadId);
+
+    const fresh = await Promise.all([
+      createUpload(projectId, ownerToken, 12),
+      createUpload(projectId, ownerToken, 12),
+    ]);
+    expect(fresh.map(({status}) => status).sort((a, b) => a - b)).toEqual([201, 409]);
+    expect(
+      await env.DB.prepare('SELECT status FROM video_uploads WHERE id = ?')
+        .bind(staleUploadId)
+        .first('status'),
+    ).toBe('expired');
+  });
+
+  it('fences an expired upload before an old completion can publish', async () => {
+    const stale = await createUpload(projectId, ownerToken, 11);
+    const staleUploadId = stale.body.upload.uploadId as string;
+    const part = await putPart(
+      projectId,
+      staleUploadId,
+      1,
+      new TextEncoder().encode('stale video'),
+      ownerToken,
+    );
+    expect(part.status).toBe(200);
+    await expireUpload(staleUploadId);
+
+    const fresh = createUpload(projectId, ownerToken, 12);
+    const completion = api(
+      `/projects/${projectId}/video/upload/${staleUploadId}/complete`,
+      ownerToken,
+      {
+        method: 'POST',
+        body: {parts: [{partNumber: 1, etag: part.body.part.etag}]},
+      },
+    );
+    const [freshResult, completionResult] = await Promise.all([fresh, completion]);
+    expect(freshResult.status).toBe(201);
+    expect(completionResult.status).toBe(409);
+    expect(
+      await env.DB.prepare('SELECT status FROM video_uploads WHERE id = ?')
+        .bind(staleUploadId)
+        .first('status'),
+    ).toBe('expired');
+  });
+
+  it('leases an in-flight completion against a concurrent fresh create', async () => {
+    const created = await createUpload(projectId, ownerToken, 11);
+    const uploadId = created.body.upload.uploadId as string;
+    const part = await putPart(
+      projectId,
+      uploadId,
+      1,
+      new TextEncoder().encode('final video'),
+      ownerToken,
+    );
+    expect(part.status).toBe(200);
+    const upload = await uploadStorage(uploadId);
+    const completionStart = new Date('2030-01-01T00:00:00.000Z');
+    await env.DB.prepare('UPDATE video_uploads SET expires_at = ? WHERE id = ?')
+      .bind('2030-01-01T00:01:00.000Z', uploadId)
+      .run();
+
+    let enteredCompletion!: () => void;
+    let releaseCompletion!: () => void;
+    const completionEntered = new Promise<void>((resolve) => {
+      enteredCompletion = resolve;
+    });
+    const completionReleased = new Promise<void>((resolve) => {
+      releaseCompletion = resolve;
+    });
+    const multipart = env.VIDEOS.resumeMultipartUpload(
+      upload.original_r2_key,
+      upload.r2_upload_id,
+    );
+    const blockingBucket = {
+      head: env.VIDEOS.head.bind(env.VIDEOS),
+      resumeMultipartUpload() {
+        return {
+          complete: async (parts: R2UploadedPart[]) => {
+            enteredCompletion();
+            await completionReleased;
+            return multipart.complete(parts);
+          },
+        };
+      },
+    } as unknown as R2Bucket;
+    const owner = {
+      id: ownerId,
+      email: `video-owner-${suffix}@sentry.io`,
+      displayName: 'Hackweek Member',
+      avatarUrl: null,
+      role: 'member' as const,
+      actualRole: 'member' as const,
+    };
+
+    const completing = completeVideoUpload(
+      env.DB,
+      blockingBucket,
+      null,
+      projectId,
+      uploadId,
+      [{partNumber: 1, etag: part.body.part.etag}],
+      owner,
+      completionStart,
+    );
+    await completionEntered;
+    try {
+      await expect(
+        createMultipartVideoUpload(
+          env.DB,
+          env.VIDEOS,
+          projectId,
+          owner,
+          {fileName: 'replacement.mp4', fileSize: 12, contentType: 'video/mp4'},
+          new Date('2030-01-01T00:02:00.000Z'),
+        ),
+      ).rejects.toMatchObject({code: 'CONFLICT', status: 409});
+    } finally {
+      releaseCompletion();
+    }
+    await expect(completing).resolves.toMatchObject({status: 'queued'});
   });
 
   it('retires only with confirmation, retains the original, and requires a fresh replacement', async () => {
@@ -561,6 +760,24 @@ function fetchVideoContent(videoId: string, token: string, range?: string) {
 
 async function responseText(response: Response) {
   return new TextDecoder().decode(await response.arrayBuffer());
+}
+
+async function expireUpload(uploadId: string) {
+  await env.DB.prepare(
+    `UPDATE video_uploads SET expires_at = '2000-01-01T00:00:00.000Z' WHERE id = ?`,
+  )
+    .bind(uploadId)
+    .run();
+}
+
+async function uploadStorage(uploadId: string) {
+  const upload = await env.DB.prepare(
+    `SELECT original_r2_key, r2_upload_id FROM video_uploads WHERE id = ?`,
+  )
+    .bind(uploadId)
+    .first<{original_r2_key: string; r2_upload_id: string}>();
+  if (!upload) throw new Error('upload storage fixture is missing');
+  return upload;
 }
 
 async function completeSmallUpload(project: string, token: string, bytes: string) {

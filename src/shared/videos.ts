@@ -4,6 +4,7 @@ export type VideoUploadStatus =
   | 'creating'
   | 'uploading'
   | 'completing'
+  | 'expiring'
   | 'completed'
   | 'aborted'
   | 'expired';

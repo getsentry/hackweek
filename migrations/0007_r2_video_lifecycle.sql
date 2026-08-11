@@ -41,24 +41,26 @@ CREATE TABLE video_uploads (
   expected_size_bytes INTEGER NOT NULL CHECK (expected_size_bytes BETWEEN 1 AND 5368709120),
   part_size_bytes INTEGER NOT NULL CHECK (part_size_bytes >= 5242880),
   status TEXT NOT NULL DEFAULT 'creating'
-    CHECK (status IN ('creating', 'uploading', 'completing', 'completed', 'aborted', 'expired')),
+    CHECK (status IN (
+      'creating', 'uploading', 'completing', 'expiring', 'completed', 'aborted', 'expired'
+    )),
   expires_at TEXT NOT NULL,
   completed_at TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  CHECK (r2_upload_id IS NOT NULL OR status IN ('creating', 'aborted')),
+  CHECK (r2_upload_id IS NOT NULL OR status IN ('creating', 'expiring', 'aborted', 'expired')),
   CHECK ((status = 'completed') = (completed_at IS NOT NULL))
 ) STRICT;
 
 CREATE UNIQUE INDEX video_uploads_active_project_idx
   ON video_uploads(project_id)
-  WHERE status IN ('creating', 'uploading', 'completing');
+  WHERE status IN ('creating', 'uploading', 'completing', 'expiring');
 CREATE INDEX video_uploads_expiry_idx
   ON video_uploads(status, expires_at);
 
 CREATE TRIGGER video_uploads_reject_active_submission
 BEFORE INSERT ON video_uploads
-WHEN NEW.status IN ('creating', 'uploading', 'completing')
+WHEN NEW.status IN ('creating', 'uploading', 'completing', 'expiring')
   AND EXISTS (
     SELECT 1 FROM video_submissions
     WHERE project_id = NEW.project_id AND retired_at IS NULL
@@ -73,7 +75,7 @@ WHEN NEW.retired_at IS NULL
   AND EXISTS (
     SELECT 1 FROM video_uploads
     WHERE project_id = NEW.project_id
-      AND status IN ('creating', 'uploading', 'completing')
+      AND status IN ('creating', 'uploading', 'completing', 'expiring')
   )
 BEGIN
   SELECT RAISE(ABORT, 'active project upload exists');

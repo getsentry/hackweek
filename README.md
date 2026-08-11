@@ -9,11 +9,20 @@ Hackweek is an internal React + TypeScript application served by one Hono Cloudf
 - Docker with a running Linux engine (Docker Desktop or OrbStack)
 - `ffmpeg` and `ffprobe` 8.x on the host for generated local fixtures
 
-No Cloudflare video resource or credential is required for local development.
+## Deployment
+
+Every push to `master` runs the full verification suite, applies pending D1 migrations, and deploys the Worker and static assets to Cloudflare production through [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml). The workflow can also be retried manually from `master`; other refs cannot deploy production.
+
+The workflow requires these GitHub Actions secrets:
+
+- `CLOUDFLARE_ACCOUNT_ID`: the Sentry Internal Cloudflare account ID.
+- `CLOUDFLARE_API_TOKEN`: an account-scoped token with **Edit Cloudflare Workers** and **D1 Edit** permissions.
+
+Production deploys use [`wrangler.production.json`](wrangler.production.json) and the `hackweek-cloudflare` GitHub environment. Do not add Cloudflare credentials to the repository.
 
 ## Local video environment
 
-Complete the one-time setup without replacing an existing `.dev.vars`:
+No Cloudflare video resource or credential is required for local development. Complete the one-time setup without replacing an existing `.dev.vars`:
 
 ```bash
 npm ci

@@ -1,12 +1,10 @@
-name: Deploy Cloudflare environment
+name: Deploy Cloudflare production
 
 on:
+  push:
+    branches:
+      - master
   workflow_dispatch:
-    inputs:
-      confirm:
-        description: Type deploy-hackweek after operator review
-        required: true
-        type: string
 
 permissions:
   contents: read
@@ -17,11 +15,11 @@ concurrency:
 
 jobs:
   verify:
-    if: inputs.confirm == 'deploy-hackweek'
+    if: github.ref == 'refs/heads/master'
     uses: ./.github/workflows/test.yml
 
   deploy:
-    name: Deploy reviewed configuration
+    name: Deploy production
     needs: verify
     runs-on: ubuntu-latest
     environment: hackweek-cloudflare

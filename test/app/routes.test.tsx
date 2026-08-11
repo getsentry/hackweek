@@ -7,6 +7,7 @@ import {memoryLocation} from 'wouter/memory-location';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 
 import {AppLayout} from '../../src/app/components/AppLayout';
+import {ProjectCard} from '../../src/app/components/ProjectCard';
 import {ProjectDetailsPage} from '../../src/app/routes/ProjectDetailsPage';
 import {ProjectsPage} from '../../src/app/routes/ProjectsPage';
 import {YearsPage} from '../../src/app/routes/YearsPage';
@@ -433,6 +434,70 @@ describe('clickable project routes', () => {
             : lastInput?.url;
       expect(lastUrl).not.toContain('q=');
     });
+  });
+
+  it('renders compact Markdown in project cards without exposing block layout', () => {
+    const summary =
+      '# Overview\nFirst line\nSecond line with **detail** and a [link](https://example.com).';
+
+    renderRoute(<ProjectCard project={{...projectFixture, summary}} />, '/');
+
+    const link = screen.getByRole('link', {name: 'link'});
+    const description = link.closest('.markdown');
+    expect(description?.classList.contains('markdown--compact')).toBe(true);
+    expect(description?.getAttribute('title')).toBe(summary);
+    expect(screen.getByText('detail').tagName).toBe('STRONG');
+    expect(screen.queryByRole('heading', {name: 'Overview'})).toBeNull();
+  });
+
+  it('renders project descriptions as GitHub-flavored Markdown', async () => {
+    fetchMock.mockResolvedValue(
+      json({
+        project: {
+          ...projectFixture,
+          summary:
+            'Built with **care**. Visit https://example.com/docs.\nSecond line with [details](#details).\n\nUse <Widget> safely.\n\n- [x] Links work',
+        },
+      }),
+    );
+
+    const rendered = renderRoute(
+      <ProjectDetailsPage />,
+      '/years/2026/projects/project',
+      '/years/:yearId/projects/:projectId',
+    );
+
+    expect((await screen.findByText('care')).tagName).toBe('STRONG');
+    const link = screen.getByRole('link', {name: 'https://example.com/docs'});
+    expect(link.getAttribute('href')).toBe('https://example.com/docs');
+    expect(link.getAttribute('target')).toBe('_blank');
+    expect(link.getAttribute('rel')).toBe('noreferrer');
+    expect(screen.getByRole('link', {name: 'details'}).getAttribute('target')).toBeNull();
+    expect(rendered.container.querySelector('.markdown br')).toBeTruthy();
+    expect(screen.getByText('Use <Widget> safely.')).toBeTruthy();
+    expect((screen.getByRole('checkbox') as HTMLInputElement).checked).toBe(true);
+  });
+
+  it('sanitizes unsafe Markdown URLs and raw HTML', async () => {
+    fetchMock.mockResolvedValue(
+      json({
+        project: {
+          ...projectFixture,
+          summary: '[unsafe](javascript:alert(1))\n\n<img src=x onerror=alert(1)>',
+        },
+      }),
+    );
+
+    const rendered = renderRoute(
+      <ProjectDetailsPage />,
+      '/years/2026/projects/project',
+      '/years/:yearId/projects/:projectId',
+    );
+
+    const link = (await screen.findByText('unsafe')).closest('a');
+    expect(link?.getAttribute('href')).toBe('');
+    expect(rendered.container.querySelector('.markdown img')).toBeNull();
+    expect(screen.getByText('<img src=x onerror=alert(1)>')).toBeTruthy();
   });
 
   it('renders an idea with no video and exposes the server claim permission', async () => {

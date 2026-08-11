@@ -15,6 +15,26 @@ vi.stubGlobal('fetch', fetchMock);
 afterEach(() => fetchMock.mockReset());
 
 describe('voting and administration journeys', () => {
+  it('renders compact Markdown in voting cards', async () => {
+    fetchMock.mockResolvedValue(
+      json({
+        ...votingFixture,
+        projects: [
+          {
+            ...votingFixture.projects[0],
+            summary: '**Working** details at [the docs](https://example.com).',
+          },
+        ],
+      }),
+    );
+    renderRoute(<VotingPage />, '/years/2026/vote', '/years/:yearId/vote');
+
+    expect((await screen.findByText('Working')).tagName).toBe('STRONG');
+    const link = screen.getByRole('link', {name: 'the docs'});
+    expect(link.closest('.markdown')?.classList.contains('markdown--compact')).toBe(true);
+    expect(link.getAttribute('target')).toBe('_blank');
+  });
+
   it('moves an existing vote to the selected project through the API', async () => {
     fetchMock.mockImplementation(async (_input, init) => {
       if (init?.method === 'PUT') return json({vote: {...vote, projectId: 'project-2'}});

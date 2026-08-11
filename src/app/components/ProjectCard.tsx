@@ -1,6 +1,7 @@
 import {Link} from 'wouter';
 
 import type {ProjectSummary} from '../../shared/projects';
+import {Markdown} from './Markdown';
 
 export function ProjectCard({
   project,
@@ -29,7 +30,7 @@ export function ProjectCard({
       <h2>
         <Link href={projectLink}>{project.name}</Link>
       </h2>
-      <p title={project.summary}>{project.summary}</p>
+      <Markdown compact>{project.summary}</Markdown>
       <footer>
         <MemberStack members={project.members} />
       </footer>

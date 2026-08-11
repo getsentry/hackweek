@@ -2,6 +2,7 @@ import {useState} from 'react';
 import {Link, useParams} from 'wouter';
 
 import {QueryState} from '../components/AppLayout';
+import {Markdown} from '../components/Markdown';
 import {useVoteMutation, useVoting} from '../queries/administration';
 
 export function VotingPage() {
@@ -80,7 +81,7 @@ export function VotingPage() {
                               <div>
                                 <small>{project.groupName ?? 'Independent'}</small>
                                 <h3>{project.name}</h3>
-                                <p>{project.summary}</p>
+                                <Markdown compact>{project.summary}</Markdown>
                               </div>
                               <footer>
                                 <span>{project.memberNames.join(' · ')}</span>

@@ -217,16 +217,23 @@ describe('video user experience', () => {
     pause.mockRestore();
   });
 
-  it('renders accessible empty reel and individual ready-video permalinks', async () => {
+  it('renders the reel playlist with shared project rows and resume controls', async () => {
     fetchMock.mockImplementation(async () => json({videos: playlist}));
     const reel = renderRoute(<WatchPage />, '/years/2026/watch', '/years/:yearId/watch');
     expect(await screen.findByRole('heading', {name: 'play the reel'})).toBeTruthy();
     expect(screen.getByRole('button', {name: 'play all'})).toBeTruthy();
+    expect(screen.getByRole('heading', {name: 'playlist'})).toBeTruthy();
     expect(screen.getByText('Ada Lovelace · Grace Hopper')).toBeTruthy();
-    expect(screen.getByRole('link', {name: /First project/}).getAttribute('href')).toBe(
-      '/years/2026/watch/video-1',
-    );
-    expect(screen.getAllByRole('button', {name: 'play from here'})).toHaveLength(2);
+    expect(
+      screen
+        .getByRole('button', {name: 'start reel from First project'})
+        .closest('.projectRow'),
+    ).not.toBeNull();
+    expect(
+      screen.queryByText(
+        'private progressive MP4 playback in the curated screening order.',
+      ),
+    ).toBeNull();
     reel.unmount();
 
     renderRoute(<WatchPage />, '/years/2026/watch?from=video-2', '/years/:yearId/watch');

@@ -1894,15 +1894,7 @@ main {
   aspect-ratio: auto;
 }
 .screeningPlayer:fullscreen .screeningControls {
-  position: absolute;
-  z-index: 5;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  background: linear-gradient(transparent, rgba(17, 11, 23, 0.94) 35%);
-}
-.screeningPlayer:fullscreen .clipOverlay {
-  bottom: 6.5rem;
+  display: none;
 }
 .screeningStage {
   position: relative;

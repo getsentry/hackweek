@@ -1779,7 +1779,7 @@ main {
   gap: 1rem;
 }
 .videoPanel h2,
-.reelIndex h2 {
+.reelIndex > h2 {
   margin: 0;
   font-size: clamp(1.6rem, 3vw, 2.4rem);
   letter-spacing: -0.035em;
@@ -2105,6 +2105,9 @@ kbd {
 }
 .reelPlaylist {
   margin-top: 1rem;
+}
+.reelPlaylist .memberStack {
+  justify-self: end;
 }
 .individualPlayer video {
   display: block;

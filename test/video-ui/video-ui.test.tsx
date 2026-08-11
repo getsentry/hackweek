@@ -1,5 +1,5 @@
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
-import {act, render, screen} from '@testing-library/react';
+import {act, render, screen, within} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {Route, Router} from 'wouter';
 import {memoryLocation} from 'wouter/memory-location';
@@ -224,11 +224,14 @@ describe('video user experience', () => {
     expect(screen.getByRole('button', {name: 'play all'})).toBeTruthy();
     expect(screen.getByRole('heading', {name: 'playlist'})).toBeTruthy();
     expect(screen.getByText('Ada Lovelace · Grace Hopper')).toBeTruthy();
-    expect(
-      screen
-        .getByRole('button', {name: 'start reel from First project'})
-        .closest('.projectRow'),
-    ).not.toBeNull();
+    const firstRow = screen
+      .getByRole('button', {name: 'start reel from First project'})
+      .closest('.projectRow');
+    if (!(firstRow instanceof HTMLElement)) throw new Error('Expected a project row');
+    expect(within(firstRow).getByRole('heading', {name: 'First project'})).toBeTruthy();
+    expect(within(firstRow).getByLabelText('Ada Lovelace, Grace Hopper')).toBeTruthy();
+    expect(within(firstRow).getByText('AL')).toBeTruthy();
+    expect(within(firstRow).getByText('GH')).toBeTruthy();
     expect(
       screen.queryByText(
         'private progressive MP4 playback in the curated screening order.',

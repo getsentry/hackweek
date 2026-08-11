@@ -1,48 +1,64 @@
 export type StreamMode = 'disabled' | 'fake' | 'real';
 
-export type VideoStatus =
-  | 'pending_upload'
-  | 'uploading'
-  | 'processing'
-  | 'measuring'
-  | 'ready'
-  | 'failed';
-
-export type VideoFailureStage = 'upload' | 'stream' | 'measurement';
+export type VideoStatus = 'queued' | 'processing' | 'ready' | 'failed';
+export type VideoFailureStage = 'processing';
 export type ArchiveStatus = 'pending' | 'archiving' | 'archived' | 'failed';
+export type VideoUploadStatus =
+  | 'creating'
+  | 'uploading'
+  | 'completing'
+  | 'completed'
+  | 'aborted'
+  | 'expired';
 
 export interface ProjectVideo {
   id: string;
   projectId: string;
-  streamUid: string | null;
-  sourceMediaId: string | null;
   status: VideoStatus;
+  originalName: string;
+  contentType: string | null;
+  sizeBytes: number;
   durationSeconds: number | null;
   loudnessLufs: number | null;
   gainDb: number | null;
   errorMessage: string | null;
   failureStage: VideoFailureStage | null;
-  archiveStatus: ArchiveStatus;
-  archiveError: string | null;
+  processingAttempt: number;
+  createdAt: string;
+}
+
+export interface VideoUploadPart {
+  partNumber: number;
+  etag: string;
+  sizeBytes: number;
+}
+
+export interface VideoUploadSession {
+  uploadId: string;
+  videoId: string;
+  projectId: string;
+  fileName: string;
+  contentType: string | null;
+  fileSize: number;
+  partSize: number;
+  expiresAt: string;
+  status: VideoUploadStatus;
+  completedParts: VideoUploadPart[];
 }
 
 export interface DirectUploadRequest {
   fileName: string;
   fileSize: number;
+  contentType: string | null;
 }
 
 export interface DirectUploadResponse {
-  video: ProjectVideo;
-  upload: {
-    protocol: 'tus';
-    url: string;
-    expiresAt: string;
-    chunkSize: number;
-  };
+  video: ProjectVideo | null;
+  upload: VideoUploadSession;
 }
 
-export interface HistoricalPromotionRequest {
-  sourceMediaId: string;
+export interface CompleteVideoUploadRequest {
+  parts: Array<{partNumber: number; etag: string}>;
 }
 
 export interface PlaybackResponse {
@@ -68,30 +84,4 @@ export interface ProjectVideoResponse {
 export interface PlaylistResponse {
   videos: PlaylistItem[];
   streamMode: StreamMode;
-}
-
-export interface MeasurementQueueItem {
-  videoId: string;
-  projectId: string;
-  downloadUrl: string;
-}
-
-export interface MeasurementQueueResponse {
-  videos: MeasurementQueueItem[];
-}
-
-export interface MeasurementResultRequest {
-  loudnessLufs: number;
-  durationSeconds: number;
-}
-
-export interface ArchiveQueueItem {
-  videoId: string;
-  projectId: string;
-  fileName: string;
-  downloadUrl: string;
-}
-
-export interface ArchiveQueueResponse {
-  videos: ArchiveQueueItem[];
 }

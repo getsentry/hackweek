@@ -4,10 +4,10 @@ import type {
   DirectUploadResponse,
   PlaybackResponse,
   PlaylistResponse,
-  ProjectVideo,
   ProjectVideoResponse,
 } from '../../shared/videos';
-import {apiRequest, jsonRequest} from './api';
+import {clearResumeRecord, persistResumeRecord, readResumeRecord} from '../video/upload';
+import {apiRequest, ApiError, jsonRequest} from './api';
 
 export function useProjectVideo(projectId: string) {
   return useQuery({
@@ -24,54 +24,50 @@ export function useProjectVideo(projectId: string) {
 }
 
 export function useCreateVideoUpload(projectId: string) {
-  const cache = useQueryClient();
   return useMutation({
-    mutationFn: (file: File) =>
-      apiRequest<DirectUploadResponse>(
-        `/projects/${encodeURIComponent(projectId)}/video/upload`,
-        jsonRequest('POST', {fileName: file.name, fileSize: file.size}),
-      ),
-    onSuccess: ({video}) =>
-      cache.setQueryData<ProjectVideoResponse>(
-        ['project-video', projectId],
-        (current) => ({
-          video,
-          streamMode: current?.streamMode ?? 'fake',
-        }),
-      ),
+    mutationFn: (file: File) => prepareVideoUpload(projectId, file),
   });
+}
+
+async function prepareVideoUpload(projectId: string, file: File) {
+  const resume = readResumeRecord(projectId, file);
+  if (resume) {
+    try {
+      const existing = await apiRequest<DirectUploadResponse>(
+        `/projects/${encodeURIComponent(projectId)}/video/upload/${encodeURIComponent(resume.uploadId)}`,
+      );
+      persistResumeRecord(file, existing.upload);
+      return existing;
+    } catch (error) {
+      if (!(error instanceof ApiError) || ![404, 409].includes(error.status)) throw error;
+      clearResumeRecord(projectId, file);
+    }
+  }
+  const created = await apiRequest<DirectUploadResponse>(
+    `/projects/${encodeURIComponent(projectId)}/video/upload`,
+    jsonRequest('POST', {
+      fileName: file.name,
+      fileSize: file.size,
+      contentType: file.type || null,
+    }),
+  );
+  persistResumeRecord(file, created.upload);
+  return created;
 }
 
 export function useDeleteVideo(projectId: string) {
   const cache = useQueryClient();
   return useMutation({
     mutationFn: () =>
-      apiRequest<void>(`/projects/${encodeURIComponent(projectId)}/video`, {
-        method: 'DELETE',
-      }),
+      apiRequest<void>(
+        `/projects/${encodeURIComponent(projectId)}/video`,
+        jsonRequest('DELETE', {confirmed: true}),
+      ),
     onSuccess: () =>
       cache.setQueryData<ProjectVideoResponse>(
         ['project-video', projectId],
         (current) => ({
           video: null,
-          streamMode: current?.streamMode ?? 'fake',
-        }),
-      ),
-  });
-}
-
-export function useRetryVideo(projectId: string) {
-  const cache = useQueryClient();
-  return useMutation({
-    mutationFn: (videoId: string) =>
-      apiRequest<{video: ProjectVideo}>(`/videos/${encodeURIComponent(videoId)}/retry`, {
-        method: 'POST',
-      }),
-    onSuccess: ({video}) =>
-      cache.setQueryData<ProjectVideoResponse>(
-        ['project-video', projectId],
-        (current) => ({
-          video,
           streamMode: current?.streamMode ?? 'fake',
         }),
       ),

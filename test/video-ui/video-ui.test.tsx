@@ -11,8 +11,18 @@ import {
 } from '../../src/app/player/ScreeningPlayer';
 import {WatchPage} from '../../src/app/routes/WatchPage';
 import {ProjectVideoPanel} from '../../src/app/video/ProjectVideoPanel';
-import type {ResumableUpload, UploadSnapshot} from '../../src/app/video/upload';
-import type {PlaylistItem, ProjectVideo} from '../../src/shared/videos';
+import {
+  createMultipartUpload,
+  persistResumeRecord,
+  readResumeRecord,
+  type ResumableUpload,
+  type UploadSnapshot,
+} from '../../src/app/video/upload';
+import type {
+  PlaylistItem,
+  ProjectVideo,
+  VideoUploadSession,
+} from '../../src/shared/videos';
 
 const fetchMock = vi.fn<typeof fetch>();
 vi.stubGlobal('fetch', fetchMock);
@@ -21,31 +31,22 @@ vi.stubGlobal(
   vi.fn(() => true),
 );
 
-afterEach(() => fetchMock.mockReset());
+afterEach(() => {
+  fetchMock.mockReset();
+  localStorage.clear();
+});
 
 describe('video user experience', () => {
-  it('shows resumable upload progress controls through a local fake tus event adapter', async () => {
+  it('shows resumable multipart progress controls through a local event adapter', async () => {
     fetchMock.mockImplementation(async (_input, init) => {
       if (init?.method === 'POST') {
-        return json(
-          {
-            video: {...baseVideo, status: 'uploading'},
-            upload: {
-              protocol: 'tus',
-              url: 'https://upload.test/files/one',
-              expiresAt: 'later',
-              chunkSize: 1024,
-            },
-          },
-          201,
-        );
+        return json({video: null, upload: uploadSession}, 201);
       }
       return json({});
     });
     const uploadFactory = (
       file: File,
-      _url: string,
-      _chunkSize: number,
+      _session: VideoUploadSession,
       onChange: (snapshot: UploadSnapshot) => void,
     ): ResumableUpload => ({
       start: () =>
@@ -80,13 +81,46 @@ describe('video user experience', () => {
     );
   });
 
+  it('persists multipart resume identity and skips server-confirmed parts', async () => {
+    const file = new File(['abcde'], 'resume.mp4', {
+      type: 'video/mp4',
+      lastModified: 42,
+    });
+    const session: VideoUploadSession = {
+      ...uploadSession,
+      fileName: file.name,
+      fileSize: file.size,
+      partSize: 3,
+      completedParts: [{partNumber: 1, etag: 'first', sizeBytes: 3}],
+    };
+    persistResumeRecord(file, session);
+    expect(readResumeRecord('project', file)).toMatchObject({
+      uploadId: 'upload-1',
+      completedParts: session.completedParts,
+    });
+
+    fetchMock
+      .mockResolvedValueOnce(json({part: {partNumber: 2, etag: 'second', sizeBytes: 2}}))
+      .mockResolvedValueOnce(json({video: {...baseVideo, status: 'queued'}}));
+    const snapshots: UploadSnapshot[] = [];
+    createMultipartUpload(file, session, (snapshot) => snapshots.push(snapshot)).start();
+
+    await vi.waitFor(() => expect(snapshots.at(-1)?.phase).toBe('complete'));
+    const firstRequest = fetchMock.mock.calls[0][0];
+    if (typeof firstRequest !== 'string')
+      throw new Error('Expected a string request URL');
+    expect(firstRequest).toContain('/parts/2');
+    expect(firstRequest).not.toContain('/parts/1');
+    expect(readResumeRecord('project', file)).toBeNull();
+  });
+
   it.each([
-    {streamMode: 'fake', expectedHref: null},
-    {streamMode: 'disabled', expectedHref: null},
-    {streamMode: 'real', expectedHref: '/years/2026/projects/project/video'},
+    {streamMode: 'fake'},
+    {streamMode: 'disabled'},
+    {streamMode: 'real'},
   ] as const)(
-    'handles project video playback in $streamMode stream mode',
-    ({streamMode, expectedHref}) => {
+    'keeps R2 lifecycle state independent of $streamMode Stream configuration',
+    ({streamMode}) => {
       renderQuery(
         <ProjectVideoPanel
           projectId="project"
@@ -97,13 +131,13 @@ describe('video user experience', () => {
         />,
       );
 
-      expect(
-        screen.queryByRole('link', {name: 'watch video'})?.getAttribute('href') ?? null,
-      ).toBe(expectedHref);
+      expect(screen.getByRole('link', {name: 'watch video'}).getAttribute('href')).toBe(
+        '/years/2026/projects/project/video',
+      );
     },
   );
 
-  it('shows disabled-video UX without upload or lifecycle actions', () => {
+  it('keeps uploads available without depending on Stream configuration', () => {
     renderQuery(
       <ProjectVideoPanel
         projectId="project"
@@ -114,12 +148,11 @@ describe('video user experience', () => {
       />,
     );
 
-    expect(screen.getByText(/video processing is temporarily unavailable/i)).toBeTruthy();
-    expect(screen.queryByLabelText('select project video')).toBeNull();
-    expect(screen.queryByRole('button', {name: 'delete video'})).toBeNull();
+    expect(screen.getByLabelText('select project video')).toBeTruthy();
+    expect(screen.getByText(/private R2 storage/i)).toBeTruthy();
   });
 
-  it('keeps failed owner state visible with retry/replacement/delete actions', () => {
+  it('requires retirement before a failed video can be replaced', () => {
     renderQuery(
       <ProjectVideoPanel
         projectId="project"
@@ -127,16 +160,15 @@ describe('video user experience', () => {
         video={{
           ...baseVideo,
           status: 'failed',
-          failureStage: 'measurement',
+          failureStage: 'processing',
           errorMessage: 'audio decode failed',
         }}
         canManage
       />,
     );
     expect(screen.getByText('audio decode failed')).toBeTruthy();
-    expect(screen.getByLabelText('choose replacement video')).toBeTruthy();
-    expect(screen.getByRole('button', {name: 'retry measurement'})).toBeTruthy();
-    expect(screen.getByRole('button', {name: 'delete video'})).toBeTruthy();
+    expect(screen.queryByLabelText('select project video')).toBeNull();
+    expect(screen.getByRole('button', {name: 'retire video'})).toBeTruthy();
   });
 
   it('renders accessible empty reel and individual ready-video permalinks', async () => {
@@ -224,16 +256,29 @@ function json(value: unknown, status = 200) {
 const baseVideo: ProjectVideo = {
   id: 'video-1',
   projectId: 'project',
-  streamUid: 'stream',
-  sourceMediaId: null,
   status: 'ready',
+  originalName: 'demo.mp4',
+  contentType: 'video/mp4',
+  sizeBytes: 5,
   durationSeconds: 30,
   loudnessLufs: -16,
   gainDb: 0,
   errorMessage: null,
   failureStage: null,
-  archiveStatus: 'pending',
-  archiveError: null,
+  processingAttempt: 1,
+  createdAt: '2030-01-01T00:00:00.000Z',
+};
+const uploadSession: VideoUploadSession = {
+  uploadId: 'upload-1',
+  videoId: 'video-1',
+  projectId: 'project',
+  fileName: 'demo.mp4',
+  contentType: 'video/mp4',
+  fileSize: 5,
+  partSize: 50 * 1024 * 1024,
+  expiresAt: '2030-01-02T00:00:00.000Z',
+  status: 'uploading',
+  completedParts: [],
 };
 const playlist: PlaylistItem[] = [
   {

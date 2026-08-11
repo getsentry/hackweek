@@ -23,6 +23,20 @@ async function fixture(name: string) {
 }
 
 describe('Firebase migration transformation', () => {
+  it('adds the forward R2 video history and multipart constraints', async () => {
+    const sql = await readFile(
+      path.resolve('migrations/0007_r2_video_lifecycle.sql'),
+      'utf8',
+    );
+
+    expect(sql).toContain('ALTER TABLE project_videos RENAME TO legacy_project_videos');
+    expect(sql).toContain('CREATE TABLE video_uploads');
+    expect(sql).toContain('CREATE TABLE video_upload_parts');
+    expect(sql).toContain('CREATE TABLE video_processing_attempts');
+    expect(sql).toContain('WHERE retired_at IS NULL');
+    expect(sql).toContain("status IN ('creating', 'uploading', 'completing')");
+  });
+
   it('preserves deterministic IDs, relationships, and storage keys', async () => {
     const database = await fixture('database.json');
     const manifest = await readStorageManifest(

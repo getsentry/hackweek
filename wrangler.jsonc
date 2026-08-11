@@ -21,6 +21,10 @@
       "binding": "ATTACHMENTS",
       "bucket_name": "hackweek-attachments-local",
     },
+    {
+      "binding": "VIDEOS",
+      "bucket_name": "hackweek-videos-local",
+    },
   ],
   "observability": {
     "enabled": true,

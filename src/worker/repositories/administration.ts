@@ -235,7 +235,7 @@ export async function getAdminYear(
       db
         .prepare(
           `SELECT p.id, p.name, pv.status video_status FROM projects p
-       LEFT JOIN project_videos pv ON pv.project_id = p.id
+       LEFT JOIN project_videos pv ON pv.project_id = p.id AND pv.retired_at IS NULL
        WHERE p.year_id = ? AND p.kind = 'project' AND p.status = 'active'
        ORDER BY p.name COLLATE NOCASE, p.id`,
         )

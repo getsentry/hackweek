@@ -12,6 +12,8 @@ export const tableNames = [
   'awards',
   'media',
   'project_videos',
+  'video_uploads',
+  'video_upload_parts',
+  'video_processing_attempts',
   'screening_order',
-  'stream_events',
 ] as const;

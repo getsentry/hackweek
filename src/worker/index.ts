@@ -11,13 +11,12 @@ import {groupsRoutes} from './routes/groups';
 import {mediaRoutes} from './routes/media';
 import {projectsRoutes} from './routes/projects';
 import {sessionRoutes} from './routes/session';
-import {streamWebhookRoutes} from './routes/stream-webhook';
-import {videoJobRoutes} from './routes/video-jobs';
 import {projectVideoRoutes, videosRoutes} from './routes/videos';
 import {votesRoutes} from './routes/votes';
 import {yearsRoutes} from './routes/years';
 
 export interface VideoBindings {
+  VIDEOS: R2Bucket;
   STREAM_MODE?: string;
   STREAM_ACCOUNT_ID?: string;
   STREAM_API_TOKEN?: string;
@@ -39,8 +38,6 @@ export type WorkerEnv = {
 const app = new Hono<WorkerEnv>();
 
 app.get('/api/health', (c) => c.json({ok: true}));
-app.route('/api/stream-webhook', streamWebhookRoutes);
-app.route('/api/video-jobs', videoJobRoutes);
 app.route('/api/auth', authRoutes);
 
 app.use('/api/*', authenticateRequest<WorkerEnv>());

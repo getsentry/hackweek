@@ -1,459 +1,433 @@
 import type {SessionUser} from '../../shared/api';
 import type {
-  ArchiveQueueItem,
-  ArchiveStatus,
-  MeasurementQueueItem,
-  PlaylistItem,
   ProjectVideo,
-  VideoFailureStage,
-  VideoStatus,
+  VideoUploadPart,
+  VideoUploadSession,
 } from '../../shared/videos';
-import type {HistoricalVideoSource} from '../integrations/historical-source';
-import type {StreamGateway} from '../integrations/stream';
+import {currentYearIdSql, effectiveYearFlags} from '../repositories/years';
 import {ServiceError} from './errors';
 
 export const MAX_VIDEO_BYTES = 5 * 1024 * 1024 * 1024;
-export const MAX_VIDEO_DURATION_SECONDS = 10 * 60;
-export const TUS_CHUNK_SIZE = 50 * 1024 * 1024;
-export const UPLOAD_EXPIRY_MINUTES = 30;
-export const PLAYBACK_EXPIRY_MINUTES = 15;
-export const SERVICE_DOWNLOAD_EXPIRY_MINUTES = 15;
+export const VIDEO_PART_SIZE = 50 * 1024 * 1024;
+export const UPLOAD_EXPIRY_MINUTES = 24 * 60;
 
 interface VideoRow {
   id: string;
   project_id: string;
-  stream_uid: string | null;
-  source_media_id: string | null;
+  original_name: string;
+  content_type: string | null;
+  size_bytes: number;
   status: string;
+  processing_attempt: number;
   duration_seconds: number | null;
   loudness_lufs: number | null;
   gain_db: number | null;
   error_message: string | null;
-  failure_stage: string | null;
-  archive_status: string;
-  archive_error: string | null;
+  created_at: string;
+}
+
+interface UploadRow {
+  id: string;
+  video_id: string;
+  project_id: string;
+  creator_id: string;
+  r2_upload_id: string | null;
+  original_r2_key: string;
+  original_name: string;
+  content_type: string | null;
+  expected_size_bytes: number;
+  part_size_bytes: number;
+  status: VideoUploadSession['status'];
+  expires_at: string;
 }
 
 interface ProjectAuthorizationRow {
   id: string;
-  name: string;
+  year_id: string;
   creator_id: string;
   kind: string;
   status: string;
+  voting_enabled: number;
+  submissions_closed: number;
+  current_year_id: string;
   is_member: number;
 }
 
 export async function getProjectVideo(db: D1Database, projectId: string) {
-  const row = await videoByProject(db, projectId);
+  const row = await db
+    .prepare(`${videoSelect()} WHERE project_id = ? AND retired_at IS NULL`)
+    .bind(projectId)
+    .first<VideoRow>();
   return row ? mapVideo(row) : null;
 }
 
-export async function createDirectUpload(
+export async function createMultipartVideoUpload(
   db: D1Database,
-  gateway: StreamGateway,
+  bucket: R2Bucket,
   projectId: string,
   user: SessionUser,
-  input: {fileName: string; fileSize: number},
-  allowedOrigin: string,
+  input: {fileName: string; fileSize: number; contentType: string | null},
   now = new Date(),
 ) {
   await authorizeVideoWrite(db, projectId, user);
-  const existing = await videoByProject(db, projectId);
-  if (existing && !(await canReplaceUpload(db, existing, now))) {
-    throw new ServiceError(
-      'CONFLICT',
-      'The primary video must fail, expire, or be deleted before it can be replaced',
-      409,
-    );
-  }
-
+  const uploadId = crypto.randomUUID();
+  const videoId = crypto.randomUUID();
+  const originalKey = videoOriginalKey(projectId, videoId, input.fileName);
   const expiresAt = new Date(now.getTime() + UPLOAD_EXPIRY_MINUTES * 60_000);
-  const upload = await gateway.createDirectUpload({
-    creator: user.id,
-    fileName: input.fileName,
-    fileSize: input.fileSize,
-    maxDurationSeconds: MAX_VIDEO_DURATION_SECONDS,
-    allowedOrigin,
-    expiresAt,
-  });
-  const id = existing?.id ?? crypto.randomUUID();
+
   try {
     await db
       .prepare(
-        `INSERT INTO project_videos
-          (id, project_id, stream_uid, status, upload_expires_at,
-           error_message, failure_stage, duration_seconds, loudness_lufs, gain_db,
-           archive_status, archive_error)
-         VALUES (?, ?, ?, 'uploading', ?, NULL, NULL, NULL, NULL, NULL, 'pending', NULL)
-         ON CONFLICT(project_id) DO UPDATE SET
-           stream_uid = excluded.stream_uid, source_media_id = NULL, status = 'uploading',
-           upload_expires_at = excluded.upload_expires_at, duration_seconds = NULL,
-           loudness_lufs = NULL, gain_db = NULL,
-           error_message = NULL, failure_stage = NULL, archive_status = 'pending',
-           archive_error = NULL, archived_at = NULL, updated_at = CURRENT_TIMESTAMP`,
-      )
-      .bind(id, projectId, upload.uid, expiresAt.toISOString())
-      .run();
-  } catch (error) {
-    await gateway.deleteVideo(upload.uid).catch(() => undefined);
-    throw error;
-  }
-  const row = await requireVideoById(db, id);
-  return {video: mapVideo(row), upload};
-}
-
-export async function promoteHistoricalVideo(
-  db: D1Database,
-  gateway: StreamGateway,
-  historicalSource: HistoricalVideoSource,
-  projectId: string,
-  sourceMediaId: string,
-  user: SessionUser,
-  allowedOrigin: string,
-) {
-  await authorizeVideoWrite(db, projectId, user);
-  const existing = await videoByProject(db, projectId);
-  if (existing && !canReplace(existing.status)) {
-    throw new ServiceError('CONFLICT', 'This project already has a primary video', 409);
-  }
-  const media = await db
-    .prepare(
-      `SELECT id, original_name, r2_key, media_type, status
-       FROM media WHERE id = ? AND project_id = ?`,
-    )
-    .bind(sourceMediaId, projectId)
-    .first<{
-      id: string;
-      original_name: string;
-      r2_key: string;
-      media_type: string | null;
-      status: string;
-    }>();
-  if (!media || media.status !== 'available' || !media.media_type?.startsWith('video/')) {
-    throw new ServiceError(
-      'VALIDATION_FAILED',
-      'Historical promotion requires an available video attachment from this project',
-      400,
-    );
-  }
-  const sourceUrl = await historicalSource.createReadUrl(media.r2_key, 15 * 60);
-  const streamUid = await gateway.promoteHistoricalVideo({
-    creator: user.id,
-    sourceUrl,
-    fileName: media.original_name,
-    allowedOrigin,
-  });
-  const id = existing?.id ?? crypto.randomUUID();
-  try {
-    await db
-      .prepare(
-        `INSERT INTO project_videos
-          (id, project_id, stream_uid, source_media_id, status, archive_status)
-         VALUES (?, ?, ?, ?, 'processing', 'pending')
-         ON CONFLICT(project_id) DO UPDATE SET
-           stream_uid = excluded.stream_uid, source_media_id = excluded.source_media_id,
-           status = 'processing', upload_expires_at = NULL, duration_seconds = NULL,
-           gain_db = NULL, error_message = NULL, failure_stage = NULL,
-           archive_status = 'pending', archive_error = NULL, archived_at = NULL,
-           updated_at = CURRENT_TIMESTAMP`,
-      )
-      .bind(id, projectId, streamUid, media.id)
-      .run();
-  } catch (error) {
-    await gateway.deleteVideo(streamUid).catch(() => undefined);
-    throw error;
-  }
-  return mapVideo(await requireVideoById(db, id));
-}
-
-export async function deleteProjectVideo(
-  db: D1Database,
-  gateway: StreamGateway,
-  projectId: string,
-  user: SessionUser,
-) {
-  await authorizeVideoWrite(db, projectId, user);
-  const video = await videoByProject(db, projectId);
-  if (!video) throw new ServiceError('NOT_FOUND', 'Video not found', 404);
-  if (video.stream_uid) await gateway.deleteVideo(video.stream_uid);
-  await db.prepare('DELETE FROM project_videos WHERE id = ?').bind(video.id).run();
-}
-
-export async function processStreamWebhook(
-  db: D1Database,
-  event: {
-    eventId: string;
-    streamUid: string;
-    eventType: string;
-    ready: boolean;
-    durationSeconds: number | null;
-    errorMessage: string | null;
-  },
-) {
-  const video = await db
-    .prepare(`${videoSelect()} WHERE stream_uid = ?`)
-    .bind(event.streamUid)
-    .first<VideoRow>();
-  if (!video) return {handled: false, duplicate: false};
-
-  const status: VideoStatus = event.ready ? 'measuring' : 'failed';
-  const failureStage: VideoFailureStage | null = event.ready ? null : 'stream';
-  const inserted = await db
-    .prepare(
-      `INSERT INTO stream_events (event_id, stream_uid, event_type)
-       VALUES (?, ?, ?) ON CONFLICT(event_id) DO NOTHING`,
-    )
-    .bind(event.eventId, event.streamUid, event.eventType)
-    .run();
-  if (!inserted.meta.changes) return {handled: true, duplicate: true};
-  try {
-    await db
-      .prepare(
-        `UPDATE project_videos SET status = ?, duration_seconds = COALESCE(?, duration_seconds),
-          error_message = ?, failure_stage = ?, upload_expires_at = NULL,
-          updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        `INSERT INTO video_uploads (
+          id, video_id, project_id, creator_id, original_r2_key, original_name,
+          content_type, expected_size_bytes, part_size_bytes, status, expires_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'creating', ?)`,
       )
       .bind(
-        status,
-        event.durationSeconds,
-        event.ready ? null : event.errorMessage || 'Stream processing failed',
-        failureStage,
-        video.id,
+        uploadId,
+        videoId,
+        projectId,
+        user.id,
+        originalKey,
+        input.fileName,
+        input.contentType,
+        input.fileSize,
+        VIDEO_PART_SIZE,
+        expiresAt.toISOString(),
       )
       .run();
   } catch (error) {
-    await db
-      .prepare('DELETE FROM stream_events WHERE event_id = ?')
-      .bind(event.eventId)
-      .run();
+    if (isVideoSlotConflict(error)) {
+      throw new ServiceError(
+        'CONFLICT',
+        'This project already has an active video or upload',
+        409,
+      );
+    }
     throw error;
   }
-  return {handled: true, duplicate: false};
+
+  try {
+    const multipart = await bucket.createMultipartUpload(originalKey, {
+      httpMetadata: {contentType: input.contentType || 'application/octet-stream'},
+      customMetadata: {projectId, videoId, uploadId},
+    });
+    await db
+      .prepare(
+        `UPDATE video_uploads SET r2_upload_id = ?, status = 'uploading',
+          updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'creating'`,
+      )
+      .bind(multipart.uploadId, uploadId)
+      .run();
+  } catch {
+    await db
+      .prepare(
+        `UPDATE video_uploads SET status = 'aborted', updated_at = CURRENT_TIMESTAMP
+         WHERE id = ? AND status = 'creating'`,
+      )
+      .bind(uploadId)
+      .run();
+    throw new ServiceError('STORAGE_FAILED', 'Video upload could not be started', 500);
+  }
+
+  return getVideoUpload(db, bucket, projectId, uploadId, user, now);
 }
 
-export async function listPlaylist(db: D1Database, yearId: string) {
-  const {results} = await db
-    .prepare(
-      `SELECT pv.id video_id, p.id project_id, p.name project_name,
-        pv.duration_seconds, pv.gain_db, so.position
-       FROM screening_order so
-       JOIN projects p ON p.id = so.project_id AND p.status = 'active'
-       JOIN project_videos pv ON pv.project_id = p.id
-       WHERE so.year_id = ? AND pv.status = 'ready'
-         AND pv.duration_seconds IS NOT NULL AND pv.gain_db IS NOT NULL
-       ORDER BY so.position, p.id`,
-    )
-    .bind(yearId)
-    .all<{
-      video_id: string;
-      project_id: string;
-      project_name: string;
-      duration_seconds: number;
-      gain_db: number;
-      position: number;
-    }>();
-  return results.map<PlaylistItem>((row) => ({
-    videoId: row.video_id,
-    projectId: row.project_id,
-    projectName: row.project_name,
-    durationSeconds: row.duration_seconds,
-    gainDb: row.gain_db,
-    position: row.position,
-  }));
-}
-
-export async function issuePlayback(
+export async function getVideoUpload(
   db: D1Database,
-  gateway: StreamGateway,
-  videoId: string,
-  deliveryHost: string,
+  bucket: R2Bucket,
+  projectId: string,
+  uploadId: string,
+  user: SessionUser,
   now = new Date(),
 ) {
-  const video = await requireVideoById(db, videoId);
-  if (video.status !== 'ready' || !video.stream_uid) {
-    throw new ServiceError('CONFLICT', 'Video is not ready for playback', 409);
+  await authorizeVideoWrite(db, projectId, user);
+  const upload = await requireUpload(db, projectId, uploadId);
+  if (isExpired(upload, now)) {
+    if (upload.r2_upload_id) {
+      await bucket
+        .resumeMultipartUpload(upload.original_r2_key, upload.r2_upload_id)
+        .abort()
+        .catch(() => undefined);
+    }
+    await markExpired(db, upload.id);
+    upload.status = 'expired';
   }
-  const expiresAt = new Date(now.getTime() + PLAYBACK_EXPIRY_MINUTES * 60_000);
-  const token = await gateway.createPlaybackToken(video.stream_uid, expiresAt);
+  const video =
+    upload.status === 'completed' ? await requireVideoById(db, upload.video_id) : null;
   return {
-    mode: token.startsWith('fake.') ? ('fake' as const) : ('stream' as const),
-    manifestUrl: token.startsWith('fake.')
-      ? null
-      : `https://${deliveryHost}/${encodeURIComponent(token)}/manifest/video.m3u8`,
-    expiresAt: expiresAt.toISOString(),
+    video: video ? mapVideo(video) : null,
+    upload: await mapUpload(db, upload),
   };
 }
 
-export async function listMeasurementQueue(
+export async function uploadVideoPart(
   db: D1Database,
-  gateway: StreamGateway,
-  deliveryHost: string,
+  bucket: R2Bucket,
+  projectId: string,
+  uploadId: string,
+  partNumber: number,
+  contentLength: number,
+  body: ReadableStream,
+  user: SessionUser,
+  now = new Date(),
+): Promise<VideoUploadPart> {
+  await authorizeVideoWrite(db, projectId, user);
+  const upload = await requireUpload(db, projectId, uploadId);
+  await assertUploadIsWritable(db, bucket, upload, now);
+  if (upload.status !== 'uploading' || !upload.r2_upload_id) {
+    throw new ServiceError('CONFLICT', 'Upload is not accepting parts', 409);
+  }
+
+  const expectedSize = expectedPartSize(upload, partNumber);
+  if (expectedSize === null || contentLength !== expectedSize) {
+    throw new ServiceError(
+      'VALIDATION_FAILED',
+      `Part ${partNumber} must contain exactly ${expectedSize ?? 0} bytes`,
+      400,
+    );
+  }
+
+  const existing = await db
+    .prepare(
+      `SELECT part_number, etag, size_bytes FROM video_upload_parts
+       WHERE upload_id = ? AND part_number = ?`,
+    )
+    .bind(upload.id, partNumber)
+    .first<{part_number: number; etag: string; size_bytes: number}>();
+  if (existing) return mapPart(existing);
+
+  let uploaded: R2UploadedPart;
+  try {
+    uploaded = await bucket
+      .resumeMultipartUpload(upload.original_r2_key, upload.r2_upload_id)
+      .uploadPart(partNumber, body);
+  } catch {
+    throw new ServiceError('STORAGE_FAILED', 'Video part upload failed', 500);
+  }
+
+  await db
+    .prepare(
+      `INSERT INTO video_upload_parts (upload_id, part_number, etag, size_bytes)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(upload_id, part_number) DO UPDATE SET
+         etag = excluded.etag, size_bytes = excluded.size_bytes`,
+    )
+    .bind(upload.id, uploaded.partNumber, uploaded.etag, contentLength)
+    .run();
+  return {partNumber: uploaded.partNumber, etag: uploaded.etag, sizeBytes: contentLength};
+}
+
+export async function completeVideoUpload(
+  db: D1Database,
+  bucket: R2Bucket,
+  projectId: string,
+  uploadId: string,
+  suppliedParts: Array<{partNumber: number; etag: string}>,
+  user: SessionUser,
   now = new Date(),
 ) {
-  const {results} = await db
-    .prepare(
-      `${videoSelect()} WHERE status = 'measuring' ORDER BY updated_at, id LIMIT 20`,
-    )
-    .all<VideoRow>();
-  const queue: MeasurementQueueItem[] = [];
-  for (const video of results) {
-    if (!video.stream_uid) continue;
-    const download = await gateway.ensureDownload(video.stream_uid);
-    if (download.status === 'error') {
-      await markMeasurementFailure(db, video.id, 'Stream MP4 generation failed');
-      continue;
-    }
-    if (download.status !== 'ready') continue;
-    const expiresAt = new Date(now.getTime() + SERVICE_DOWNLOAD_EXPIRY_MINUTES * 60_000);
-    const token = await gateway.createDownloadToken(video.stream_uid, expiresAt);
-    queue.push({
-      videoId: video.id,
-      projectId: video.project_id,
-      downloadUrl: token.startsWith('fake.')
-        ? download.url!
-        : `https://${deliveryHost}/${encodeURIComponent(token)}/downloads/default.mp4`,
-    });
+  await authorizeVideoWrite(db, projectId, user);
+  const upload = await requireUpload(db, projectId, uploadId);
+  if (upload.status === 'completed') {
+    return mapVideo(await requireVideoById(db, upload.video_id));
   }
-  return queue;
-}
+  await assertUploadIsWritable(db, bucket, upload, now);
+  if (!upload.r2_upload_id || !['uploading', 'completing'].includes(upload.status)) {
+    throw new ServiceError('CONFLICT', 'Upload cannot be completed', 409);
+  }
 
-export async function recordMeasurement(
-  db: D1Database,
-  videoId: string,
-  input: {loudnessLufs: number; durationSeconds: number},
-) {
-  const result = await db
-    .prepare(
-      `UPDATE project_videos SET status = 'ready', duration_seconds = ?,
-        loudness_lufs = ?, gain_db = ?, error_message = NULL, failure_stage = NULL,
-        measurement_attempts = measurement_attempts + 1, updated_at = CURRENT_TIMESTAMP
-       WHERE id = ? AND status = 'measuring'`,
-    )
-    .bind(
-      input.durationSeconds,
-      input.loudnessLufs,
-      loudnessGain(input.loudnessLufs),
-      videoId,
-    )
-    .run();
-  if (!result.meta.changes) {
-    throw new ServiceError('CONFLICT', 'Video is not awaiting measurement', 409);
-  }
-  return mapVideo(await requireVideoById(db, videoId));
-}
+  const storedParts = await listStoredParts(db, upload.id);
+  validateCompletionParts(upload, storedParts, suppliedParts);
 
-export async function markMeasurementFailure(
-  db: D1Database,
-  videoId: string,
-  message: string,
-) {
-  const result = await db
-    .prepare(
-      `UPDATE project_videos SET status = 'failed', failure_stage = 'measurement',
-        error_message = ?, measurement_attempts = measurement_attempts + 1,
-        updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'measuring'`,
-    )
-    .bind(message.slice(0, 500), videoId)
-    .run();
-  if (!result.meta.changes) {
-    throw new ServiceError('CONFLICT', 'Video is not awaiting measurement', 409);
-  }
-}
-
-export async function retryVideo(db: D1Database, videoId: string, user: SessionUser) {
-  const video = await requireVideoById(db, videoId);
-  await authorizeVideoWrite(db, video.project_id, user);
-  if (video.status !== 'failed') {
-    throw new ServiceError('CONFLICT', 'Only failed videos can be retried', 409);
-  }
-  if (video.failure_stage === 'measurement' && video.stream_uid) {
-    await db
+  if (upload.status === 'uploading') {
+    const claimed = await db
       .prepare(
-        `UPDATE project_videos SET status = 'measuring', error_message = NULL,
-          failure_stage = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        `UPDATE video_uploads SET status = 'completing', updated_at = CURRENT_TIMESTAMP
+         WHERE id = ? AND status = 'uploading'`,
       )
-      .bind(videoId)
+      .bind(upload.id)
       .run();
-    return mapVideo(await requireVideoById(db, videoId));
+    if (!claimed.meta.changes) {
+      throw new ServiceError('CONFLICT', 'Upload completion is already in progress', 409);
+    }
+    upload.status = 'completing';
   }
-  throw new ServiceError(
-    'CONFLICT',
-    'Upload and Stream processing failures require a replacement upload',
-    409,
-  );
+
+  let object = await bucket.head(upload.original_r2_key);
+  if (!object) {
+    try {
+      object = await bucket
+        .resumeMultipartUpload(upload.original_r2_key, upload.r2_upload_id)
+        .complete(storedParts.map(({partNumber, etag}) => ({partNumber, etag})));
+    } catch {
+      object = await bucket.head(upload.original_r2_key);
+      if (!object) {
+        await db
+          .prepare(
+            `UPDATE video_uploads SET status = 'uploading', updated_at = CURRENT_TIMESTAMP
+             WHERE id = ? AND status = 'completing'`,
+          )
+          .bind(upload.id)
+          .run();
+        throw new ServiceError(
+          'STORAGE_FAILED',
+          'Video upload could not be completed',
+          500,
+        );
+      }
+    }
+  }
+  if (object.size !== upload.expected_size_bytes) {
+    throw new ServiceError('STORAGE_FAILED', 'Completed video size does not match', 500);
+  }
+
+  try {
+    await db.batch([
+      db
+        .prepare(
+          `UPDATE video_uploads SET status = 'completed', completed_at = CURRENT_TIMESTAMP,
+            updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'completing'`,
+        )
+        .bind(upload.id),
+      db
+        .prepare(
+          `INSERT INTO project_videos (
+            id, project_id, original_name, content_type, size_bytes, original_r2_key,
+            status, processing_attempt
+          ) VALUES (?, ?, ?, ?, ?, ?, 'queued', 1)`,
+        )
+        .bind(
+          upload.video_id,
+          upload.project_id,
+          upload.original_name,
+          upload.content_type,
+          upload.expected_size_bytes,
+          upload.original_r2_key,
+        ),
+      db
+        .prepare(
+          `INSERT INTO video_processing_attempts (video_id, attempt, status)
+           VALUES (?, 1, 'queued')`,
+        )
+        .bind(upload.video_id),
+    ]);
+  } catch (error) {
+    const existing = await db
+      .prepare(`${videoSelect()} WHERE id = ?`)
+      .bind(upload.video_id)
+      .first<VideoRow>();
+    if (!existing) throw error;
+  }
+  return mapVideo(await requireVideoById(db, upload.video_id));
 }
 
-export async function listArchiveQueue(
+export async function abortVideoUpload(
   db: D1Database,
-  gateway: StreamGateway,
-  deliveryHost: string,
-  now = new Date(),
+  bucket: R2Bucket,
+  projectId: string,
+  uploadId: string,
+  user: SessionUser,
 ) {
-  const {results} = await db
-    .prepare(
-      `SELECT pv.id, pv.project_id, pv.stream_uid, pv.source_media_id, pv.status,
-        pv.duration_seconds, pv.loudness_lufs, pv.gain_db, pv.error_message,
-        pv.failure_stage, pv.archive_status, pv.archive_error, p.name project_name
-       FROM project_videos pv JOIN projects p ON p.id = pv.project_id
-       WHERE pv.status = 'ready' AND pv.archive_status IN ('pending', 'failed')
-       ORDER BY pv.updated_at, pv.id LIMIT 20`,
-    )
-    .all<VideoRow & {project_name: string}>();
-  const queue: ArchiveQueueItem[] = [];
-  for (const video of results) {
-    if (!video.stream_uid) continue;
-    const download = await gateway.ensureDownload(video.stream_uid);
-    if (download.status !== 'ready') continue;
-    const expiresAt = new Date(now.getTime() + SERVICE_DOWNLOAD_EXPIRY_MINUTES * 60_000);
-    const token = await gateway.createDownloadToken(video.stream_uid, expiresAt);
-    queue.push({
-      videoId: video.id,
-      projectId: video.project_id,
-      fileName: safeFileName(video.project_name, video.project_id),
-      downloadUrl: token.startsWith('fake.')
-        ? download.url!
-        : `https://${deliveryHost}/${encodeURIComponent(token)}/downloads/default.mp4`,
-    });
+  await authorizeVideoWrite(db, projectId, user);
+  const upload = await requireUpload(db, projectId, uploadId);
+  if (upload.status === 'aborted') return;
+  if (upload.status === 'expired') {
+    if (upload.r2_upload_id) {
+      await bucket
+        .resumeMultipartUpload(upload.original_r2_key, upload.r2_upload_id)
+        .abort()
+        .catch(() => undefined);
+    }
+    return;
   }
-  return queue;
-}
-
-export async function recordArchiveResult(
-  db: D1Database,
-  videoId: string,
-  status: Extract<ArchiveStatus, 'archived' | 'failed'>,
-  error: string | null,
-) {
-  const result = await db
+  if (upload.status === 'completed') {
+    throw new ServiceError('CONFLICT', 'Completed video objects cannot be aborted', 409);
+  }
+  if (upload.r2_upload_id) {
+    try {
+      await bucket
+        .resumeMultipartUpload(upload.original_r2_key, upload.r2_upload_id)
+        .abort();
+    } catch {
+      throw new ServiceError('STORAGE_FAILED', 'Video upload could not be aborted', 500);
+    }
+  }
+  await db
     .prepare(
-      `UPDATE project_videos SET archive_status = ?, archive_error = ?,
-        archived_at = CASE WHEN ? = 'archived' THEN CURRENT_TIMESTAMP ELSE archived_at END,
-        archive_attempts = archive_attempts + 1, updated_at = CURRENT_TIMESTAMP
-       WHERE id = ? AND status = 'ready'`,
+      `UPDATE video_uploads SET status = 'aborted', updated_at = CURRENT_TIMESTAMP
+       WHERE id = ? AND status IN ('creating', 'uploading', 'completing')`,
     )
-    .bind(
-      status,
-      status === 'failed' ? error?.slice(0, 500) || 'Archive failed' : null,
-      status,
-      videoId,
-    )
+    .bind(upload.id)
     .run();
-  if (!result.meta.changes) {
-    throw new ServiceError('CONFLICT', 'Only ready videos can be archived', 409);
-  }
-  return mapVideo(await requireVideoById(db, videoId));
 }
 
-export function loudnessGain(loudnessLufs: number) {
-  return Math.max(-12, Math.min(12, -16 - loudnessLufs));
+export async function retireProjectVideo(
+  db: D1Database,
+  projectId: string,
+  user: SessionUser,
+  confirmed: boolean,
+) {
+  if (!confirmed) {
+    throw new ServiceError(
+      'VALIDATION_FAILED',
+      'Video retirement must be confirmed',
+      400,
+    );
+  }
+  await authorizeVideoWrite(db, projectId, user);
+  const video = await db
+    .prepare(`${videoSelect()} WHERE project_id = ? AND retired_at IS NULL`)
+    .bind(projectId)
+    .first<VideoRow>();
+  if (!video) throw new ServiceError('NOT_FOUND', 'Video not found', 404);
+  await db.batch([
+    db
+      .prepare(
+        `UPDATE project_videos SET status = 'retired', retired_at = CURRENT_TIMESTAMP,
+          updated_at = CURRENT_TIMESTAMP WHERE id = ? AND retired_at IS NULL`,
+      )
+      .bind(video.id),
+    db
+      .prepare(
+        `UPDATE video_processing_attempts SET status = 'cancelled',
+          finished_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+         WHERE video_id = ? AND status IN ('queued', 'running')`,
+      )
+      .bind(video.id),
+  ]);
+}
+
+async function assertUploadIsWritable(
+  db: D1Database,
+  bucket: R2Bucket,
+  upload: UploadRow,
+  now: Date,
+) {
+  if (isExpired(upload, now)) {
+    if (upload.r2_upload_id) {
+      await bucket
+        .resumeMultipartUpload(upload.original_r2_key, upload.r2_upload_id)
+        .abort()
+        .catch(() => undefined);
+    }
+    await markExpired(db, upload.id);
+    throw new ServiceError('CONFLICT', 'Upload session has expired', 409);
+  }
+  if (upload.status === 'aborted' || upload.status === 'expired') {
+    throw new ServiceError('CONFLICT', 'Upload session is no longer active', 409);
+  }
 }
 
 async function authorizeVideoWrite(db: D1Database, projectId: string, user: SessionUser) {
   const project = await db
     .prepare(
-      `SELECT p.id, p.name, p.creator_id, p.kind, p.status,
-        EXISTS(SELECT 1 FROM project_members pm WHERE pm.project_id = p.id AND pm.user_id = ?) is_member
-       FROM projects p WHERE p.id = ?`,
+      `SELECT p.id, p.year_id, p.creator_id, p.kind, p.status,
+        y.voting_enabled, y.submissions_closed,
+        ${currentYearIdSql} current_year_id,
+        EXISTS(SELECT 1 FROM project_members pm
+          WHERE pm.project_id = p.id AND pm.user_id = ?) is_member
+       FROM projects p JOIN years y ON y.id = p.year_id WHERE p.id = ?`,
     )
     .bind(user.id, projectId)
     .first<ProjectAuthorizationRow>();
@@ -461,7 +435,10 @@ async function authorizeVideoWrite(db: D1Database, projectId: string, user: Sess
     throw new ServiceError('NOT_FOUND', 'Project not found', 404);
   }
   if (project.kind !== 'project') {
-    throw new ServiceError('VALIDATION_FAILED', 'Ideas cannot have primary videos', 400);
+    throw new ServiceError('VALIDATION_FAILED', 'Ideas cannot have project videos', 400);
+  }
+  if (effectiveYearFlags(project.year_id, project).submissionsClosed) {
+    throw new ServiceError('AUTH_FORBIDDEN', 'Submissions are closed', 403);
   }
   if (user.role !== 'admin' && project.creator_id !== user.id && !project.is_member) {
     throw new ServiceError(
@@ -472,11 +449,18 @@ async function authorizeVideoWrite(db: D1Database, projectId: string, user: Sess
   }
 }
 
-function videoByProject(db: D1Database, projectId: string) {
-  return db
-    .prepare(`${videoSelect()} WHERE project_id = ?`)
-    .bind(projectId)
-    .first<VideoRow>();
+async function requireUpload(db: D1Database, projectId: string, uploadId: string) {
+  const upload = await db
+    .prepare(
+      `SELECT id, video_id, project_id, creator_id, r2_upload_id, original_r2_key,
+        original_name, content_type, expected_size_bytes, part_size_bytes,
+        status, expires_at
+       FROM video_uploads WHERE id = ? AND project_id = ?`,
+    )
+    .bind(uploadId, projectId)
+    .first<UploadRow>();
+  if (!upload) throw new ServiceError('NOT_FOUND', 'Video upload not found', 404);
+  return upload;
 }
 
 async function requireVideoById(db: D1Database, videoId: string) {
@@ -488,50 +472,126 @@ async function requireVideoById(db: D1Database, videoId: string) {
   return video;
 }
 
-function videoSelect() {
-  return `SELECT id, project_id, stream_uid, source_media_id, status,
-    duration_seconds, loudness_lufs, gain_db, error_message, failure_stage,
-    archive_status, archive_error FROM project_videos`;
+async function mapUpload(db: D1Database, upload: UploadRow): Promise<VideoUploadSession> {
+  return {
+    uploadId: upload.id,
+    videoId: upload.video_id,
+    projectId: upload.project_id,
+    fileName: upload.original_name,
+    contentType: upload.content_type,
+    fileSize: upload.expected_size_bytes,
+    partSize: upload.part_size_bytes,
+    expiresAt: upload.expires_at,
+    status: upload.status,
+    completedParts: await listStoredParts(db, upload.id),
+  };
 }
 
 function mapVideo(row: VideoRow): ProjectVideo {
   return {
     id: row.id,
     projectId: row.project_id,
-    streamUid: row.stream_uid,
-    sourceMediaId: row.source_media_id,
-    status: row.status as VideoStatus,
+    status: row.status as ProjectVideo['status'],
+    originalName: row.original_name,
+    contentType: row.content_type,
+    sizeBytes: row.size_bytes,
     durationSeconds: row.duration_seconds,
     loudnessLufs: row.loudness_lufs,
     gainDb: row.gain_db,
     errorMessage: row.error_message,
-    failureStage: row.failure_stage as VideoFailureStage | null,
-    archiveStatus: row.archive_status as ArchiveStatus,
-    archiveError: row.archive_error,
+    failureStage: row.status === 'failed' ? 'processing' : null,
+    processingAttempt: row.processing_attempt,
+    createdAt: row.created_at,
   };
 }
 
-function canReplace(status: string) {
-  return status === 'failed' || status === 'pending_upload';
+function videoSelect() {
+  return `SELECT id, project_id, original_name, content_type, size_bytes, status,
+    processing_attempt, duration_seconds, loudness_lufs, gain_db, error_message,
+    created_at FROM project_videos`;
 }
 
-async function canReplaceUpload(db: D1Database, video: VideoRow, now: Date) {
-  if (canReplace(video.status)) return true;
-  if (video.status !== 'uploading') return false;
-  const row = await db
-    .prepare('SELECT upload_expires_at FROM project_videos WHERE id = ?')
-    .bind(video.id)
-    .first<{upload_expires_at: string | null}>();
-  return Boolean(
-    row?.upload_expires_at && Date.parse(row.upload_expires_at) <= now.getTime(),
+async function listStoredParts(db: D1Database, uploadId: string) {
+  const {results} = await db
+    .prepare(
+      `SELECT part_number, etag, size_bytes FROM video_upload_parts
+       WHERE upload_id = ? ORDER BY part_number`,
+    )
+    .bind(uploadId)
+    .all<{part_number: number; etag: string; size_bytes: number}>();
+  return results.map(mapPart);
+}
+
+function mapPart(row: {part_number: number; etag: string; size_bytes: number}) {
+  return {partNumber: row.part_number, etag: row.etag, sizeBytes: row.size_bytes};
+}
+
+function validateCompletionParts(
+  upload: UploadRow,
+  stored: VideoUploadPart[],
+  supplied: Array<{partNumber: number; etag: string}>,
+) {
+  const count = Math.ceil(upload.expected_size_bytes / upload.part_size_bytes);
+  if (stored.length !== count || supplied.length !== count) {
+    throw new ServiceError('VALIDATION_FAILED', 'Every video part must be uploaded', 400);
+  }
+  for (let index = 0; index < count; index += 1) {
+    const expectedNumber = index + 1;
+    const saved = stored[index];
+    const provided = supplied[index];
+    if (
+      saved.partNumber !== expectedNumber ||
+      provided?.partNumber !== expectedNumber ||
+      provided.etag !== saved.etag ||
+      saved.sizeBytes !== expectedPartSize(upload, expectedNumber)
+    ) {
+      throw new ServiceError(
+        'VALIDATION_FAILED',
+        'Completed video parts are invalid',
+        400,
+      );
+    }
+  }
+}
+
+function expectedPartSize(upload: UploadRow, partNumber: number) {
+  const count = Math.ceil(upload.expected_size_bytes / upload.part_size_bytes);
+  if (!Number.isInteger(partNumber) || partNumber < 1 || partNumber > count) return null;
+  if (partNumber < count) return upload.part_size_bytes;
+  return upload.expected_size_bytes - upload.part_size_bytes * (count - 1);
+}
+
+function isExpired(upload: UploadRow, now: Date) {
+  return (
+    ['creating', 'uploading', 'completing'].includes(upload.status) &&
+    Date.parse(upload.expires_at) <= now.getTime()
   );
 }
 
-function safeFileName(projectName: string, projectId: string) {
-  const slug = projectName
-    .normalize('NFKD')
-    .replace(/[^a-zA-Z0-9_-]+/g, '-')
+function markExpired(db: D1Database, uploadId: string) {
+  return db
+    .prepare(
+      `UPDATE video_uploads SET status = 'expired', updated_at = CURRENT_TIMESTAMP
+       WHERE id = ? AND status IN ('creating', 'uploading', 'completing')`,
+    )
+    .bind(uploadId)
+    .run();
+}
+
+function isVideoSlotConflict(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    message.includes('video_uploads_active_project_idx') ||
+    message.includes('active project video exists') ||
+    message.includes('UNIQUE constraint failed: video_uploads.project_id')
+  );
+}
+
+function videoOriginalKey(projectId: string, videoId: string, fileName: string) {
+  const safeName = fileName
+    .normalize('NFKC')
+    .replace(/[^a-zA-Z0-9._-]+/g, '-')
     .replace(/^-+|-+$/g, '')
-    .slice(0, 80);
-  return `${slug || projectId}.mp4`;
+    .slice(0, 100);
+  return `projects/${encodeURIComponent(projectId)}/videos/${videoId}/original/${safeName || 'video'}`;
 }

@@ -2,18 +2,16 @@ import {env, SELF} from 'cloudflare:test';
 import {beforeEach, describe, expect, it} from 'vitest';
 
 import type {ProjectWriteRequest} from '../../src/shared/projects';
-import worker from '../../src/worker';
-import {streamGateway, streamMode} from '../../src/worker/integrations/stream';
-import {FakeStreamGateway} from '../../src/worker/integrations/stream/fake';
-import {RealStreamGateway} from '../../src/worker/integrations/stream/real';
-import {loudnessGain} from '../../src/worker/services/videos';
+import {MAX_VIDEO_BYTES, VIDEO_PART_SIZE} from '../../src/worker/services/videos';
 import {createSessionCookie} from '../auth/fixture';
 
 const base = 'https://hackweek.test/api';
-const webhookSecret = 'test-webhook-secret';
 let suffix = 0;
 let ownerToken: string;
+let memberToken: string;
 let outsiderToken: string;
+let ownerId: string;
+let memberId: string;
 let projectId: string;
 let yearId: string;
 let groupId: string;
@@ -24,351 +22,332 @@ beforeEach(async () => {
     sub: `video-owner-${suffix}`,
     email: `video-owner-${suffix}@sentry.io`,
   });
+  memberToken = await createSessionCookie({
+    sub: `video-member-${suffix}`,
+    email: `video-member-${suffix}@sentry.io`,
+  });
   outsiderToken = await createSessionCookie({
     sub: `video-outsider-${suffix}`,
     email: `video-outsider-${suffix}@sentry.io`,
   });
-  await session(ownerToken);
-  await session(outsiderToken);
-  yearId = `video-year-${suffix}`;
-  groupId = `video-group-${suffix}`;
+  await Promise.all([session(ownerToken), session(memberToken), session(outsiderToken)]);
   const owner = await env.DB.prepare('SELECT id FROM users WHERE google_subject = ?')
     .bind(`video-owner-${suffix}`)
     .first<{id: string}>();
+  const member = await env.DB.prepare('SELECT id FROM users WHERE google_subject = ?')
+    .bind(`video-member-${suffix}`)
+    .first<{id: string}>();
+  ownerId = owner!.id;
+  memberId = member!.id;
+  yearId = `zzzz-video-year-${String(suffix).padStart(4, '0')}`;
+  groupId = `video-group-${suffix}`;
   await env.DB.batch([
     env.DB.prepare('INSERT INTO years (id) VALUES (?)').bind(yearId),
     env.DB.prepare(
       `INSERT INTO groups (id, source_id, year_id, name, creator_id)
        VALUES (?, ?, ?, 'Video group', ?)`,
-    ).bind(groupId, groupId, yearId, owner!.id),
+    ).bind(groupId, groupId, yearId, ownerId),
   ]);
-  const created = await api('/projects', ownerToken, {
-    method: 'POST',
-    body: projectPayload(),
-  });
-  expect(created.status, JSON.stringify(created.body)).toBe(201);
-  projectId = created.body.project.id;
+  projectId = await createProject('Video project');
+  await env.DB.prepare('INSERT INTO project_members (project_id, user_id) VALUES (?, ?)')
+    .bind(projectId, memberId)
+    .run();
 });
 
-describe('Cloudflare Stream gateways', () => {
-  it('fails closed without creating fake records when Stream is disabled', async () => {
-    const disabledEnv = new Proxy(env, {
-      get(target, property, receiver) {
-        return property === 'STREAM_MODE'
-          ? 'disabled'
-          : Reflect.get(target, property, receiver);
-      },
-    });
-    expect(streamMode(disabledEnv)).toBe('disabled');
-    expect(() => streamGateway(disabledEnv)).toThrow(
-      'Video processing is temporarily unavailable',
-    );
-
-    const response = await worker.request(
-      `${base}/projects/${projectId}/video/upload`,
-      {
-        method: 'POST',
-        headers: {
-          Cookie: ownerToken,
-          Origin: 'https://hackweek.test',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({fileName: 'demo.mp4', fileSize: 300_000_000}),
-      },
-      disabledEnv,
-    );
-    const stored = await env.DB.prepare(
-      'SELECT COUNT(*) count FROM project_videos WHERE project_id = ?',
-    )
-      .bind(projectId)
-      .first<{count: number}>();
-
-    expect(response.status).toBe(503);
-    expect(await response.json()).toEqual({
-      error: {
-        code: 'SERVICE_UNAVAILABLE',
-        message: 'Video processing is temporarily unavailable',
-      },
-    });
-    expect(stored?.count).toBe(0);
-  });
-
-  it('creates constrained direct tus requests without exposing the API token', async () => {
-    const requests: Request[] = [];
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = async (input, init) => {
-      const request = new Request(input, init);
-      requests.push(request);
-      return new Response(null, {
-        status: 201,
-        headers: {
-          Location: 'https://upload.videodelivery.net/tus-once',
-          'stream-media-id': 'stream-real-uid',
-        },
-      });
-    };
-    try {
-      const gateway = new RealStreamGateway('account-1', 'super-secret-token');
-      const upload = await gateway.createDirectUpload({
-        creator: 'user-1',
-        fileName: 'demo reel.mp4',
-        fileSize: 300_000_000,
-        maxDurationSeconds: 600,
-        allowedOrigin: 'hackweek.example.com',
-        expiresAt: new Date('2030-01-01T00:30:00.000Z'),
-      });
-      expect(upload).toMatchObject({uid: 'stream-real-uid', protocol: 'tus'});
-      expect(requests[0].url).toContain('/stream?direct_user=true');
-      expect(requests[0].headers.get('Authorization')).toBe('Bearer super-secret-token');
-      expect(requests[0].headers.get('Upload-Length')).toBe('300000000');
-      expect(requests[0].headers.get('Tus-Resumable')).toBe('1.0.0');
-      const metadata = requests[0].headers.get('Upload-Metadata')!;
-      expect(metadata).toContain('requiresignedurls');
-      expect(metadata).toContain(`maxdurationseconds ${btoa('600')}`);
-      expect(metadata).toContain(`allowedorigins ${btoa('hackweek.example.com')}`);
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
-  });
-
-  it('keeps the local fake explicit and does not fabricate HLS', async () => {
-    const gateway = new FakeStreamGateway();
-    const upload = await gateway.createDirectUpload({
-      creator: 'user',
-      fileName: 'demo.mp4',
-      fileSize: 42,
-      maxDurationSeconds: 600,
-      allowedOrigin: 'hackweek.test',
-      expiresAt: new Date('2030-01-01T00:30:00Z'),
-    });
-    const token = await gateway.createPlaybackToken(
-      upload.uid,
-      new Date('2030-01-01T00:15:00Z'),
-    );
-    expect(upload.uploadUrl).toMatch(/^https:\/\/upload\.videodelivery\.net\/fake\//);
-    expect(token).toMatch(/^fake\.playback\./);
-    expect(token).not.toContain('m3u8');
-  });
-});
-
-describe('video lifecycle APIs', () => {
-  it('authorizes one direct primary upload and returns no secrets or bytes', async () => {
-    const forbidden = await api(`/projects/${projectId}/video/upload`, outsiderToken, {
-      method: 'POST',
-      body: {fileName: 'demo.mp4', fileSize: 300_000_000},
-    });
-    const created = await api(`/projects/${projectId}/video/upload`, ownerToken, {
-      method: 'POST',
-      body: {fileName: 'demo.mp4', fileSize: 300_000_000},
-    });
-    const duplicate = await api(`/projects/${projectId}/video/upload`, ownerToken, {
-      method: 'POST',
-      body: {fileName: 'another.mp4', fileSize: 10},
-    });
-
+describe('R2 multipart video lifecycle', () => {
+  it('streams resumable parts, completes idempotently, and records the queued handoff', async () => {
+    const forbidden = await createUpload(projectId, outsiderToken, 11);
     expect(forbidden.status).toBe(403);
+
+    const created = await createUpload(projectId, memberToken, 11);
     expect(created.status).toBe(201);
-    expect(created.body.upload).toMatchObject({protocol: 'tus', chunkSize: 52_428_800});
-    expect(created.body.video.status).toBe('uploading');
-    const serialized = JSON.stringify(created.body);
-    expect(serialized).not.toMatch(/api.?token|secret|fileSize|fileName/i);
-    expect(duplicate.status).toBe(409);
-  });
+    expect(created.body.video).toBeNull();
+    expect(created.body.upload).toMatchObject({
+      projectId,
+      fileSize: 11,
+      partSize: VIDEO_PART_SIZE,
+      status: 'uploading',
+      completedParts: [],
+    });
 
-  it('verifies webhooks and deduplicates lifecycle events', async () => {
-    const created = await createUpload();
-    const payload = JSON.stringify({
-      uid: created.video.streamUid,
-      readyToStream: true,
-      modified: '2030-01-01T00:00:00Z',
-      duration: 92.5,
-      status: {state: 'ready', pctComplete: '100.000000'},
+    const uploadId = created.body.upload.uploadId as string;
+    const firstPart = await putPart(
+      projectId,
+      uploadId,
+      1,
+      new TextEncoder().encode('hello video'),
+      memberToken,
+    );
+    const duplicatePart = await putPart(
+      projectId,
+      uploadId,
+      1,
+      new TextEncoder().encode('hello video'),
+      memberToken,
+    );
+    expect(firstPart.status).toBe(200);
+    expect(duplicatePart.body.part.etag).toBe(firstPart.body.part.etag);
+
+    const resumed = await api(
+      `/projects/${projectId}/video/upload/${uploadId}`,
+      memberToken,
+    );
+    expect(resumed.body.upload.completedParts).toEqual([firstPart.body.part]);
+
+    const parts = [
+      {
+        partNumber: firstPart.body.part.partNumber,
+        etag: firstPart.body.part.etag,
+      },
+    ];
+    const completed = await api(
+      `/projects/${projectId}/video/upload/${uploadId}/complete`,
+      memberToken,
+      {method: 'POST', body: {parts}},
+    );
+    const duplicateCompletion = await api(
+      `/projects/${projectId}/video/upload/${uploadId}/complete`,
+      memberToken,
+      {method: 'POST', body: {parts}},
+    );
+
+    expect(completed.status).toBe(200);
+    expect(completed.body.video).toMatchObject({
+      projectId,
+      status: 'queued',
+      sizeBytes: 11,
+      originalName: 'demo.mp4',
+      processingAttempt: 1,
     });
-    const invalid = await SELF.fetch(`${base}/stream-webhook`, {
-      method: 'POST',
-      headers: {'Webhook-Signature': 'time=1,sig1=bad'},
-      body: payload,
-    });
-    const signature = await webhookSignature(payload);
-    const first = await SELF.fetch(`${base}/stream-webhook`, {
-      method: 'POST',
-      headers: {'Webhook-Signature': signature},
-      body: payload,
-    });
-    const duplicate = await SELF.fetch(`${base}/stream-webhook`, {
-      method: 'POST',
-      headers: {'Webhook-Signature': signature},
-      body: payload,
-    });
+    expect(duplicateCompletion.body.video.id).toBe(completed.body.video.id);
+
     const stored = await env.DB.prepare(
-      'SELECT status, duration_seconds FROM project_videos WHERE id = ?',
+      `SELECT original_r2_key FROM project_videos WHERE id = ?`,
     )
-      .bind(created.video.id)
-      .first<{status: string; duration_seconds: number}>();
-    const eventCount = await env.DB.prepare(
-      'SELECT COUNT(*) count FROM stream_events WHERE stream_uid = ?',
+      .bind(completed.body.video.id)
+      .first<{original_r2_key: string}>();
+    const attempt = await env.DB.prepare(
+      `SELECT attempt, status FROM video_processing_attempts WHERE video_id = ?`,
     )
-      .bind(created.video.streamUid)
-      .first<{count: number}>();
-
-    expect(invalid.status).toBe(401);
-    expect(first.status).toBe(200);
-    expect(await first.json()).toMatchObject({handled: true, duplicate: false});
-    expect(await duplicate.json()).toMatchObject({handled: true, duplicate: true});
-    expect(stored).toMatchObject({status: 'measuring', duration_seconds: 92.5});
-    expect(eventCount?.count).toBe(1);
+      .bind(completed.body.video.id)
+      .first<{attempt: number; status: string}>();
+    expect((await env.VIDEOS.head(stored!.original_r2_key))?.size).toBe(11);
+    expect(attempt).toEqual({attempt: 1, status: 'queued'});
   });
 
-  it('clamps exact -16 LUFS gain and only playlists measured ready videos', async () => {
-    const created = await createUpload();
-    await moveToMeasuring(created.video.streamUid);
-    await env.DB.prepare(
-      'INSERT INTO screening_order (year_id, project_id, position) VALUES (?, ?, 0)',
-    )
-      .bind(yearId, projectId)
-      .run();
-
-    const before = await api(`/videos/playlist?year=${yearId}`, ownerToken);
-    const measured = await serviceApi(`/video-jobs/measurements/${created.video.id}`, {
-      method: 'POST',
-      body: {loudnessLufs: -31, durationSeconds: 92.5},
-    });
-    const after = await api(`/videos/playlist?year=${yearId}`, ownerToken);
-    const playback = await api(`/videos/${created.video.id}/playback`, ownerToken);
-
-    expect(loudnessGain(-31)).toBe(12);
-    expect(loudnessGain(0)).toBe(-12);
-    expect(loudnessGain(-18.5)).toBe(2.5);
-    expect(before.body.videos).toEqual([]);
-    expect(measured.body.video).toMatchObject({status: 'ready', gainDb: 12});
-    expect(after.body.videos).toEqual([
-      expect.objectContaining({videoId: created.video.id, gainDb: 12}),
+  it('enforces one active project slot in D1 while different projects stay independent', async () => {
+    const sameProject = await Promise.all([
+      createUpload(projectId, ownerToken, 20),
+      createUpload(projectId, ownerToken, 20),
     ]);
-    expect(playback.body).toMatchObject({mode: 'fake', manifestUrl: null});
-    expect(playback.headers.get('Cache-Control')).toBe('private, no-store');
+    expect(sameProject.map(({status}) => status).sort((a, b) => a - b)).toEqual([
+      201, 409,
+    ]);
+
+    const left = await createProject('Independent left');
+    const right = await createProject('Independent right');
+    const independent = await Promise.all([
+      createUpload(left, ownerToken, 20),
+      createUpload(right, ownerToken, 20),
+    ]);
+    expect(independent.map(({status}) => status)).toEqual([201, 201]);
+
+    const activeIndex = await env.DB.prepare(
+      `SELECT sql FROM sqlite_master WHERE type = 'index'
+       AND name = 'project_videos_active_project_idx'`,
+    ).first<{sql: string}>();
+    expect(activeIndex?.sql).toContain('WHERE retired_at IS NULL');
   });
 
-  it('promotes selected historical R2 video media through the same record', async () => {
-    const mediaId = `video-media-${suffix}`;
-    await env.DB.prepare(
-      `INSERT INTO media
-        (id, source_id, project_id, original_name, r2_key, media_type, status)
-       VALUES (?, ?, ?, 'old-demo.mp4', ?, 'video/mp4', 'available')`,
+  it('retires only with confirmation, retains the original, and requires a fresh replacement', async () => {
+    const {video, key} = await completeSmallUpload(projectId, ownerToken, 'first video');
+    const unconfirmed = await api(`/projects/${projectId}/video`, ownerToken, {
+      method: 'DELETE',
+      body: {confirmed: false},
+    });
+    expect(unconfirmed.status).toBe(400);
+
+    const retired = await api(`/projects/${projectId}/video`, ownerToken, {
+      method: 'DELETE',
+      body: {confirmed: true},
+    });
+    expect(retired.status).toBe(204);
+    expect(await env.VIDEOS.head(key)).not.toBeNull();
+    const retiredRow = await env.DB.prepare(
+      'SELECT status, original_r2_key FROM project_videos WHERE id = ?',
     )
-      .bind(mediaId, mediaId, projectId, `media/${mediaId}.mp4`)
-      .run();
+      .bind(video.id)
+      .first<{status: string; original_r2_key: string}>();
+    expect(retiredRow).toEqual({status: 'retired', original_r2_key: key});
+    const attempt = await env.DB.prepare(
+      'SELECT status FROM video_processing_attempts WHERE video_id = ?',
+    )
+      .bind(video.id)
+      .first<{status: string}>();
+    expect(attempt?.status).toBe('cancelled');
+
+    const replacement = await createUpload(projectId, ownerToken, 7);
+    expect(replacement.status).toBe(201);
+    expect(replacement.body.upload.videoId).not.toBe(video.id);
+    expect(replacement.body.upload.uploadId).not.toBe(video.id);
+
     const promoted = await api(`/projects/${projectId}/video/promote`, ownerToken, {
       method: 'POST',
-      body: {sourceMediaId: mediaId},
+      body: {sourceMediaId: 'attachment-id'},
     });
-
-    expect(promoted.status).toBe(201);
-    expect(promoted.body.video).toMatchObject({
-      projectId,
-      sourceMediaId: mediaId,
-      status: 'processing',
-    });
+    expect(promoted.status).toBe(404);
   });
 
-  it('uses distinct service auth and keeps archive off readiness', async () => {
-    const created = await createUpload();
-    await moveToMeasuring(created.video.streamUid);
-    await serviceApi(`/video-jobs/measurements/${created.video.id}`, {
+  it('rejects malformed, oversized, closed, idea, stale, and incomplete requests deterministically', async () => {
+    const malformed = await api(`/projects/${projectId}/video/upload`, ownerToken, {
       method: 'POST',
-      body: {loudnessLufs: -16, durationSeconds: 20},
+      body: {fileName: 'demo.mp4', fileSize: 10, contentType: 'text/plain'},
     });
-    const unauthenticated = await SELF.fetch(`${base}/video-jobs/archives`);
-    const queue = await serviceApi('/video-jobs/archives');
-    const failed = await serviceApi(`/video-jobs/archives/${created.video.id}`, {
-      method: 'POST',
-      body: {status: 'failed', error: 'Drive quota exhausted'},
-    });
-    const stillReady = await env.DB.prepare(
-      'SELECT status, archive_status FROM project_videos WHERE id = ?',
-    )
-      .bind(created.video.id)
-      .first<{status: string; archive_status: string}>();
-
-    expect(unauthenticated.status).toBe(401);
-    expect(queue.body.videos).toContainEqual(
-      expect.objectContaining({videoId: created.video.id}),
+    const oversized = await createUpload(projectId, ownerToken, MAX_VIDEO_BYTES + 1);
+    expect(malformed.status).toBe(400);
+    expect(oversized.status).toBe(400);
+    const maximumProject = await createProject('Maximum declaration');
+    const maximum = await createUpload(maximumProject, ownerToken, MAX_VIDEO_BYTES);
+    expect(maximum.status).toBe(201);
+    await api(
+      `/projects/${maximumProject}/video/upload/${maximum.body.upload.uploadId}`,
+      ownerToken,
+      {method: 'DELETE'},
     );
-    expect(failed.body.video).toMatchObject({status: 'ready', archiveStatus: 'failed'});
-    expect(stillReady).toEqual({status: 'ready', archive_status: 'failed'});
+
+    const ideaId = `video-idea-${suffix}`;
+    await env.DB.prepare(
+      `INSERT INTO projects
+        (id, source_id, year_id, creator_id, group_id, name, kind)
+       VALUES (?, ?, ?, ?, ?, 'Video idea', 'idea')`,
+    )
+      .bind(ideaId, ideaId, yearId, ownerId, groupId)
+      .run();
+    expect((await createUpload(ideaId, ownerToken, 10)).status).toBe(400);
+
+    await env.DB.prepare('UPDATE years SET submissions_closed = 1 WHERE id = ?')
+      .bind(yearId)
+      .run();
+    expect((await createUpload(projectId, ownerToken, 10)).status).toBe(403);
+    await env.DB.prepare('UPDATE years SET submissions_closed = 0 WHERE id = ?')
+      .bind(yearId)
+      .run();
+
+    const created = await createUpload(projectId, ownerToken, 10);
+    const uploadId = created.body.upload.uploadId as string;
+    const incomplete = await api(
+      `/projects/${projectId}/video/upload/${uploadId}/complete`,
+      ownerToken,
+      {method: 'POST', body: {parts: [{partNumber: 1, etag: 'missing'}]}},
+    );
+    expect(incomplete.status).toBe(400);
+
+    await env.DB.prepare(
+      `UPDATE video_uploads SET expires_at = '2000-01-01T00:00:00.000Z' WHERE id = ?`,
+    )
+      .bind(uploadId)
+      .run();
+    const expired = await putPart(projectId, uploadId, 1, new Uint8Array(10), ownerToken);
+    expect(expired.status).toBe(409);
+    expect(expired.body.error.message).toBe('Upload session has expired');
   });
 
-  it('exposes measurement failures as retryable state', async () => {
-    const created = await createUpload();
-    await moveToMeasuring(created.video.streamUid);
-    const failed = await serviceApi(
-      `/video-jobs/measurements/${created.video.id}/failure`,
-      {method: 'POST', body: {error: 'No audio stream'}},
+  it('allows aborting incomplete uploads idempotently but never completed objects', async () => {
+    const created = await createUpload(projectId, ownerToken, 8);
+    const uploadId = created.body.upload.uploadId as string;
+    const first = await api(
+      `/projects/${projectId}/video/upload/${uploadId}`,
+      ownerToken,
+      {method: 'DELETE'},
     );
-    const stored = await env.DB.prepare(
-      'SELECT status, failure_stage FROM project_videos WHERE id = ?',
-    )
-      .bind(created.video.id)
-      .first<{status: string; failure_stage: string}>();
-    const retried = await api(`/videos/${created.video.id}/retry`, ownerToken, {
-      method: 'POST',
-    });
-
-    expect(failed.status).toBe(204);
-    expect(stored).toEqual({status: 'failed', failure_stage: 'measurement'});
-    expect(retried.body.video.status).toBe('measuring');
+    const duplicate = await api(
+      `/projects/${projectId}/video/upload/${uploadId}`,
+      ownerToken,
+      {method: 'DELETE'},
+    );
+    expect(first.status).toBe(204);
+    expect(duplicate.status).toBe(204);
   });
 });
 
-async function createUpload() {
-  const response = await api(`/projects/${projectId}/video/upload`, ownerToken, {
-    method: 'POST',
-    body: {fileName: 'demo.mp4', fileSize: 300_000_000},
-  });
-  expect(response.status).toBe(201);
-  return response.body;
-}
-
-async function moveToMeasuring(streamUid: string) {
-  const payload = JSON.stringify({
-    uid: streamUid,
-    readyToStream: true,
-    modified: `2030-01-01T00:00:0${suffix % 10}Z`,
-    duration: 20,
-    status: {state: 'ready', pctComplete: '100'},
-  });
-  const response = await SELF.fetch(`${base}/stream-webhook`, {
-    method: 'POST',
-    headers: {'Webhook-Signature': await webhookSignature(payload)},
-    body: payload,
-  });
-  expect(response.status).toBe(200);
-}
-
-async function webhookSignature(body: string) {
-  const timestamp = Math.floor(Date.now() / 1000);
-  const key = await crypto.subtle.importKey(
-    'raw',
-    new TextEncoder().encode(webhookSecret),
-    {name: 'HMAC', hash: 'SHA-256'},
-    false,
-    ['sign'],
+async function completeSmallUpload(project: string, token: string, bytes: string) {
+  const created = await createUpload(project, token, bytes.length);
+  expect(created.status).toBe(201);
+  const uploadId = created.body.upload.uploadId as string;
+  const part = await putPart(
+    project,
+    uploadId,
+    1,
+    new TextEncoder().encode(bytes),
+    token,
   );
-  const digest = await crypto.subtle.sign(
-    'HMAC',
-    key,
-    new TextEncoder().encode(`${timestamp}.${body}`),
+  expect(part.status).toBe(200);
+  const completed = await api(
+    `/projects/${project}/video/upload/${uploadId}/complete`,
+    token,
+    {
+      method: 'POST',
+      body: {
+        parts: [{partNumber: 1, etag: part.body.part.etag}],
+      },
+    },
   );
-  const signature = [...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('');
-  return `time=${timestamp},sig1=${signature}`;
+  expect(completed.status).toBe(200);
+  const stored = await env.DB.prepare(
+    'SELECT original_r2_key FROM project_videos WHERE id = ?',
+  )
+    .bind(completed.body.video.id)
+    .first<{original_r2_key: string}>();
+  return {video: completed.body.video, key: stored!.original_r2_key};
 }
 
-function projectPayload(): ProjectWriteRequest {
+function createUpload(project: string, token: string, fileSize: number) {
+  return api(`/projects/${project}/video/upload`, token, {
+    method: 'POST',
+    body: {fileName: 'demo.mp4', fileSize, contentType: 'video/mp4'},
+  });
+}
+
+async function putPart(
+  project: string,
+  uploadId: string,
+  partNumber: number,
+  body: Uint8Array,
+  token: string,
+) {
+  const response = await SELF.fetch(
+    `${base}/projects/${project}/video/upload/${uploadId}/parts/${partNumber}`,
+    {
+      method: 'PUT',
+      headers: {
+        Cookie: token,
+        Origin: 'https://hackweek.test',
+        'Content-Type': 'application/octet-stream',
+        'Content-Length': String(body.byteLength),
+      },
+      body: body.buffer.slice(
+        body.byteOffset,
+        body.byteOffset + body.byteLength,
+      ) as ArrayBuffer,
+    },
+  );
+  return parseResponse(response);
+}
+
+async function createProject(name: string) {
+  const response = await api('/projects', ownerToken, {
+    method: 'POST',
+    body: projectPayload(name),
+  });
+  expect(response.status, JSON.stringify(response.body)).toBe(201);
+  return response.body.project.id as string;
+}
+
+function projectPayload(name: string): ProjectWriteRequest {
   return {
     yearId,
-    name: 'Video project',
-    summary: 'Project with a directly uploaded primary demo video.',
+    name,
+    summary: 'Project with a multipart R2 video.',
     repository: null,
     kind: 'project',
     groupId,
@@ -379,9 +358,7 @@ function projectPayload(): ProjectWriteRequest {
 }
 
 function session(token: string) {
-  return SELF.fetch(`${base}/session`, {
-    headers: {Cookie: token},
-  });
+  return SELF.fetch(`${base}/session`, {headers: {Cookie: token}});
 }
 
 async function api(
@@ -396,18 +373,6 @@ async function api(
       ...(options.method && options.method !== 'GET'
         ? {Origin: 'https://hackweek.test'}
         : {}),
-      ...(options.body === undefined ? {} : {'Content-Type': 'application/json'}),
-    },
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
-  });
-  return parseResponse(response);
-}
-
-async function serviceApi(path: string, options: {method?: string; body?: unknown} = {}) {
-  const response = await SELF.fetch(`${base}${path}`, {
-    method: options.method,
-    headers: {
-      Authorization: 'Bearer test-video-service-token',
       ...(options.body === undefined ? {} : {'Content-Type': 'application/json'}),
     },
     body: options.body === undefined ? undefined : JSON.stringify(options.body),

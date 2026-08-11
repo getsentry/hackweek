@@ -24,13 +24,6 @@ export {VideoProcessingWorkflow} from './workflows/video-processing';
 
 export interface VideoBindings {
   VIDEOS: R2Bucket;
-  STREAM_MODE?: string;
-  STREAM_ACCOUNT_ID?: string;
-  STREAM_API_TOKEN?: string;
-  STREAM_WEBHOOK_SECRET?: string;
-  STREAM_ALLOWED_ORIGIN?: string;
-  STREAM_DELIVERY_HOST?: string;
-  VIDEO_SERVICE_TOKEN?: string;
   VIDEO_PROCESSING_WORKFLOW: Workflow<VideoProcessingParams>;
   VIDEO_PROCESSOR: DurableObjectNamespace<VideoProcessorContainer>;
   VIDEO_PROCESSOR_CONCURRENCY: string;

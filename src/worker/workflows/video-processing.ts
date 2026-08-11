@@ -49,12 +49,18 @@ export class VideoProcessingWorkflow extends WorkflowEntrypoint<
           ),
       );
     } catch (error) {
+      const message = errorMessage(error);
+      logVideoProcessing('error', 'claim_failed', {videoId, attempt, message});
       await step.do('record claim failure', () =>
-        failVideoProcessingAttempt(this.env.DB, videoId, attempt, errorMessage(error)),
+        failVideoProcessingAttempt(this.env.DB, videoId, attempt, message),
       );
       return {status: 'failed', stage: 'claim'};
     }
-    if (claim.status === 'stale') return {status: 'stale'};
+    if (claim.status === 'stale') {
+      logVideoProcessing('info', 'stale_before_processing', {videoId, attempt});
+      return {status: 'stale'};
+    }
+    logVideoProcessing('info', 'processing_started', {videoId, attempt});
 
     let result: VideoProcessorResult;
     try {
@@ -83,8 +89,10 @@ export class VideoProcessingWorkflow extends WorkflowEntrypoint<
         },
       );
     } catch (error) {
+      const message = errorMessage(error);
+      logVideoProcessing('error', 'processor_failed', {videoId, attempt, message});
       await step.do('record processor failure', () =>
-        failVideoProcessingAttempt(this.env.DB, videoId, attempt, errorMessage(error)),
+        failVideoProcessingAttempt(this.env.DB, videoId, attempt, message),
       );
       return {status: 'failed', stage: 'processor'};
     }
@@ -97,6 +105,15 @@ export class VideoProcessingWorkflow extends WorkflowEntrypoint<
         claim.outputKey,
         result,
       ),
+    );
+    logVideoProcessing(
+      'info',
+      published ? 'processing_ready' : 'stale_after_processing',
+      {
+        videoId,
+        attempt,
+        durationSeconds: result.durationSeconds,
+      },
     );
     return {status: published ? 'ready' : 'stale', result};
   }
@@ -161,5 +178,13 @@ function invalidProcessorResult() {
 }
 
 function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
+  return (error instanceof Error ? error.message : String(error)).slice(0, 500);
+}
+
+function logVideoProcessing(
+  level: 'info' | 'error',
+  event: string,
+  fields: Record<string, unknown>,
+) {
+  console[level](JSON.stringify({component: 'video-processing', event, ...fields}));
 }

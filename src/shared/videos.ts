@@ -1,8 +1,5 @@
-export type StreamMode = 'disabled' | 'fake' | 'real';
-
 export type VideoStatus = 'queued' | 'processing' | 'ready' | 'failed';
 export type VideoFailureStage = 'processing';
-export type ArchiveStatus = 'pending' | 'archiving' | 'archived' | 'failed';
 export type VideoUploadStatus =
   | 'creating'
   | 'uploading'

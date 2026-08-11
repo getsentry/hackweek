@@ -6,6 +6,6 @@ GOOGLE_CLIENT_SECRET=<secret from the shared vault; never commit>
 GOOGLE_REDIRECT_URI=http://localhost:5173/api/auth/callback
 ALLOWED_EMAIL_DOMAIN="sentry.io"
 
-# R2 uploads are processed by the local Workflow and pinned FFmpeg Container.
+# R2 uploads use the local Workflow and pinned FFmpeg Container declared in
+# wrangler.jsonc. No Cloudflare video credentials or remote resources are needed.
 # Ready derivatives play through the authenticated same-origin MP4 endpoint.
-VIDEO_SERVICE_TOKEN="replace-with-a-local-job-token"

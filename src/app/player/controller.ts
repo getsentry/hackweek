@@ -9,12 +9,15 @@ export interface PlayerState {
   index: number;
   error: string | null;
   countdownSeconds: number | null;
+  currentTime: number;
+  durationSeconds: number;
 }
 
 export interface ScreeningController {
   start(index?: number): Promise<void>;
   jumpTo(index: number): Promise<void>;
   togglePause(): Promise<void>;
+  seek(time: number): void;
   skip(): Promise<void>;
   destroy(): void;
 }
@@ -42,6 +45,8 @@ export function createScreeningController({
   let active: 0 | 1 = 0;
   let phase: PlayerPhase = 'idle';
   let countdownSeconds: number | null = null;
+  let currentTime = 0;
+  let durationSeconds = playlist[0]?.durationSeconds ?? 0;
   let destroyed = false;
   let operation = 0;
   let transitionTimer: ReturnType<typeof setTimeout> | null = null;
@@ -50,14 +55,25 @@ export function createScreeningController({
   const attachedVideoIds: [string | null, string | null] = [null, null];
   const slotOperations: [number, number] = [0, 0];
   const notify = (error: string | null = null) =>
-    onState({phase, index, error, countdownSeconds});
+    onState({phase, index, error, countdownSeconds, currentTime, durationSeconds});
 
   const endedHandlers = elements.map((_element, slot) => () => {
     if (phase === 'playing' && slot === active) void advance();
   });
-  elements.forEach((element, slot) =>
-    element.addEventListener('ended', endedHandlers[slot]),
-  );
+  const progressHandlers = elements.map((element, slot) => () => {
+    if (slot !== active) return;
+    currentTime = finiteMediaTime(element.currentTime, currentTime);
+    durationSeconds = finiteMediaTime(
+      element.duration,
+      playlist[index]?.durationSeconds ?? durationSeconds,
+    );
+    notify();
+  });
+  elements.forEach((element, slot) => {
+    element.addEventListener('ended', endedHandlers[slot]);
+    element.addEventListener('timeupdate', progressHandlers[slot]);
+    element.addEventListener('durationchange', progressHandlers[slot]);
+  });
 
   function clearTransitionTimers() {
     if (transitionTimer) clearTimeout(transitionTimer);
@@ -130,6 +146,8 @@ export function createScreeningController({
     if (destroyed) return;
     clearTransitionTimers();
     const currentOperation = ++operation;
+    currentTime = 0;
+    durationSeconds = playlist[index]?.durationSeconds ?? 0;
     phase = 'title';
     notify();
     await prepare(index, active);
@@ -210,6 +228,13 @@ export function createScreeningController({
         }
       }
     },
+    seek(time) {
+      if (!['playing', 'paused'].includes(phase) || !Number.isFinite(time)) return;
+      const next = Math.max(0, Math.min(time, durationSeconds));
+      elements[active].currentTime = next;
+      currentTime = next;
+      notify();
+    },
     async skip() {
       if (phase === 'idle' || phase === 'complete') return;
       await advance();
@@ -223,9 +248,15 @@ export function createScreeningController({
       elements.forEach((element, slot) => {
         element.pause();
         element.removeEventListener('ended', endedHandlers[slot]);
+        element.removeEventListener('timeupdate', progressHandlers[slot]);
+        element.removeEventListener('durationchange', progressHandlers[slot]);
       });
       attachments.forEach((attachment) => attachment?.destroy());
       void audio.close();
     },
   };
+}
+
+function finiteMediaTime(value: number, fallback: number) {
+  return Number.isFinite(value) && value >= 0 ? value : fallback;
 }

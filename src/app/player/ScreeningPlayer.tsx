@@ -19,11 +19,13 @@ export interface ScreeningPlayerHandle {
   playFrom(videoId: string): void;
 }
 
-const initialState = (index: number): PlayerState => ({
+const initialState = (index: number, durationSeconds: number): PlayerState => ({
   phase: 'idle',
   index,
   error: null,
   countdownSeconds: null,
+  currentTime: 0,
+  durationSeconds,
 });
 
 export const ScreeningPlayer = forwardRef<
@@ -46,7 +48,10 @@ export const ScreeningPlayer = forwardRef<
   const controller = useRef<ScreeningController | null>(null);
   const announcedVideoId = useRef<string | null>(null);
   const requestedIndex = playlist.findIndex((clip) => clip.videoId === initialVideoId);
-  const [state, setState] = useState(initialState(Math.max(0, requestedIndex)));
+  const initialIndex = Math.max(0, requestedIndex);
+  const [state, setState] = useState(
+    initialState(initialIndex, playlist[initialIndex]?.durationSeconds ?? 0),
+  );
   const clip = playlist[state.index];
 
   const publishState = useCallback(
@@ -114,8 +119,11 @@ export const ScreeningPlayer = forwardRef<
 
   const activeSlot = state.index % 2;
   const showingTitle = state.phase === 'title';
-  const team = clip.teamMembers.join(' · ') || 'Hackweek team';
+  const team =
+    clip.teamMembers.map(({displayName}) => displayName).join(' · ') || 'Hackweek team';
   const projectMeta = [clip.groupName, team].filter(Boolean).join(' · ');
+  const canSeek = ['playing', 'paused'].includes(state.phase);
+  const timelineDuration = state.durationSeconds || clip.durationSeconds;
 
   return (
     <div className="screeningPlayer" ref={shell} tabIndex={-1}>
@@ -147,7 +155,7 @@ export const ScreeningPlayer = forwardRef<
           )}
         </div>
         {['playing', 'paused'].includes(state.phase) && (
-          <div className="clipOverlay" aria-live="polite">
+          <div className="clipOverlay" aria-live="polite" key={clip.videoId}>
             <strong>{clip.projectName}</strong>
             <span>{projectMeta}</span>
           </div>
@@ -188,6 +196,22 @@ export const ScreeningPlayer = forwardRef<
         )}
       </div>
       <div className="screeningControls" aria-label="Playback controls">
+        <div className="screeningTimeline">
+          <span>{formatPlaybackTime(state.currentTime)}</span>
+          <input
+            type="range"
+            aria-label="video position"
+            min={0}
+            max={Math.max(timelineDuration, 0.1)}
+            step={0.1}
+            value={Math.min(state.currentTime, timelineDuration)}
+            disabled={!canSeek}
+            onChange={(event) =>
+              controller.current?.seek(event.currentTarget.valueAsNumber)
+            }
+          />
+          <span>{formatPlaybackTime(timelineDuration)}</span>
+        </div>
         <button
           disabled={!['playing', 'paused'].includes(state.phase)}
           onClick={() => void controller.current?.togglePause()}
@@ -215,6 +239,11 @@ export const ScreeningPlayer = forwardRef<
     </div>
   );
 });
+
+function formatPlaybackTime(value: number) {
+  const seconds = Math.max(0, Math.floor(value));
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+}
 
 export function handleScreeningShortcut(
   event: Pick<KeyboardEvent, 'code' | 'key' | 'target' | 'preventDefault'>,

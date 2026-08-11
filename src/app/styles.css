@@ -55,6 +55,7 @@ a,
 select,
 input[type='checkbox'],
 input[type='radio'],
+input[type='range'],
 input[type='file'],
 label.uploadAction {
   cursor: pointer;
@@ -1881,6 +1882,7 @@ main {
   box-shadow: 0 22px 55px rgba(29, 17, 39, 0.22);
 }
 .screeningPlayer:fullscreen {
+  position: relative;
   width: 100vw;
   height: 100vh;
   border: 0;
@@ -1892,7 +1894,15 @@ main {
   aspect-ratio: auto;
 }
 .screeningPlayer:fullscreen .screeningControls {
-  display: none;
+  position: absolute;
+  z-index: 5;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: linear-gradient(transparent, rgba(17, 11, 23, 0.94) 35%);
+}
+.screeningPlayer:fullscreen .clipOverlay {
+  bottom: 6.5rem;
 }
 .screeningStage {
   position: relative;
@@ -1925,8 +1935,10 @@ main {
   padding: 0.75rem 0.9rem;
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 0.55rem;
+  pointer-events: none;
   background: rgba(17, 11, 23, 0.78);
   backdrop-filter: blur(10px);
+  animation: clipOverlayFade 4s ease forwards;
 }
 .clipOverlay strong,
 .clipOverlay span {
@@ -2044,6 +2056,22 @@ main {
   gap: 0.5rem;
   align-items: center;
   padding: 0.75rem;
+}
+.screeningTimeline {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: auto minmax(5rem, 1fr) auto;
+  gap: 0.65rem;
+  align-items: center;
+}
+.screeningTimeline input {
+  width: 100%;
+  accent-color: var(--green);
+}
+.screeningControls .screeningTimeline span {
+  margin: 0;
+  color: #d9cae5;
+  font-variant-numeric: tabular-nums;
 }
 .screeningControls button {
   min-height: 2.6rem;
@@ -2169,6 +2197,16 @@ kbd {
   .titleCard h2,
   .startCard h2 {
     font-size: clamp(1.8rem, 10vw, 3rem);
+  }
+}
+
+@keyframes clipOverlayFade {
+  0%,
+  65% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
   }
 }
 

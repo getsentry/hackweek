@@ -50,6 +50,10 @@ describe('dual screening controller', () => {
     expect(vi.mocked(videos[0].play).mock.calls).toHaveLength(1);
     expect(states.at(-1)?.index).toBe(0);
 
+    controller.seek(4.5);
+    expect(videos[0].currentTime).toBe(4.5);
+    expect(states.at(-1)).toMatchObject({currentTime: 4.5, durationSeconds: 10});
+
     videos[1].dispatchEvent(new Event('ended'));
     await Promise.resolve();
     expect(states.at(-1)?.index).toBe(0);
@@ -143,7 +147,10 @@ const playlist: PlaylistItem[] = [
     projectId: 'project-1',
     projectName: 'First',
     groupName: 'Europe',
-    teamMembers: ['Ada', 'Grace'],
+    teamMembers: [
+      {id: 'ada', displayName: 'Ada'},
+      {id: 'grace', displayName: 'Grace'},
+    ],
     durationSeconds: 10,
     gainDb: 6,
     position: 0,
@@ -153,7 +160,7 @@ const playlist: PlaylistItem[] = [
     projectId: 'project-2',
     projectName: 'Second',
     groupName: 'Americas',
-    teamMembers: ['Linus'],
+    teamMembers: [{id: 'linus', displayName: 'Linus'}],
     durationSeconds: 20,
     gainDb: -3,
     position: 1,

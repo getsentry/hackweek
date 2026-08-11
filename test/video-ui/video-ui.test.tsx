@@ -270,6 +270,9 @@ describe('video user experience', () => {
       value: requestFullscreen,
     });
     renderQuery(<ScreeningPlayer playlist={playlist} getPlayback={vi.fn()} />);
+    const timeline = screen.getByRole('slider', {name: 'video position'});
+    expect(timeline.hasAttribute('disabled')).toBe(true);
+    expect(timeline.getAttribute('max')).toBe('30');
     expect(screen.getByRole('button', {name: /pause/}).hasAttribute('disabled')).toBe(
       true,
     );
@@ -340,7 +343,10 @@ const playlist: PlaylistItem[] = [
     projectId: 'project',
     projectName: 'First project',
     groupName: 'Europe',
-    teamMembers: ['Ada Lovelace', 'Grace Hopper'],
+    teamMembers: [
+      {id: 'ada', displayName: 'Ada Lovelace'},
+      {id: 'grace', displayName: 'Grace Hopper'},
+    ],
     durationSeconds: 30,
     gainDb: 0,
     position: 0,
@@ -350,7 +356,7 @@ const playlist: PlaylistItem[] = [
     projectId: 'project-2',
     projectName: 'Second project',
     groupName: 'Americas',
-    teamMembers: ['Linus Torvalds'],
+    teamMembers: [{id: 'linus', displayName: 'Linus Torvalds'}],
     durationSeconds: 45,
     gainDb: -1,
     position: 1,

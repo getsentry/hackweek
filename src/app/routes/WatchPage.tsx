@@ -58,10 +58,7 @@ export function WatchPage() {
                     name={clip.projectName}
                     groupName={clip.groupName ?? 'ungrouped'}
                     detail={`${String(clip.position + 1).padStart(2, '0')} · ${formatDuration(clip.durationSeconds)}`}
-                    members={clip.teamMembers.map((displayName, index) => ({
-                      id: `${clip.videoId}:${index}`,
-                      displayName,
-                    }))}
+                    members={clip.teamMembers}
                     emptyMemberLabel="Hackweek team"
                     actionLabel={`start reel from ${clip.projectName}`}
                     onSelect={() => player.current?.playFrom(clip.videoId)}

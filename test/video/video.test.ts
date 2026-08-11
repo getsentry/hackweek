@@ -666,13 +666,13 @@ describe('R2 multipart video lifecycle', () => {
       projectName: 'Curated second',
       groupName: 'Video group',
       position: 0,
-      teamMembers: ['Hackweek Member'],
+      teamMembers: [{displayName: 'Hackweek Member'}],
     });
     expect(playlist.body.videos[1]).toMatchObject({
       projectName: 'Curated first',
       groupName: 'Video group',
       position: 1,
-      teamMembers: ['Hackweek Member', 'Hackweek Member'],
+      teamMembers: [{displayName: 'Hackweek Member'}, {displayName: 'Hackweek Member'}],
     });
     expect(
       playlist.body.videos.some(

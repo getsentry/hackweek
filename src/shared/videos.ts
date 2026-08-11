@@ -69,7 +69,7 @@ export interface PlaylistItem {
   projectId: string;
   projectName: string;
   groupName: string | null;
-  teamMembers: string[];
+  teamMembers: Array<{id: string; displayName: string}>;
   durationSeconds: number;
   gainDb: number;
   position: number;

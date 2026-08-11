@@ -1,31 +1,46 @@
-# See https://help.github.com/ignore-files/ for more about ignoring files.
-
 # dependencies
 /node_modules
 
-# testing
+# tests
 /coverage
+/.vitest-attachments
 
-# production
+# build output
 /build
+/dist
 
-# misc
-.firebase
+# Cloudflare local state and secrets
+/.wrangler
+.dev.vars*
+!.dev.vars.example
+
+# local environment
+.env
+.env.*
+!.env.example
+
+# editor and operating system
 .DS_Store
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-firebase-debug.log*
 
+# operator-provided migration exports and generated reports
+/migration-input/
+/migration-output/
+/source-database-export/
+/source-storage-export/
+*.source-export.json
+*.migration-report.json
+
+# generated reports and TypeScript state
 junit.xml
-
-# generated
+*.tsbuildinfo
 src/version.json
 
-# videos
+# local documentation
+/docs/
+
+# local videos
 public/videos/

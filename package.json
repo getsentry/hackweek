@@ -2,68 +2,64 @@
   "name": "hackweek",
   "version": "0.1.0",
   "private": true,
-  "dependencies": {
-    "@sentry/react": "^6.7.1",
-    "@sentry/tracing": "^6.7.1",
-    "bootstrap": "3",
-    "canvas-confetti": "^1.9.3",
-    "firebase": "^7.24.0",
-    "firebase-bolt": "^0.8",
-    "framer-motion": "^4.1.17",
-    "idx": "^2.5.6",
-    "marked": "^0.3.6",
-    "moment": "^2.29.1",
-    "react": "^16.14.0",
-    "react-bootstrap": "^0.31.5",
-    "react-dom": "^16.14.0",
-    "react-dropzone": "^4.2.1",
-    "react-google-button": "^0.4.0",
-    "react-gravatar": "^2.6.3",
-    "react-redux": "^5.1.2",
-    "react-redux-firebase": "^1.5.1",
-    "react-router": "^3.2.6",
-    "react-router-scroll": "^0.4.4",
-    "react-scripts": "^5.0.1",
-    "react-select": "^5.10.1",
-    "recharts": "^2.8.0",
-    "redux": "^3.7.2",
-    "summarize-markdown": "^0.3.1"
-  },
+  "type": "module",
   "scripts": {
-    "start": "npm run bind-version && react-scripts start",
-    "bind-version": "echo \"{\\\"version\\\": \\\"$(git rev-parse HEAD)\\\"}\" > src/version.json",
-    "build": "npm run bind-version && react-scripts build",
-    "deploy": "npm run bind-version && NODE_ENV=production firebase deploy --only hosting,database --project hackweek-34e1d",
-    "deploy-dev": "npm run bind-version && NODE_ENV=production firebase deploy -P dev",
-    "predeploy": "npm run bind-version && NODE_ENV=production react-scripts build",
-    "test": "react-scripts test --env=jsdom",
-    "eject": "react-scripts eject"
+    "dev": "vp dev",
+    "start": "vp dev",
+    "typecheck": "tsc -b",
+    "format:check": "vp fmt --check .",
+    "lint": "vp lint src/app src/worker scripts test vite.config.ts vitest.config.ts vitest.app.config.ts vitest.migration.config.ts --deny-warnings",
+    "test": "node scripts/run-worker-tests.mjs && vp test run --config vitest.app.config.ts && vp test run --config vitest.migration.config.ts",
+    "test:worker": "node scripts/run-worker-tests.mjs",
+    "test:app": "vp test run --config vitest.app.config.ts",
+    "test:migration": "vp test run --config vitest.migration.config.ts",
+    "test:readiness": "tsx scripts/local-readiness.ts",
+    "verify": "npm run cf-typegen && npm run typecheck && npm run format:check && npm run lint && npm test && npm run build && npm run deploy:dry-run && npm run test:readiness",
+    "deploy:dry-run": "wrangler deploy --dry-run --config wrangler.production.json --outdir .wrangler/deploy-dry-run",
+    "build": "vp build",
+    "preview": "vp preview",
+    "cf-typegen": "wrangler types worker-configuration.d.ts --config wrangler.production.json",
+    "db:migrate:local": "wrangler d1 migrations apply hackweek-db --local",
+    "migrate:validate": "tsx scripts/migrate/cli.ts validate",
+    "migrate:dry-run": "tsx scripts/migrate/cli.ts dry-run",
+    "migrate:local": "tsx scripts/migrate/cli.ts import --target local",
+    "migrate:cloudflare": "tsx scripts/migrate/cli.ts import --target cloudflare",
+    "migrate:reconcile": "tsx scripts/migrate/cli.ts reconcile",
+    "video:measure": "tsx scripts/measure-loudness.ts",
+    "video:archive": "tsx scripts/archive-to-drive.ts"
+  },
+  "dependencies": {
+    "@fontsource/rubik": "^5.3.0",
+    "@tanstack/react-query": "^5.101.4",
+    "hls.js": "^1.6.16",
+    "hono": "^4.12.34",
+    "jose": "^6.2.8",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "tus-js-client": "^4.3.1",
+    "wouter": "^3.10.0"
   },
   "devDependencies": {
-    "@types/react-select": "^5.0.0",
-    "jest-junit": "^3.1.0"
+    "@cloudflare/vite-plugin": "^1.50.0",
+    "@cloudflare/vitest-pool-workers": "^0.20.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^26.1.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.5",
+    "jsdom": "^26.1.0",
+    "tsx": "^4.23.5",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.0",
+    "vite-plus": "^0.2.7",
+    "vitest": "^4.1.10",
+    "wrangler": "^4.118.0"
   },
-  "jest-junit": {
-    "suiteName": "jest tests",
-    "output": "./junit.xml",
-    "classNameTemplate": "{classname}-{title}",
-    "titleTemplate": "{classname}-{title}",
-    "ancestorSeparator": " › ",
-    "usePathForSuiteName": "true"
-  },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
+  "engines": {
+    "node": ">=24.11.0"
   },
   "volta": {
-    "node": "16.15.1"
+    "node": "24.19.0"
   }
 }

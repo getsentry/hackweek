@@ -1,0 +1,35 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "hackweek",
+  "account_id": "773afa1f62ff86c80db4f24f7ff1e9c8",
+  "main": "./src/worker/index.ts",
+  "compatibility_date": "2026-08-03",
+  "assets": {
+    "directory": "./dist/client",
+    "not_found_handling": "single-page-application",
+    "binding": "ASSETS",
+    "run_worker_first": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "hackweek-db",
+      "database_id": "7063a770-b791-4fcd-aedf-ddf5fff2e312",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "ATTACHMENTS",
+      "bucket_name": "hackweek-attachments"
+    }
+  ],
+  "vars": {
+    "APP_ORIGIN": "https://hackweek.sentry.new",
+    "GOOGLE_REDIRECT_URI": "https://hackweek.sentry.new/api/auth/callback",
+    "GOOGLE_CLIENT_ID": "694837489680-25m2umkr51lofdads5uvocgtcdqcs6c4.apps.googleusercontent.com",
+    "ALLOWED_EMAIL_DOMAIN": "sentry.io",
+    "STREAM_MODE": "disabled"
+  },
+  "observability": {"enabled": true}
+}

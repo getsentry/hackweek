@@ -1,0 +1,15 @@
+# Copy to .dev.vars for local browser development only. The Google OAuth client
+# must allow the loopback origin and exact callback below.
+APP_ORIGIN="http://localhost:5173"
+GOOGLE_CLIENT_ID=<non-secret client ID>
+GOOGLE_CLIENT_SECRET=<secret from the shared vault; never commit>
+GOOGLE_REDIRECT_URI=http://localhost:5173/api/auth/callback
+ALLOWED_EMAIL_DOMAIN="sentry.io"
+
+# The local adapter issues direct-upload fixtures and protected-playback contracts.
+# It does not transcode, generate HLS, or move video bytes.
+STREAM_MODE="fake"
+STREAM_ALLOWED_ORIGIN="localhost"
+STREAM_DELIVERY_HOST="customer-fake.cloudflarestream.com"
+STREAM_WEBHOOK_SECRET="replace-with-a-local-signing-secret"
+VIDEO_SERVICE_TOKEN="replace-with-a-local-job-token"

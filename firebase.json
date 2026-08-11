@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "hackweek-34e1d",
     "public": "build",
     "ignore": [
       "firebase.json",

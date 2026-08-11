@@ -144,11 +144,14 @@ describe('video user experience', () => {
 
   it('removes redundant ready status, watch link, and storage fine print', () => {
     const ready = renderQuery(
-      <ProjectVideoPanel projectId="project" video={baseVideo} canManage={false} />,
+      <ProjectVideoPanel projectId="project" video={baseVideo} canManage />,
     );
     expect(screen.queryByRole('link', {name: 'watch video'})).toBeNull();
     expect(screen.queryByText('ready to watch')).toBeNull();
     expect(screen.queryByText(/private R2 storage/i)).toBeNull();
+    expect(
+      screen.getByRole('button', {name: 'delete video'}).closest('header'),
+    ).not.toBeNull();
     ready.unmount();
 
     renderQuery(<ProjectVideoPanel projectId="project" video={null} canManage />);
@@ -179,7 +182,7 @@ describe('video user experience', () => {
       '/api/projects/project/video/retry',
       expect.objectContaining({method: 'POST'}),
     );
-    expect(screen.getByRole('button', {name: 'retire video'})).toBeTruthy();
+    expect(screen.getByRole('button', {name: 'delete video'})).toBeTruthy();
   });
 
   it('attaches authenticated progressive MP4 directly to an HTML video element', async () => {

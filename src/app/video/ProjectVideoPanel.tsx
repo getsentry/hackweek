@@ -86,6 +86,22 @@ export function ProjectVideoPanel(props: {
           <p className="kicker">demo reel</p>
           <h2 id="project-video-heading">project video</h2>
         </div>
+        {canManage && video && (
+          <button
+            className="dangerAction"
+            disabled={remove.isPending}
+            onClick={() => {
+              if (
+                window.confirm(
+                  'Delete this video from the project? You can upload a replacement afterward.',
+                )
+              )
+                remove.mutate();
+            }}
+          >
+            delete video
+          </button>
+        )}
       </header>
 
       {loading ? (
@@ -148,7 +164,7 @@ export function ProjectVideoPanel(props: {
         </div>
       )}
 
-      {canManage && !isUploading && (
+      {canManage && !isUploading && (!video || video.status === 'failed') && (
         <div className="videoActions">
           {!video && (
             <label
@@ -173,22 +189,6 @@ export function ProjectVideoPanel(props: {
               onClick={() => retryProcessing.mutate()}
             >
               retry processing
-            </button>
-          )}
-          {video && (
-            <button
-              className="dangerAction"
-              disabled={remove.isPending}
-              onClick={() => {
-                if (
-                  window.confirm(
-                    'Retire this video? Its original and processed files will be retained.',
-                  )
-                )
-                  remove.mutate();
-              }}
-            >
-              retire video
             </button>
           )}
         </div>

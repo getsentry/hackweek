@@ -59,9 +59,9 @@ jobs:
           name: build
           path: build
 
-      - name: Deploy to Firebase
+      - name: Deploy to Firebase 
         uses: w9jds/firebase-action@master
         with:
           args: deploy --only hosting -P default
         env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_APPLICATION_CREDENTIALS }}
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}

@@ -13,25 +13,24 @@
     "test:worker": "node scripts/run-worker-tests.mjs",
     "test:app": "vp test run --config vitest.app.config.ts",
     "test:migration": "vp test run --config vitest.migration.config.ts",
-    "test:readiness": "tsx scripts/local-readiness.ts",
-    "verify": "npm run cf-typegen && npm run typecheck && npm run format:check && npm run lint && npm test && npm run build && npm run deploy:dry-run && npm run test:readiness",
+    "verify": "npm run cf-typegen && npm run typecheck && npm run format:check && npm run lint && npm test && npm run build && npm run deploy:dry-run",
     "deploy:dry-run": "wrangler deploy --dry-run --config wrangler.production.json --outdir .wrangler/deploy-dry-run",
     "build": "vp build",
     "preview": "vp preview",
     "cf-typegen": "wrangler types worker-configuration.d.ts --config wrangler.production.json",
     "db:migrate:local": "wrangler d1 migrations apply hackweek-db --local",
+    "dev:video": "npm run db:migrate:local && vp dev",
+    "video:processor:build": "docker build --file Dockerfile.video-processor --tag hackweek-video-processor:local .",
     "migrate:validate": "tsx scripts/migrate/cli.ts validate",
     "migrate:dry-run": "tsx scripts/migrate/cli.ts dry-run",
     "migrate:local": "tsx scripts/migrate/cli.ts import --target local",
     "migrate:cloudflare": "tsx scripts/migrate/cli.ts import --target cloudflare",
-    "migrate:reconcile": "tsx scripts/migrate/cli.ts reconcile",
-    "video:measure": "tsx scripts/measure-loudness.ts",
-    "video:archive": "tsx scripts/archive-to-drive.ts"
+    "migrate:reconcile": "tsx scripts/migrate/cli.ts reconcile"
   },
   "dependencies": {
+    "@cloudflare/containers": "0.3.7",
     "@fontsource/rubik": "^5.3.0",
     "@tanstack/react-query": "^5.101.4",
-    "hls.js": "^1.6.16",
     "hono": "^4.12.34",
     "jose": "^6.2.8",
     "react": "^19.2.4",
@@ -39,7 +38,6 @@
     "react-markdown": "^10.1.0",
     "remark-breaks": "^4.0.0",
     "remark-gfm": "^4.0.1",
-    "tus-js-client": "^4.3.1",
     "wouter": "^3.10.0"
   },
   "devDependencies": {

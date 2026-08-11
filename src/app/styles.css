@@ -55,6 +55,7 @@ a,
 select,
 input[type='checkbox'],
 input[type='radio'],
+input[type='range'],
 input[type='file'],
 label.uploadAction {
   cursor: pointer;
@@ -723,12 +724,22 @@ main {
   line-height: 1.25;
   letter-spacing: -0.015em;
 }
-.projectRow h2 a {
+.projectRow h2 a,
+.projectRowTitle {
   display: block;
+  width: 100%;
   overflow: hidden;
+  padding: 0;
+  color: inherit;
+  text-align: left;
   text-decoration: none;
   text-overflow: ellipsis;
   white-space: nowrap;
+  border: 0;
+  background: none;
+}
+.projectRowTitle:hover {
+  color: var(--blurple);
 }
 .projectRowTags {
   display: flex;
@@ -1769,19 +1780,13 @@ main {
   gap: 1rem;
 }
 .videoPanel h2,
-.reelIndex h2 {
+.reelIndex > h2 {
   margin: 0;
   font-size: clamp(1.6rem, 3vw, 2.4rem);
   letter-spacing: -0.035em;
 }
-.videoNotice,
-.videoFinePrint {
+.videoNotice {
   color: var(--muted);
-}
-.videoFinePrint {
-  max-width: 42rem;
-  font-size: 0.75rem;
-  line-height: 1.55;
 }
 .videoStatus,
 .uploadProgress {
@@ -1877,13 +1882,19 @@ main {
   box-shadow: 0 22px 55px rgba(29, 17, 39, 0.22);
 }
 .screeningPlayer:fullscreen {
-  display: grid;
-  place-content: center;
+  position: relative;
+  width: 100vw;
+  height: 100vh;
   border: 0;
   border-radius: 0;
 }
 .screeningPlayer:fullscreen .screeningStage {
   width: 100vw;
+  height: 100vh;
+  aspect-ratio: auto;
+}
+.screeningPlayer:fullscreen .screeningControls {
+  display: none;
 }
 .screeningStage {
   position: relative;
@@ -1905,6 +1916,30 @@ main {
 }
 .screeningStage video.active {
   opacity: 1;
+}
+.clipOverlay {
+  position: absolute;
+  z-index: 1;
+  right: 1rem;
+  bottom: 1rem;
+  left: 1rem;
+  max-width: 32rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0.55rem;
+  pointer-events: none;
+  background: rgba(17, 11, 23, 0.78);
+  backdrop-filter: blur(10px);
+  animation: clipOverlayFade 4s ease forwards;
+}
+.clipOverlay strong,
+.clipOverlay span {
+  display: block;
+}
+.clipOverlay span {
+  margin-top: 0.2rem;
+  color: #d9cae5;
+  font-size: 0.78rem;
 }
 .titleCard,
 .startCard,
@@ -1948,9 +1983,25 @@ main {
   line-height: 0.95;
   letter-spacing: -0.065em;
 }
+.titleCard strong,
 .titleCard span {
+  display: block;
   color: #ffd1ea;
   font-weight: 500;
+}
+.titleCard strong {
+  margin-bottom: 0.25rem;
+  color: #fff;
+}
+.titleCountdown {
+  display: grid;
+  width: 2.4rem;
+  margin-top: 1rem;
+  aspect-ratio: 1;
+  place-items: center;
+  color: var(--ink);
+  border-radius: 50%;
+  background: var(--green);
 }
 .startCard {
   z-index: 3;
@@ -1997,6 +2048,22 @@ main {
   gap: 0.5rem;
   align-items: center;
   padding: 0.75rem;
+}
+.screeningTimeline {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: auto minmax(5rem, 1fr) auto;
+  gap: 0.65rem;
+  align-items: center;
+}
+.screeningTimeline input {
+  width: 100%;
+  accent-color: var(--green);
+}
+.screeningControls .screeningTimeline span {
+  margin: 0;
+  color: #d9cae5;
+  font-variant-numeric: tabular-nums;
 }
 .screeningControls button {
   min-height: 2.6rem;
@@ -2056,41 +2123,11 @@ kbd {
 .reelIndex {
   padding-top: 4rem;
 }
-.reelIndex ol {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.75rem;
-  padding: 0;
-  list-style: none;
+.reelPlaylist {
+  margin-top: 1rem;
 }
-.reelIndex li {
-  display: flex;
-  gap: 1rem;
-  align-items: center;
-  min-width: 0;
-  padding: 1rem;
-  border: 1px solid var(--line);
-  border-radius: 0.65rem;
-}
-.reelIndex li > span {
-  color: var(--blurple);
-  font-size: 1.3rem;
-  font-weight: 700;
-}
-.reelIndex a {
-  min-width: 0;
-  text-decoration: none;
-}
-.reelIndex strong,
-.reelIndex small {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.reelIndex small {
-  margin-top: 0.25rem;
-  color: var(--muted);
+.reelPlaylist .memberStack {
+  justify-self: end;
 }
 .individualPlayer video {
   display: block;
@@ -2127,18 +2164,21 @@ kbd {
   .screeningControls {
     grid-template-columns: repeat(3, 1fr);
   }
-  .screeningControls > div {
-    grid-column: 1 / -1;
+  .screeningTimeline {
     grid-row: 1;
+  }
+  .screeningNowPlaying {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .screeningControls button {
+    grid-row: 3;
   }
   .screeningControls button:last-child {
     grid-column: auto;
   }
   .screeningControls kbd {
     display: none;
-  }
-  .reelIndex ol {
-    grid-template-columns: 1fr 1fr;
   }
 }
 @media (max-width: 560px) {
@@ -2150,14 +2190,22 @@ kbd {
     grid-template-columns: 1fr 1fr;
   }
   .screeningControls button:last-child {
+    grid-row: 4;
     grid-column: 1 / -1;
-  }
-  .reelIndex ol {
-    grid-template-columns: 1fr;
   }
   .titleCard h2,
   .startCard h2 {
     font-size: clamp(1.8rem, 10vw, 3rem);
+  }
+}
+
+@keyframes clipOverlayFade {
+  0%,
+  65% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
   }
 }
 

@@ -1,18 +1,29 @@
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
-import {render, screen} from '@testing-library/react';
+import {act, render, screen, within} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {Route, Router} from 'wouter';
 import {memoryLocation} from 'wouter/memory-location';
 import {afterEach, describe, expect, it, vi} from 'vitest';
 
+import {IndividualPlayer} from '../../src/app/player/IndividualPlayer';
 import {
   handleScreeningShortcut,
   ScreeningPlayer,
 } from '../../src/app/player/ScreeningPlayer';
 import {WatchPage} from '../../src/app/routes/WatchPage';
 import {ProjectVideoPanel} from '../../src/app/video/ProjectVideoPanel';
-import type {ResumableUpload, UploadSnapshot} from '../../src/app/video/upload';
-import type {PlaylistItem, ProjectVideo} from '../../src/shared/videos';
+import {
+  createMultipartUpload,
+  persistResumeRecord,
+  readResumeRecord,
+  type ResumableUpload,
+  type UploadSnapshot,
+} from '../../src/app/video/upload';
+import type {
+  PlaylistItem,
+  ProjectVideo,
+  VideoUploadSession,
+} from '../../src/shared/videos';
 
 const fetchMock = vi.fn<typeof fetch>();
 vi.stubGlobal('fetch', fetchMock);
@@ -21,47 +32,62 @@ vi.stubGlobal(
   vi.fn(() => true),
 );
 
-afterEach(() => fetchMock.mockReset());
+afterEach(() => {
+  fetchMock.mockReset();
+  localStorage.clear();
+});
 
 describe('video user experience', () => {
-  it('shows resumable upload progress controls through a local fake tus event adapter', async () => {
+  it('shows resumable multipart progress controls through a local event adapter', async () => {
     fetchMock.mockImplementation(async (_input, init) => {
       if (init?.method === 'POST') {
-        return json(
-          {
-            video: {...baseVideo, status: 'uploading'},
-            upload: {
-              protocol: 'tus',
-              url: 'https://upload.test/files/one',
-              expiresAt: 'later',
-              chunkSize: 1024,
-            },
-          },
-          201,
-        );
+        return json({video: null, upload: uploadSession}, 201);
       }
       return json({});
     });
+    let finishUpload: (() => void) | undefined;
     const uploadFactory = (
       file: File,
-      _url: string,
-      _chunkSize: number,
+      _session: VideoUploadSession,
       onChange: (snapshot: UploadSnapshot) => void,
-    ): ResumableUpload => ({
-      start: () =>
-        onChange({phase: 'uploading', bytesSent: 2, bytesTotal: file.size, error: null}),
-      pause: async () =>
-        onChange({phase: 'paused', bytesSent: 2, bytesTotal: file.size, error: null}),
-      resume: () =>
-        onChange({phase: 'uploading', bytesSent: 2, bytesTotal: file.size, error: null}),
-      retry: () =>
-        onChange({phase: 'uploading', bytesSent: 2, bytesTotal: file.size, error: null}),
-    });
+    ): ResumableUpload => {
+      finishUpload = () =>
+        onChange({
+          phase: 'complete',
+          bytesSent: file.size,
+          bytesTotal: file.size,
+          error: null,
+        });
+      return {
+        start: () =>
+          onChange({
+            phase: 'uploading',
+            bytesSent: 2,
+            bytesTotal: file.size,
+            error: null,
+          }),
+        pause: async () =>
+          onChange({phase: 'paused', bytesSent: 2, bytesTotal: file.size, error: null}),
+        resume: () =>
+          onChange({
+            phase: 'uploading',
+            bytesSent: 2,
+            bytesTotal: file.size,
+            error: null,
+          }),
+        retry: () =>
+          onChange({
+            phase: 'uploading',
+            bytesSent: 2,
+            bytesTotal: file.size,
+            error: null,
+          }),
+      };
+    };
 
     renderQuery(
       <ProjectVideoPanel
         projectId="project"
-        yearId="2026"
         video={null}
         canManage
         uploadFactory={uploadFactory}
@@ -78,88 +104,196 @@ describe('video user experience', () => {
       '/api/projects/project/video/upload',
       expect.objectContaining({method: 'POST'}),
     );
+
+    await act(async () => finishUpload?.());
+    expect(screen.queryByRole('progressbar')).toBeNull();
   });
 
-  it.each([
-    {streamMode: 'fake', expectedHref: null},
-    {streamMode: 'disabled', expectedHref: null},
-    {streamMode: 'real', expectedHref: '/years/2026/projects/project/video'},
-  ] as const)(
-    'handles project video playback in $streamMode stream mode',
-    ({streamMode, expectedHref}) => {
-      renderQuery(
-        <ProjectVideoPanel
-          projectId="project"
-          yearId="2026"
-          video={baseVideo}
-          canManage={false}
-          streamMode={streamMode}
-        />,
-      );
-
-      expect(
-        screen.queryByRole('link', {name: 'watch video'})?.getAttribute('href') ?? null,
-      ).toBe(expectedHref);
-    },
-  );
-
-  it('shows disabled-video UX without upload or lifecycle actions', () => {
-    renderQuery(
-      <ProjectVideoPanel
-        projectId="project"
-        yearId="2026"
-        video={null}
-        canManage
-        streamMode="disabled"
-      />,
+  it('does not start another part when pause races a completed request', async () => {
+    const file = new File(['abcdef'], 'pause.mp4', {type: 'video/mp4'});
+    const session = {...uploadSession, fileSize: file.size, partSize: 3};
+    let resolveFirstPart: ((response: Response) => void) | undefined;
+    fetchMock.mockImplementation(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolveFirstPart = resolve;
+        }),
+    );
+    const snapshots: UploadSnapshot[] = [];
+    const upload = createMultipartUpload(file, session, (snapshot) =>
+      snapshots.push(snapshot),
     );
 
-    expect(screen.getByText(/video processing is temporarily unavailable/i)).toBeTruthy();
-    expect(screen.queryByLabelText('select project video')).toBeNull();
-    expect(screen.queryByRole('button', {name: 'delete video'})).toBeNull();
+    upload.start();
+    await vi.waitFor(() => expect(resolveFirstPart).toBeTypeOf('function'));
+    resolveFirstPart?.(
+      json({part: {partNumber: 1, etag: 'first', sizeBytes: session.partSize}}),
+    );
+    await upload.pause();
+
+    await vi.waitFor(() =>
+      expect(snapshots.at(-1)).toMatchObject({phase: 'paused', bytesSent: 3}),
+    );
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 
-  it('keeps failed owner state visible with retry/replacement/delete actions', () => {
+  it('persists multipart resume identity and skips server-confirmed parts', async () => {
+    const file = new File(['abcde'], 'resume.mp4', {
+      type: 'video/mp4',
+      lastModified: 42,
+    });
+    const session: VideoUploadSession = {
+      ...uploadSession,
+      fileName: file.name,
+      fileSize: file.size,
+      partSize: 3,
+      completedParts: [{partNumber: 1, etag: 'first', sizeBytes: 3}],
+    };
+    persistResumeRecord(file, session);
+    expect(readResumeRecord('project', file)).toMatchObject({
+      uploadId: 'upload-1',
+      completedParts: session.completedParts,
+    });
+
+    fetchMock
+      .mockResolvedValueOnce(json({part: {partNumber: 2, etag: 'second', sizeBytes: 2}}))
+      .mockResolvedValueOnce(json({video: {...baseVideo, status: 'queued'}}));
+    const snapshots: UploadSnapshot[] = [];
+    createMultipartUpload(file, session, (snapshot) => snapshots.push(snapshot)).start();
+
+    await vi.waitFor(() => expect(snapshots.at(-1)?.phase).toBe('complete'));
+    const firstRequest = fetchMock.mock.calls[0][0];
+    if (typeof firstRequest !== 'string')
+      throw new Error('Expected a string request URL');
+    expect(firstRequest).toContain('/parts/2');
+    expect(firstRequest).not.toContain('/parts/1');
+    expect(readResumeRecord('project', file)).toBeNull();
+  });
+
+  it('removes redundant ready status, watch link, and storage fine print', () => {
+    const ready = renderQuery(
+      <ProjectVideoPanel projectId="project" video={baseVideo} canManage />,
+    );
+    expect(screen.queryByRole('link', {name: 'watch video'})).toBeNull();
+    expect(screen.queryByText('ready to watch')).toBeNull();
+    expect(screen.queryByText(/private R2 storage/i)).toBeNull();
+    expect(
+      screen.getByRole('button', {name: 'delete video'}).closest('header'),
+    ).not.toBeNull();
+    ready.unmount();
+
+    renderQuery(<ProjectVideoPanel projectId="project" video={null} canManage />);
+    expect(screen.getByLabelText('select project video')).toBeTruthy();
+    expect(screen.queryByText(/private R2 storage/i)).toBeNull();
+  });
+
+  it('retries failed processing without requiring another upload', async () => {
+    fetchMock.mockResolvedValue(
+      json({video: {...baseVideo, status: 'queued', processingAttempt: 2}}, 202),
+    );
     renderQuery(
       <ProjectVideoPanel
         projectId="project"
-        yearId="2026"
         video={{
           ...baseVideo,
           status: 'failed',
-          failureStage: 'measurement',
+          failureStage: 'processing',
           errorMessage: 'audio decode failed',
         }}
         canManage
       />,
     );
     expect(screen.getByText('audio decode failed')).toBeTruthy();
-    expect(screen.getByLabelText('choose replacement video')).toBeTruthy();
-    expect(screen.getByRole('button', {name: 'retry measurement'})).toBeTruthy();
+    expect(screen.queryByLabelText('select project video')).toBeNull();
+    await userEvent.click(screen.getByRole('button', {name: 'retry processing'}));
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/projects/project/video/retry',
+      expect.objectContaining({method: 'POST'}),
+    );
     expect(screen.getByRole('button', {name: 'delete video'})).toBeTruthy();
   });
 
-  it('renders accessible empty reel and individual ready-video permalinks', async () => {
-    fetchMock.mockResolvedValue(json({videos: playlist, streamMode: 'fake'}));
-    renderRoute(<WatchPage />, '/years/2026/watch', '/years/:yearId/watch');
+  it('attaches authenticated progressive MP4 directly to an HTML video element', async () => {
+    const load = vi
+      .spyOn(HTMLMediaElement.prototype, 'load')
+      .mockImplementation(() => undefined);
+    const pause = vi
+      .spyOn(HTMLMediaElement.prototype, 'pause')
+      .mockImplementation(() => undefined);
+    const view = renderQuery(
+      <IndividualPlayer
+        playback={{
+          source: {kind: 'mp4', url: '/api/videos/video-1/content'},
+          expiresAt: null,
+        }}
+        title="First project"
+      />,
+    );
+    const video = screen.getByLabelText('First project video') as HTMLVideoElement;
+    expect(video.getAttribute('src')).toBe('/api/videos/video-1/content');
+    expect(video.preload).toBe('auto');
+
+    video.dispatchEvent(new Event('error'));
+    expect((await screen.findByRole('alert')).textContent).toContain(
+      'private video could not be loaded',
+    );
+    view.unmount();
+    expect(video.hasAttribute('src')).toBe(false);
+    expect(load).toHaveBeenCalled();
+    expect(pause).toHaveBeenCalled();
+    load.mockRestore();
+    pause.mockRestore();
+  });
+
+  it('renders the reel playlist with shared project rows and resume controls', async () => {
+    fetchMock.mockImplementation(async () => json({videos: playlist}));
+    const reel = renderRoute(<WatchPage />, '/years/2026/watch', '/years/:yearId/watch');
     expect(await screen.findByRole('heading', {name: 'play the reel'})).toBeTruthy();
     expect(screen.getByRole('button', {name: 'play all'})).toBeTruthy();
-    expect(screen.getByRole('link', {name: /First project/}).getAttribute('href')).toBe(
-      '/years/2026/watch/video-1',
-    );
+    expect(screen.getByRole('heading', {name: 'playlist'})).toBeTruthy();
+    expect(screen.getByText('Ada Lovelace · Grace Hopper')).toBeTruthy();
+    const firstRow = screen
+      .getByRole('button', {name: 'start reel from First project'})
+      .closest('.projectRow');
+    if (!(firstRow instanceof HTMLElement)) throw new Error('Expected a project row');
+    expect(within(firstRow).getByRole('heading', {name: 'First project'})).toBeTruthy();
+    expect(within(firstRow).getByLabelText('Ada Lovelace, Grace Hopper')).toBeTruthy();
+    expect(within(firstRow).getByText('AL')).toBeTruthy();
+    expect(within(firstRow).getByText('GH')).toBeTruthy();
+    expect(
+      screen.queryByText(
+        'private progressive MP4 playback in the curated screening order.',
+      ),
+    ).toBeNull();
+    reel.unmount();
+
+    renderRoute(<WatchPage />, '/years/2026/watch?from=video-2', '/years/:yearId/watch');
+    expect(
+      await screen.findByRole('button', {name: 'play from Second project'}),
+    ).toBeTruthy();
 
     renderQuery(<ScreeningPlayer playlist={[]} getPlayback={vi.fn()} />);
     expect(screen.getByRole('heading', {name: 'no videos are ready'})).toBeTruthy();
   });
 
-  it('renders a clear disabled screening state without implying playback works', async () => {
-    fetchMock.mockResolvedValue(json({videos: [], streamMode: 'disabled'}));
-    renderRoute(<WatchPage />, '/years/2026/watch', '/years/:yearId/watch');
+  it('falls back safely when a refreshed playlist removes the selected clip', () => {
+    const view = render(
+      <ScreeningPlayer
+        playlist={playlist}
+        initialVideoId="video-2"
+        getPlayback={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('button', {name: 'play from Second project'})).toBeTruthy();
 
-    expect(
-      await screen.findByRole('heading', {name: 'video screening unavailable'}),
-    ).toBeTruthy();
-    expect(screen.queryByRole('button', {name: 'play all'})).toBeNull();
+    view.rerender(
+      <ScreeningPlayer
+        playlist={[playlist[0]]}
+        initialVideoId="video-2"
+        getPlayback={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('button', {name: 'play all'})).toBeTruthy();
   });
 
   it('exposes visible pause, skip, fullscreen controls and keyboard shortcuts', async () => {
@@ -184,6 +318,9 @@ describe('video user experience', () => {
       value: requestFullscreen,
     });
     renderQuery(<ScreeningPlayer playlist={playlist} getPlayback={vi.fn()} />);
+    const timeline = screen.getByRole('slider', {name: 'video position'});
+    expect(timeline.hasAttribute('disabled')).toBe(true);
+    expect(timeline.getAttribute('max')).toBe('30');
     expect(screen.getByRole('button', {name: /pause/}).hasAttribute('disabled')).toBe(
       true,
     );
@@ -224,24 +361,52 @@ function json(value: unknown, status = 200) {
 const baseVideo: ProjectVideo = {
   id: 'video-1',
   projectId: 'project',
-  streamUid: 'stream',
-  sourceMediaId: null,
   status: 'ready',
+  originalName: 'demo.mp4',
+  contentType: 'video/mp4',
+  sizeBytes: 5,
   durationSeconds: 30,
   loudnessLufs: -16,
   gainDb: 0,
   errorMessage: null,
   failureStage: null,
-  archiveStatus: 'pending',
-  archiveError: null,
+  processingAttempt: 1,
+  createdAt: '2030-01-01T00:00:00.000Z',
+};
+const uploadSession: VideoUploadSession = {
+  uploadId: 'upload-1',
+  videoId: 'video-1',
+  projectId: 'project',
+  fileName: 'demo.mp4',
+  contentType: 'video/mp4',
+  fileSize: 5,
+  partSize: 50 * 1024 * 1024,
+  expiresAt: '2030-01-02T00:00:00.000Z',
+  status: 'uploading',
+  completedParts: [],
 };
 const playlist: PlaylistItem[] = [
   {
     videoId: 'video-1',
     projectId: 'project',
     projectName: 'First project',
+    groupName: 'Europe',
+    teamMembers: [
+      {id: 'ada', displayName: 'Ada Lovelace'},
+      {id: 'grace', displayName: 'Grace Hopper'},
+    ],
     durationSeconds: 30,
     gainDb: 0,
     position: 0,
+  },
+  {
+    videoId: 'video-2',
+    projectId: 'project-2',
+    projectName: 'Second project',
+    groupName: 'Americas',
+    teamMembers: [{id: 'linus', displayName: 'Linus Torvalds'}],
+    durationSeconds: 45,
+    gainDb: -1,
+    position: 1,
   },
 ];

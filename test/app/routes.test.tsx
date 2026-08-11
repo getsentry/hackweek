@@ -164,47 +164,50 @@ describe('clickable project routes', () => {
     expect(within(archives).queryByText('2025')).toBeNull();
   });
 
-  it.each([
-    {streamMode: 'fake', expectedHref: null},
-    {streamMode: 'disabled', expectedHref: null},
-    {streamMode: 'real', expectedHref: '/years/2026/watch'},
-  ] as const)(
-    'handles the watch reel link in $streamMode stream mode',
-    async ({streamMode, expectedHref}) => {
-      fetchMock.mockImplementation(async (input) => {
-        const url =
-          typeof input === 'string'
-            ? input
-            : input instanceof URL
-              ? input.href
-              : input.url;
-        if (url.includes('/api/years/2026')) {
-          return json({
-            year: {
-              id: '2026',
-              votingEnabled: false,
-              submissionsClosed: false,
-              projectCount: 0,
-              ideaCount: 0,
-              groupCount: 0,
-              participantCount: 0,
-            },
-            groups: [],
-            awards: [],
-            streamMode,
-          });
-        }
-        return json({projects: [], nextCursor: null});
-      });
+  it('reveals the screening reel to admins or after submissions close', async () => {
+    let submissionsClosed = false;
+    fetchMock.mockImplementation(async (input) => {
+      const url =
+        typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      if (url.includes('/api/years/2026')) {
+        return json({
+          year: {
+            id: '2026',
+            votingEnabled: false,
+            submissionsClosed,
+            projectCount: 0,
+            ideaCount: 0,
+            groupCount: 0,
+            participantCount: 0,
+          },
+          groups: [],
+          awards: [],
+        });
+      }
+      return json({projects: [], nextCursor: null});
+    });
 
-      renderRoute(<ProjectsPage />, '/years/2026/projects', '/years/:yearId/projects');
+    const member = renderRoute(
+      <ProjectsPage />,
+      '/years/2026/projects',
+      '/years/:yearId/projects',
+    );
+    expect(await screen.findByRole('heading', {name: 'projects & ideas'})).toBeTruthy();
+    expect(screen.queryByRole('link', {name: 'watch reel'})).toBeNull();
+    member.unmount();
 
-      expect(await screen.findByRole('heading', {name: 'projects & ideas'})).toBeTruthy();
-      expect(
-        screen.queryByRole('link', {name: 'watch reel'})?.getAttribute('href') ?? null,
-      ).toBe(expectedHref);
-    },
-  );
+    const admin = renderRoute(
+      <ProjectsPage isAdmin />,
+      '/years/2026/projects',
+      '/years/:yearId/projects',
+    );
+    expect(await screen.findByRole('link', {name: 'watch reel'})).toBeTruthy();
+    admin.unmount();
+
+    submissionsClosed = true;
+    renderRoute(<ProjectsPage />, '/years/2026/projects', '/years/:yearId/projects');
+    expect(await screen.findByRole('link', {name: 'watch reel'})).toBeTruthy();
+  });
 
   it('defaults to the grid view when storage is unavailable', async () => {
     fetchMock.mockImplementation(async (input) => {

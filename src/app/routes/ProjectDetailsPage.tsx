@@ -1,9 +1,10 @@
 import {useState, type ChangeEvent} from 'react';
+import {useQuery} from '@tanstack/react-query';
 import {Link, useLocation, useParams} from 'wouter';
 
 import {QueryState} from '../components/AppLayout';
 import {Markdown} from '../components/Markdown';
-import {useProjectVideo} from '../queries/videos';
+import {getPlayback, useProjectVideo} from '../queries/videos';
 import {ProjectVideoPanel} from '../video/ProjectVideoPanel';
 import {
   useDeleteMedia,
@@ -23,6 +24,11 @@ export function ProjectDetailsPage() {
   const upload = useUploadMedia(projectId);
   const removeMedia = useDeleteMedia(projectId);
   const video = useProjectVideo(projectId);
+  const playback = useQuery({
+    queryKey: ['video-playback', video.data?.video?.id],
+    queryFn: () => getPlayback(video.data!.video!.id),
+    enabled: video.data?.video?.status === 'ready',
+  });
   const [actionError, setActionError] = useState<string | null>(null);
 
   function addMedia(event: ChangeEvent<HTMLInputElement>) {
@@ -141,11 +147,11 @@ export function ProjectDetailsPage() {
           {project.data.project.kind === 'project' && (
             <ProjectVideoPanel
               projectId={projectId}
-              yearId={yearId}
               video={video.data?.video ?? null}
               loading={video.isLoading}
               canManage={project.data.project.permissions.canManageMedia}
-              streamMode={video.data?.streamMode}
+              playback={playback.data}
+              playbackError={playback.error?.message}
             />
           )}
           {project.data.project.kind === 'project' && (

@@ -1,9 +1,10 @@
-import {useRef, useState, type ChangeEvent} from 'react';
-import {Link} from 'wouter';
+import {useRef, useState, type ChangeEvent, type DragEvent} from 'react';
+import {useQueryClient} from '@tanstack/react-query';
 
-import type {ProjectVideo, StreamMode} from '../../shared/videos';
+import type {PlaybackResponse, ProjectVideo} from '../../shared/videos';
+import {IndividualPlayer} from '../player/IndividualPlayer';
 import {useCreateVideoUpload, useDeleteVideo, useRetryVideo} from '../queries/videos';
-import {createTusUpload, type ResumableUpload, type UploadSnapshot} from './upload';
+import {createMultipartUpload, type ResumableUpload, type UploadSnapshot} from './upload';
 
 const INITIAL_UPLOAD: UploadSnapshot = {
   phase: 'uploading',
@@ -12,44 +13,47 @@ const INITIAL_UPLOAD: UploadSnapshot = {
   error: null,
 };
 
-export function ProjectVideoPanel({
-  projectId,
-  yearId,
-  video,
-  canManage,
-  loading = false,
-  streamMode,
-  uploadFactory = createTusUpload,
-}: {
+type UploadFactory = typeof createMultipartUpload;
+
+export function ProjectVideoPanel(props: {
   projectId: string;
-  yearId: string;
   video: ProjectVideo | null;
   canManage: boolean;
   loading?: boolean;
-  streamMode?: StreamMode;
-  uploadFactory?: typeof createTusUpload;
+  playback?: PlaybackResponse;
+  playbackError?: string;
+  uploadFactory?: UploadFactory;
 }) {
+  const {
+    projectId,
+    video,
+    canManage,
+    loading = false,
+    playback,
+    playbackError,
+    uploadFactory = createMultipartUpload,
+  } = props;
+  const cache = useQueryClient();
   const createUpload = useCreateVideoUpload(projectId);
+  const retryProcessing = useRetryVideo(projectId);
   const remove = useDeleteVideo(projectId);
-  const retry = useRetryVideo(projectId);
   const controller = useRef<ResumableUpload | null>(null);
   const [upload, setUpload] = useState<UploadSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  function selectFile(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
+  function beginUpload(file: File) {
     setError(null);
     setUpload({...INITIAL_UPLOAD, bytesTotal: file.size});
     createUpload.mutate(file, {
       onSuccess: (result) => {
-        const next = uploadFactory(
-          file,
-          result.upload.url,
-          result.upload.chunkSize,
-          setUpload,
-        );
+        const next = uploadFactory(file, result.upload, (snapshot) => {
+          if (snapshot.phase === 'complete') {
+            setUpload(null);
+            void cache.invalidateQueries({queryKey: ['project-video', projectId]});
+          } else {
+            setUpload(snapshot);
+          }
+        });
         controller.current = next;
         next.start();
       },
@@ -60,9 +64,20 @@ export function ProjectVideoPanel({
     });
   }
 
+  function selectFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (file) beginUpload(file);
+  }
+
+  function dropFile(event: DragEvent<HTMLLabelElement>) {
+    event.preventDefault();
+    const file = event.dataTransfer.files[0];
+    if (file) beginUpload(file);
+  }
+
   const isUploading = upload && upload.phase !== 'complete';
-  const disabled = streamMode === 'disabled';
-  const actionError = error ?? remove.error?.message ?? retry.error?.message;
+  const actionError = error ?? retryProcessing.error?.message ?? remove.error?.message;
 
   return (
     <section className="videoPanel" aria-labelledby="project-video-heading">
@@ -71,13 +86,21 @@ export function ProjectVideoPanel({
           <p className="kicker">demo reel</p>
           <h2 id="project-video-heading">project video</h2>
         </div>
-        {video?.status === 'ready' && streamMode === 'real' && (
-          <Link
-            className="primaryAction"
-            href={`/years/${yearId}/projects/${projectId}/video`}
+        {canManage && video && (
+          <button
+            className="dangerAction"
+            disabled={remove.isPending}
+            onClick={() => {
+              if (
+                window.confirm(
+                  'Delete this video from the project? You can upload a replacement afterward.',
+                )
+              )
+                remove.mutate();
+            }}
           >
-            watch video
-          </Link>
+            delete video
+          </button>
         )}
       </header>
 
@@ -85,16 +108,20 @@ export function ProjectVideoPanel({
         <p className="videoNotice" aria-live="polite">
           loading video status…
         </p>
-      ) : disabled ? (
-        <p className="videoNotice" role="status">
-          video processing is temporarily unavailable. projects, attachments, voting,
-          awards, and every non-video workflow remain available.
-        </p>
-      ) : video ? (
-        <VideoStatusCard video={video} />
-      ) : (
+      ) : !video ? (
         <p className="videoNotice">
           no demo video yet. projects remain complete without one.
+        </p>
+      ) : video.status !== 'ready' ? (
+        <VideoStatusCard video={video} />
+      ) : null}
+
+      {video?.status === 'ready' && playback && (
+        <IndividualPlayer playback={playback} title="project demo" />
+      )}
+      {playbackError && (
+        <p className="formError" role="alert">
+          {playbackError}
         </p>
       )}
 
@@ -137,13 +164,17 @@ export function ProjectVideoPanel({
         </div>
       )}
 
-      {canManage && !disabled && !isUploading && (
+      {canManage && !isUploading && (!video || video.status === 'failed') && (
         <div className="videoActions">
-          {(!video || video.status === 'failed') && (
-            <label className="uploadAction">
-              {video ? 'choose replacement' : 'select video'}
+          {!video && (
+            <label
+              className="uploadAction"
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={dropFile}
+            >
+              drop or select video
               <input
-                aria-label={video ? 'choose replacement video' : 'select project video'}
+                aria-label="select project video"
                 type="file"
                 accept="video/*"
                 disabled={createUpload.isPending}
@@ -151,25 +182,13 @@ export function ProjectVideoPanel({
               />
             </label>
           )}
-          {video?.status === 'failed' && video.failureStage === 'measurement' && (
+          {video?.status === 'failed' && (
             <button
-              className="textAction"
-              disabled={retry.isPending}
-              onClick={() => retry.mutate(video.id)}
+              className="primaryAction"
+              disabled={retryProcessing.isPending}
+              onClick={() => retryProcessing.mutate()}
             >
-              retry measurement
-            </button>
-          )}
-          {video && (
-            <button
-              className="dangerAction"
-              disabled={remove.isPending}
-              onClick={() => {
-                if (window.confirm('delete this primary video and its Stream copy?'))
-                  remove.mutate();
-              }}
-            >
-              delete video
+              retry processing
             </button>
           )}
         </div>
@@ -179,21 +198,14 @@ export function ProjectVideoPanel({
           {actionError}
         </p>
       )}
-      <p className="videoFinePrint">
-        {disabled
-          ? 'video uploads and playback will appear here after Cloudflare Stream is enabled.'
-          : 'uploads go directly to Cloudflare Stream using resumable tus. closing this page does not send video bytes through Hackweek.'}
-      </p>
     </section>
   );
 }
 
 function VideoStatusCard({video}: {video: ProjectVideo}) {
   const labels: Record<ProjectVideo['status'], string> = {
-    pending_upload: 'waiting for upload',
-    uploading: 'uploading to Stream',
+    queued: 'queued for processing',
     processing: 'processing video',
-    measuring: 'measuring audio',
     ready: 'ready to watch',
     failed: 'needs attention',
   };
@@ -213,19 +225,17 @@ function VideoStatusCard({video}: {video: ProjectVideo}) {
 }
 
 function statusDetail(status: ProjectVideo['status']) {
-  if (status === 'uploading')
-    return 'the resumable upload can continue after an interruption.';
-  if (status === 'processing') return 'Stream is preparing protected playback.';
-  if (status === 'measuring') return 'loudness is being measured before screening.';
+  if (status === 'queued') return 'the immutable original is ready for processing.';
+  if (status === 'processing') return 'the uploaded video is being normalized.';
   return 'this video is not included in the screening playlist.';
 }
 
 function uploadLabel(phase: UploadSnapshot['phase']) {
   return {
-    uploading: 'uploading directly to Stream',
+    uploading: 'uploading to private storage',
     paused: 'upload paused',
     interrupted: 'upload interrupted',
-    complete: 'upload complete — processing next',
+    complete: 'upload complete — processing queued',
   }[phase];
 }
 

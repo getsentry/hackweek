@@ -1,14 +1,32 @@
+import {useCallback, useRef} from 'react';
 import {useQuery} from '@tanstack/react-query';
-import {Link, useParams} from 'wouter';
+import {Link, useParams, useSearchParams} from 'wouter';
 
+import {ProjectListItem} from '../components/ProjectCard';
 import {IndividualPlayer} from '../player/IndividualPlayer';
-import {ScreeningPlayer} from '../player/ScreeningPlayer';
+import {ScreeningPlayer, type ScreeningPlayerHandle} from '../player/ScreeningPlayer';
 import {getPlayback, usePlaylist, useProjectVideo} from '../queries/videos';
 import {PageState, QueryState} from '../components/AppLayout';
 
 export function WatchPage() {
   const {yearId} = useParams<{yearId: string}>();
   const playlist = usePlaylist(yearId);
+  const player = useRef<ScreeningPlayerHandle>(null);
+  const [search, setSearch] = useSearchParams();
+  const initialVideoId = search.get('from');
+  const trackActiveVideo = useCallback(
+    (videoId: string) => {
+      setSearch(
+        (current) => {
+          const next = new URLSearchParams(current);
+          next.set('from', videoId);
+          return next;
+        },
+        {replace: true},
+      );
+    },
+    [setSearch],
+  );
   return (
     <QueryState loading={playlist.isLoading} error={playlist.error}>
       {playlist.data && (
@@ -21,31 +39,33 @@ export function WatchPage() {
               <p className="kicker">Hackweek {yearId} / screening</p>
               <h1>play the reel</h1>
             </div>
-            <p>two-player protected HLS with measured, clamped audio gain.</p>
           </header>
-          {playlist.data.streamMode === 'disabled' ? (
-            <PageState
-              title="video screening unavailable"
-              detail="Cloudflare Stream is not enabled yet. archives, projects, attachments, voting, awards, and administration remain available."
-            />
-          ) : (
-            <ScreeningPlayer playlist={playlist.data.videos} getPlayback={getPlayback} />
-          )}
-          {playlist.data.streamMode !== 'disabled' && playlist.data.videos.length > 0 && (
+          <ScreeningPlayer
+            key={playlist.data.videos.map(({videoId}) => videoId).join(':')}
+            ref={player}
+            playlist={playlist.data.videos}
+            getPlayback={getPlayback}
+            initialVideoId={initialVideoId}
+            onActiveVideoChange={trackActiveVideo}
+          />
+          {playlist.data.videos.length > 0 && (
             <section className="reelIndex" aria-labelledby="reel-index-heading">
-              <p className="kicker">on demand</p>
-              <h2 id="reel-index-heading">watch one project</h2>
-              <ol>
+              <p className="kicker">screening order</p>
+              <h2 id="reel-index-heading">playlist</h2>
+              <div className="projectList reelPlaylist">
                 {playlist.data.videos.map((clip) => (
-                  <li key={clip.videoId}>
-                    <span>{String(clip.position + 1).padStart(2, '0')}</span>
-                    <Link href={`/years/${yearId}/watch/${clip.videoId}`}>
-                      <strong>{clip.projectName}</strong>
-                      <small>{formatDuration(clip.durationSeconds)}</small>
-                    </Link>
-                  </li>
+                  <ProjectListItem
+                    key={clip.videoId}
+                    name={clip.projectName}
+                    groupName={clip.groupName ?? 'ungrouped'}
+                    detail={`${String(clip.position + 1).padStart(2, '0')} · ${formatDuration(clip.durationSeconds)}`}
+                    members={clip.teamMembers}
+                    emptyMemberLabel="Hackweek team"
+                    actionLabel={`start reel from ${clip.projectName}`}
+                    onSelect={() => player.current?.playFrom(clip.videoId)}
+                  />
                 ))}
-              </ol>
+              </div>
             </section>
           )}
         </main>
@@ -66,12 +86,7 @@ export function ProjectVideoWatchPage() {
 
   return (
     <QueryState loading={video.isLoading || playback.isLoading} error={error}>
-      {video.data?.streamMode === 'disabled' ? (
-        <PageState
-          title="video playback unavailable"
-          detail="Cloudflare Stream is not enabled yet. the rest of Hackweek remains available."
-        />
-      ) : video.data?.video?.status !== 'ready' ? (
+      {video.data?.video?.status !== 'ready' ? (
         <PageState
           title="video unavailable"
           detail="only a ready project video can be played. processing and failed videos remain visible to their team."

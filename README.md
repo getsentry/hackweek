@@ -1,47 +1,66 @@
 # Sentry Hackweek
 
-Hackweek is an internal React + TypeScript application served by one Hono Cloudflare Worker. Application-owned Google OAuth authenticates users, D1 owns sessions/data/roles, and private R2 stores attachments. The core production rollout serves the SPA with Cloudflare Static Assets at `https://hackweek.getsentry.workers.dev` and keeps `STREAM_MODE=disabled`; Stream, video screening, and archive operations are dormant until a separately approved rollout. The UI preserves the Sentry `#HACKWEEK` identity and archive hierarchy.
+Hackweek is an internal React + TypeScript application served by one Hono Cloudflare Worker. Application-owned Google OAuth authenticates users, D1 owns sessions/data/roles, and private R2 stores attachments plus immutable video originals and canonical MP4 derivatives. Project videos are processed by a Cloudflare Workflow using the pinned FFmpeg Container in `Dockerfile.video-processor`; ready media is served only through authenticated same-origin range endpoints.
 
 ## Requirements
 
 - Node.js 24.11 or newer (Volta and CI pin 24.19)
 - npm 11 or newer
+- Docker with a running Linux engine (Docker Desktop or OrbStack)
+- `ffmpeg` and `ffprobe` 8.x on the host for generated local fixtures
 
-## Deterministic local start
+No Cloudflare video resource or credential is required for local development.
+
+## Local video environment
+
+Complete the one-time setup without replacing an existing `.dev.vars`:
 
 ```bash
 npm ci
-cp .dev.vars.example .dev.vars
-rm -rf .wrangler/state
+[ -f .dev.vars ] || cp .dev.vars.example .dev.vars
 npm run db:migrate:local
 npm run migrate:local -- \
   --database test/fixtures/firebase/database.json \
   --storage-manifest test/fixtures/firebase/storage-manifest.json \
   --storage-root test/fixtures/firebase/storage
-npm run dev
 ```
 
-Before starting the app, configure a Google OAuth Web application to allow the JavaScript origin `http://localhost:5173` and redirect URI `http://localhost:5173/api/auth/callback`. Replace the placeholders in `.dev.vars` with its client ID and the client secret from the shared vault; never commit `.dev.vars`.
+Configure the Google OAuth Web application in `.dev.vars` for JavaScript origin `http://localhost:5173` and redirect URI `http://localhost:5173/api/auth/callback`. Use the shared-vault client secret; never commit `.dev.vars`.
 
-Open `http://localhost:5173` and sign in with Google. D1 remains the sole role authority. To promote your local user after signing in once, replace the email below and run:
+Then one command starts the application, local D1/R2, local Workflow, and the real pinned FFmpeg Container:
+
+```bash
+npm run dev:video
+```
+
+Open `http://localhost:5173`, sign in, and use a current project’s video panel. Uploading a video performs real multipart local-R2 upload and Workflow/Container processing. When the status becomes ready, verify project playback, then save the project in the admin screening order and open the year reel. Originals and derivatives remain private and are retained after video retirement.
+
+To promote a local user after signing in once, replace the email below and run:
 
 ```bash
 npx wrangler d1 execute hackweek-db --local --command \
   "UPDATE users SET is_admin = 1, updated_at = CURRENT_TIMESTAMP WHERE google_subject IS NOT NULL AND email = 'you@sentry.io'"
 ```
 
-Resetting `.wrangler/state` removes the promotion. Never run that command with `--remote`.
+Never run that command with `--remote`.
+
+### Troubleshooting
+
+- **Container does not start:** run `docker version` and `npm run video:processor:build`. Both client and server must be available.
+- **Upload remains queued:** keep `npm run dev:video` running and inspect its Workflow step output. Local processing concurrency is intentionally one.
+- **OAuth callback fails:** ensure `APP_ORIGIN`, the Google allowed origin, and `GOOGLE_REDIRECT_URI` all use `http://localhost:5173` exactly.
+- **Stale local data:** stop the app and remove only `.wrangler/state`, then repeat the local migrations. This never touches remote resources.
+- **Playback fails:** confirm the video is ready and signed-in playback returns `200` or `206`; unready, retired, and anonymous reads are intentionally rejected.
 
 ## Authentication
 
-Google OAuth is the only browser authentication path in every environment, including local development. It uses the Authorization Code flow with PKCE, state, nonce, confidential server exchange, Google JWKS validation, exact verified `@sentry.io` enforcement, hashed opaque D1 sessions, and HttpOnly cookies.
-
-All core browser APIs except health require a D1-backed user. Authenticated mutations and logout require an exact same-origin `Origin` header. Logout revokes the current D1 session. Login rotates existing sessions. Google/client claims never grant admin access. Dormant Stream webhook and video-job endpoints use separate machine-auth boundaries if real Stream is approved later.
+Google OAuth is the only browser authentication path. It uses Authorization Code with PKCE, state and nonce validation, Google JWKS verification, exact verified `@sentry.io` enforcement, hashed opaque D1 sessions, and HttpOnly cookies. D1 is the sole role authority. Authenticated mutations require the exact same-origin `Origin` header.
 
 ## Quality gates
 
 ```bash
 npm run verify
+npm audit --omit=dev --audit-level=high
 ```
 
-This generates binding types, typechecks, checks formatting/lint, runs Worker/frontend/migration/player tests, builds, performs a credential-free deployment dry run, and runs an isolated seeded D1/R2 journey with fake-Stream contract coverage. Local tests do not prove real Google OAuth, deployed bindings, or imported data. Real Stream is outside that gate.
+The gate generates binding types, typechecks, checks formatting/lint, runs the standard test suites, builds, and performs a credential-free production dry run. It does not deploy, provision, access remote resources, or prove real Google OAuth.

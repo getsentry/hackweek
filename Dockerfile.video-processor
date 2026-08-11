@@ -1,0 +1,13 @@
+FROM mwader/static-ffmpeg:8.0.1@sha256:252705ff88532fa338e7065c21792756552f8fe7c212f84bc503d3c340689594 AS ffmpeg
+
+FROM node:24.11.0-bookworm-slim@sha256:76d0ed0ed93bed4f4376211e9d8fddac4d8b3fbdb54cc45955696001a3c91152
+COPY --from=ffmpeg /ffmpeg /usr/local/bin/ffmpeg
+COPY --from=ffmpeg /ffprobe /usr/local/bin/ffprobe
+COPY processor/video-processor.mjs /app/video-processor.mjs
+RUN useradd --create-home --uid 10001 processor \
+  && chmod 0555 /usr/local/bin/ffmpeg /usr/local/bin/ffprobe /app/video-processor.mjs
+USER processor
+WORKDIR /app
+ENV PORT=8080
+EXPOSE 8080
+ENTRYPOINT ["node", "/app/video-processor.mjs"]

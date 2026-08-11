@@ -6,10 +6,6 @@ GOOGLE_CLIENT_SECRET=<secret from the shared vault; never commit>
 GOOGLE_REDIRECT_URI=http://localhost:5173/api/auth/callback
 ALLOWED_EMAIL_DOMAIN="sentry.io"
 
-# The local adapter issues direct-upload fixtures and protected-playback contracts.
-# It does not transcode, generate HLS, or move video bytes.
-STREAM_MODE="fake"
-STREAM_ALLOWED_ORIGIN="localhost"
-STREAM_DELIVERY_HOST="customer-fake.cloudflarestream.com"
-STREAM_WEBHOOK_SECRET="replace-with-a-local-signing-secret"
-VIDEO_SERVICE_TOKEN="replace-with-a-local-job-token"
+# R2 uploads use the local Workflow and pinned FFmpeg Container declared in
+# wrangler.jsonc. No Cloudflare video credentials or remote resources are needed.
+# Ready derivatives play through the authenticated same-origin MP4 endpoint.

@@ -196,8 +196,8 @@ export function AdminPage() {
               <p className="kicker">demo screening</p>
               <h2>project order</h2>
               <p>
-                choose the order projects will appear during the Hackweek screening. only
-                ready videos play in the reel.
+                choose which ready projects play first. any other ready videos follow in
+                project-name order.
               </p>
               <Link className="textAction" href={`/years/${yearId}/watch`}>
                 preview ready reel

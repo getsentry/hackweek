@@ -3,6 +3,11 @@ import {Link} from 'wouter';
 import type {ProjectSummary} from '../../shared/projects';
 import {Markdown} from './Markdown';
 
+interface ProjectListMember {
+  id: string;
+  displayName: string;
+}
+
 export function ProjectCard({
   project,
   view = 'grid',
@@ -14,13 +19,14 @@ export function ProjectCard({
 
   if (view === 'list') {
     return (
-      <article className={`projectRow projectRow--${project.kind}`}>
-        <h2>
-          <Link href={projectLink}>{project.name}</Link>
-        </h2>
-        <ProjectTags project={project} className="projectRowTags" />
-        <MemberStack members={project.members} />
-      </article>
+      <ProjectListItem
+        name={project.name}
+        href={projectLink}
+        kind={project.kind}
+        groupName={project.group?.name ?? 'ungrouped'}
+        members={project.members}
+        needsHelp={project.needsHelp}
+      />
     );
   }
 
@@ -38,6 +44,55 @@ export function ProjectCard({
   );
 }
 
+export function ProjectListItem({
+  name,
+  href,
+  onSelect,
+  actionLabel,
+  kind = 'project',
+  groupName,
+  detail,
+  members,
+  needsHelp = false,
+  emptyMemberLabel = 'up for grabs',
+}: {
+  name: string;
+  href?: string;
+  onSelect?: () => void;
+  actionLabel?: string;
+  kind?: ProjectSummary['kind'];
+  groupName: string;
+  detail?: string;
+  members: ProjectListMember[];
+  needsHelp?: boolean;
+  emptyMemberLabel?: string;
+}) {
+  return (
+    <article className={`projectRow projectRow--${kind}`}>
+      <h2>
+        {href ? (
+          <Link href={href}>{name}</Link>
+        ) : (
+          <button
+            type="button"
+            className="projectRowTitle"
+            aria-label={actionLabel}
+            onClick={onSelect}
+          >
+            {name}
+          </button>
+        )}
+      </h2>
+      <div className="projectRowTags">
+        <span className="tag tag--group">{groupName}</span>
+        {detail && <span className="tag">{detail}</span>}
+        {needsHelp && <strong className="tag tag--help">looking for help</strong>}
+      </div>
+      <MemberStack members={members} emptyLabel={emptyMemberLabel} />
+    </article>
+  );
+}
+
 function ProjectTags({project, className}: {project: ProjectSummary; className: string}) {
   return (
     <div className={className}>
@@ -49,8 +104,14 @@ function ProjectTags({project, className}: {project: ProjectSummary; className: 
   );
 }
 
-function MemberStack({members}: {members: ProjectSummary['members']}) {
-  if (!members.length) return <span className="openSeat">up for grabs</span>;
+function MemberStack({
+  members,
+  emptyLabel = 'up for grabs',
+}: {
+  members: ProjectListMember[];
+  emptyLabel?: string;
+}) {
+  if (!members.length) return <span className="openSeat">{emptyLabel}</span>;
   return (
     <span
       className="memberStack"

@@ -650,10 +650,11 @@ describe('R2 multipart video lifecycle', () => {
       env.DB.prepare(
         'INSERT INTO screening_order (year_id, project_id, position) VALUES (?, ?, 1)',
       ).bind(yearId, unreadyProject),
-      env.DB.prepare(
-        'INSERT INTO screening_order (year_id, project_id, position) VALUES (?, ?, 2)',
-      ).bind(yearId, firstProject),
+      env.DB.prepare('UPDATE users SET is_admin = 1 WHERE id = ?').bind(ownerId),
     ]);
+
+    const hiddenWhileOpen = await api(`/videos/playlist?year=${yearId}`, memberToken);
+    expect(hiddenWhileOpen.status).toBe(403);
 
     const playlist = await api(`/videos/playlist?year=${yearId}`, ownerToken);
     expect(playlist.status).toBe(200);
@@ -663,12 +664,14 @@ describe('R2 multipart video lifecycle', () => {
     ]);
     expect(playlist.body.videos[0]).toMatchObject({
       projectName: 'Curated second',
+      groupName: 'Video group',
       position: 0,
       teamMembers: ['Hackweek Member'],
     });
     expect(playlist.body.videos[1]).toMatchObject({
       projectName: 'Curated first',
-      position: 2,
+      groupName: 'Video group',
+      position: 1,
       teamMembers: ['Hackweek Member', 'Hackweek Member'],
     });
     expect(
@@ -693,6 +696,13 @@ describe('R2 multipart video lifecycle', () => {
     expect(
       afterRetirement.body.videos.map((item: {videoId: string}) => item.videoId),
     ).toEqual([first.video.id]);
+
+    await env.DB.prepare('UPDATE years SET submissions_closed = 1 WHERE id = ?')
+      .bind(yearId)
+      .run();
+    const memberArchive = await api(`/videos/playlist?year=${yearId}`, memberToken);
+    expect(memberArchive.status).toBe(200);
+    expect(memberArchive.body.videos).toHaveLength(1);
   });
 
   it('limits local processing to one while independent projects remain queued', async () => {

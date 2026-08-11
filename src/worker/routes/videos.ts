@@ -33,7 +33,9 @@ videosRoutes.get('/playlist', async (c) => {
   try {
     const year = c.req.query('year');
     if (!year) invalid('Year is required');
-    const response: PlaylistResponse = {videos: await listPlaylist(c.env.DB, year)};
+    const response: PlaylistResponse = {
+      videos: await listPlaylist(c.env.DB, year, c.get('user')),
+    };
     return c.json(response, 200, {'Cache-Control': 'private, no-store'});
   } catch (error) {
     return respondError(c, error);

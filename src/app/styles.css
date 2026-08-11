@@ -1871,13 +1871,18 @@ main {
   box-shadow: 0 22px 55px rgba(29, 17, 39, 0.22);
 }
 .screeningPlayer:fullscreen {
-  display: grid;
-  place-content: center;
+  width: 100vw;
+  height: 100vh;
   border: 0;
   border-radius: 0;
 }
 .screeningPlayer:fullscreen .screeningStage {
   width: 100vw;
+  height: 100vh;
+  aspect-ratio: auto;
+}
+.screeningPlayer:fullscreen .screeningControls {
+  display: none;
 }
 .screeningStage {
   position: relative;
@@ -1964,9 +1969,25 @@ main {
   line-height: 0.95;
   letter-spacing: -0.065em;
 }
+.titleCard strong,
 .titleCard span {
+  display: block;
   color: #ffd1ea;
   font-weight: 500;
+}
+.titleCard strong {
+  margin-bottom: 0.25rem;
+  color: #fff;
+}
+.titleCountdown {
+  display: grid;
+  width: 2.4rem;
+  margin-top: 1rem;
+  aspect-ratio: 1;
+  place-items: center;
+  color: var(--ink);
+  border-radius: 50%;
+  background: var(--green);
 }
 .startCard {
   z-index: 3;
@@ -2093,9 +2114,19 @@ kbd {
   font-size: 1.3rem;
   font-weight: 700;
 }
+.reelIndex li > div {
+  display: grid;
+  min-width: 0;
+  gap: 0.5rem;
+}
 .reelIndex a {
   min-width: 0;
   text-decoration: none;
+}
+.reelIndex .textAction {
+  width: fit-content;
+  padding: 0;
+  text-align: left;
 }
 .reelIndex strong,
 .reelIndex small {

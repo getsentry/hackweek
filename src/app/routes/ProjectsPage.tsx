@@ -76,9 +76,11 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
               </p>
             </div>
             <div className="heroActions">
-              <Link className="textAction" href={`/years/${yearId}/watch`}>
-                watch reel
-              </Link>
+              {(isAdmin || year.data.year.submissionsClosed) && (
+                <Link className="textAction" href={`/years/${yearId}/watch`}>
+                  watch reel
+                </Link>
+              )}
               {year.data.year.votingEnabled && (
                 <Link className="textAction" href={`/years/${yearId}/vote`}>
                   vote

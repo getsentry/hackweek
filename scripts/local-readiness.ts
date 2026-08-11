@@ -305,8 +305,9 @@ try {
     playlist.videos.length === 1 &&
       playlist.videos[0].videoId === videoId &&
       playlist.videos[0].projectName === 'Readiness Video' &&
+      playlist.videos[0].groupName === 'Readiness Team' &&
       playlist.videos[0].teamMembers.includes('Local Developer'),
-    'ready derivative appears in curated reel order with team overlay data',
+    'ready derivative appears in the reel without a manual screening entry',
   );
 
   await sendJson('DELETE', '/api/projects/readiness-project/video', {confirmed: true});

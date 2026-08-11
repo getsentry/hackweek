@@ -218,14 +218,21 @@ describe('video user experience', () => {
   });
 
   it('renders accessible empty reel and individual ready-video permalinks', async () => {
-    fetchMock.mockResolvedValue(json({videos: playlist}));
-    renderRoute(<WatchPage />, '/years/2026/watch', '/years/:yearId/watch');
+    fetchMock.mockImplementation(async () => json({videos: playlist}));
+    const reel = renderRoute(<WatchPage />, '/years/2026/watch', '/years/:yearId/watch');
     expect(await screen.findByRole('heading', {name: 'play the reel'})).toBeTruthy();
     expect(screen.getByRole('button', {name: 'play all'})).toBeTruthy();
     expect(screen.getByText('Ada Lovelace · Grace Hopper')).toBeTruthy();
     expect(screen.getByRole('link', {name: /First project/}).getAttribute('href')).toBe(
       '/years/2026/watch/video-1',
     );
+    expect(screen.getAllByRole('button', {name: 'play from here'})).toHaveLength(2);
+    reel.unmount();
+
+    renderRoute(<WatchPage />, '/years/2026/watch?from=video-2', '/years/:yearId/watch');
+    expect(
+      await screen.findByRole('button', {name: 'play from Second project'}),
+    ).toBeTruthy();
 
     renderQuery(<ScreeningPlayer playlist={[]} getPlayback={vi.fn()} />);
     expect(screen.getByRole('heading', {name: 'no videos are ready'})).toBeTruthy();
@@ -322,9 +329,20 @@ const playlist: PlaylistItem[] = [
     videoId: 'video-1',
     projectId: 'project',
     projectName: 'First project',
+    groupName: 'Europe',
     teamMembers: ['Ada Lovelace', 'Grace Hopper'],
     durationSeconds: 30,
     gainDb: 0,
     position: 0,
+  },
+  {
+    videoId: 'video-2',
+    projectId: 'project-2',
+    projectName: 'Second project',
+    groupName: 'Americas',
+    teamMembers: ['Linus Torvalds'],
+    durationSeconds: 45,
+    gainDb: -1,
+    position: 1,
   },
 ];

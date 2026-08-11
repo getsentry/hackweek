@@ -34,7 +34,7 @@ describe('dual screening controller', () => {
 
     await controller.start();
     await Promise.resolve();
-    expect(states.at(-1)?.phase).toBe('title');
+    expect(states.at(-1)).toMatchObject({phase: 'title', countdownSeconds: 1});
     expect(attached).toEqual([
       '/api/videos/video-1/content',
       '/api/videos/video-2/content',
@@ -89,25 +89,33 @@ describe('dual screening controller', () => {
     expect(states.at(-1)?.phase).toBe('playing');
     await controller.skip();
     expect(states.at(-1)?.index).toBe(1);
+    await controller.jumpTo(0);
+    expect(states.at(-1)).toMatchObject({phase: 'title', index: 0});
 
     const errors: PlayerState[] = [];
     const errorController = createScreeningController({
-      playlist: [playlist[0]],
+      playlist,
       elements: [fakeVideo(), fakeVideo()],
       audio: fakeAudio(),
-      getPlayback: async () => {
-        throw new Error('private source unavailable');
+      getPlayback: async (videoId) => {
+        if (videoId === 'video-1') throw new Error('private source unavailable');
+        return {
+          source: {kind: 'mp4' as const, url: '/api/videos/video-2/content'},
+          expiresAt: null,
+        };
       },
+      attach: () => ({destroy: vi.fn()}),
       onState: (state) => errors.push(state),
       titleDurationMs: 1,
+      errorDurationMs: 10,
     });
     await errorController.start();
     expect(errors.at(-1)).toMatchObject({
       phase: 'error',
       error: 'private source unavailable',
     });
-    await errorController.skip();
-    expect(errors.at(-1)?.phase).toBe('complete');
+    await vi.advanceTimersByTimeAsync(10);
+    expect(errors.at(-1)).toMatchObject({phase: 'title', index: 1});
   });
 });
 
@@ -134,6 +142,7 @@ const playlist: PlaylistItem[] = [
     videoId: 'video-1',
     projectId: 'project-1',
     projectName: 'First',
+    groupName: 'Europe',
     teamMembers: ['Ada', 'Grace'],
     durationSeconds: 10,
     gainDb: 6,
@@ -143,6 +152,7 @@ const playlist: PlaylistItem[] = [
     videoId: 'video-2',
     projectId: 'project-2',
     projectName: 'Second',
+    groupName: 'Americas',
     teamMembers: ['Linus'],
     durationSeconds: 20,
     gainDb: -3,

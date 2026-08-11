@@ -164,7 +164,8 @@ describe('clickable project routes', () => {
     expect(within(archives).queryByText('2025')).toBeNull();
   });
 
-  it('links every year to its private R2 screening reel', async () => {
+  it('reveals the screening reel to admins or after submissions close', async () => {
+    let submissionsClosed = false;
     fetchMock.mockImplementation(async (input) => {
       const url =
         typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
@@ -173,7 +174,7 @@ describe('clickable project routes', () => {
           year: {
             id: '2026',
             votingEnabled: false,
-            submissionsClosed: false,
+            submissionsClosed,
             projectCount: 0,
             ideaCount: 0,
             groupCount: 0,
@@ -186,12 +187,26 @@ describe('clickable project routes', () => {
       return json({projects: [], nextCursor: null});
     });
 
-    renderRoute(<ProjectsPage />, '/years/2026/projects', '/years/:yearId/projects');
-
-    expect(await screen.findByRole('heading', {name: 'projects & ideas'})).toBeTruthy();
-    expect(screen.getByRole('link', {name: 'watch reel'}).getAttribute('href')).toBe(
-      '/years/2026/watch',
+    const member = renderRoute(
+      <ProjectsPage />,
+      '/years/2026/projects',
+      '/years/:yearId/projects',
     );
+    expect(await screen.findByRole('heading', {name: 'projects & ideas'})).toBeTruthy();
+    expect(screen.queryByRole('link', {name: 'watch reel'})).toBeNull();
+    member.unmount();
+
+    const admin = renderRoute(
+      <ProjectsPage isAdmin />,
+      '/years/2026/projects',
+      '/years/:yearId/projects',
+    );
+    expect(await screen.findByRole('link', {name: 'watch reel'})).toBeTruthy();
+    admin.unmount();
+
+    submissionsClosed = true;
+    renderRoute(<ProjectsPage />, '/years/2026/projects', '/years/:yearId/projects');
+    expect(await screen.findByRole('link', {name: 'watch reel'})).toBeTruthy();
   });
 
   it('defaults to the grid view when storage is unavailable', async () => {

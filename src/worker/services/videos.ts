@@ -6,7 +6,11 @@ import type {
   VideoUploadPart,
   VideoUploadSession,
 } from '../../shared/videos';
-import {currentYearIdSql, effectiveYearFlags} from '../repositories/years';
+import {
+  currentYearIdSql,
+  effectiveYearFlags,
+  getEffectiveYearFlags,
+} from '../repositories/years';
 import type {VideoProcessingParams, VideoProcessorResult} from '../video-processing';
 import {videoWorkflowInstanceId} from '../video-processing';
 import {ServiceError} from './errors';
@@ -88,27 +92,41 @@ export async function getProjectVideo(db: D1Database, projectId: string) {
 export async function listPlaylist(
   db: D1Database,
   yearId: string,
+  user: SessionUser,
 ): Promise<PlaylistItem[]> {
+  const year = await getEffectiveYearFlags(db, yearId);
+  if (!year) throw new ServiceError('NOT_FOUND', 'Year not found', 404);
+  if (!year.submissionsClosed && user.role !== 'admin') {
+    throw new ServiceError(
+      'AUTH_FORBIDDEN',
+      'The screening reel is available after submissions close',
+      403,
+    );
+  }
+
   const {results} = await db
     .prepare(
       `SELECT pv.id video_id, p.id project_id, p.name project_name,
-        pv.duration_seconds, pv.gain_db, so.position
-       FROM screening_order so
-       JOIN projects p ON p.id = so.project_id AND p.status = 'active'
+        g.name group_name, pv.duration_seconds, pv.gain_db, so.position
+       FROM projects p
        JOIN video_submissions pv ON pv.project_id = p.id
-       WHERE so.year_id = ? AND pv.status = 'ready' AND pv.retired_at IS NULL
+       LEFT JOIN groups g ON g.id = p.group_id
+       LEFT JOIN screening_order so ON so.project_id = p.id AND so.year_id = p.year_id
+       WHERE p.year_id = ? AND p.status = 'active' AND p.kind = 'project'
+         AND pv.status = 'ready' AND pv.retired_at IS NULL
          AND pv.processed_r2_key IS NOT NULL
          AND pv.duration_seconds IS NOT NULL AND pv.gain_db IS NOT NULL
-       ORDER BY so.position, p.id`,
+       ORDER BY so.position IS NULL, so.position, p.name COLLATE NOCASE, p.id`,
     )
     .bind(yearId)
     .all<{
       video_id: string;
       project_id: string;
       project_name: string;
+      group_name: string | null;
       duration_seconds: number;
       gain_db: number;
-      position: number;
+      position: number | null;
     }>();
   if (!results.length) return [];
 
@@ -129,14 +147,15 @@ export async function listPlaylist(
     membersByProject.set(member.project_id, names);
   }
 
-  return results.map((row) => ({
+  return results.map((row, position) => ({
     videoId: row.video_id,
     projectId: row.project_id,
     projectName: row.project_name,
+    groupName: row.group_name,
     teamMembers: membersByProject.get(row.project_id) ?? [],
     durationSeconds: row.duration_seconds,
     gainDb: row.gain_db,
-    position: row.position,
+    position,
   }));
 }
 

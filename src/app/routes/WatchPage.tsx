@@ -1,14 +1,31 @@
+import {useCallback, useRef} from 'react';
 import {useQuery} from '@tanstack/react-query';
-import {Link, useParams} from 'wouter';
+import {Link, useParams, useSearchParams} from 'wouter';
 
 import {IndividualPlayer} from '../player/IndividualPlayer';
-import {ScreeningPlayer} from '../player/ScreeningPlayer';
+import {ScreeningPlayer, type ScreeningPlayerHandle} from '../player/ScreeningPlayer';
 import {getPlayback, usePlaylist, useProjectVideo} from '../queries/videos';
 import {PageState, QueryState} from '../components/AppLayout';
 
 export function WatchPage() {
   const {yearId} = useParams<{yearId: string}>();
   const playlist = usePlaylist(yearId);
+  const player = useRef<ScreeningPlayerHandle>(null);
+  const [search, setSearch] = useSearchParams();
+  const initialVideoId = search.get('from');
+  const trackActiveVideo = useCallback(
+    (videoId: string) => {
+      setSearch(
+        (current) => {
+          const next = new URLSearchParams(current);
+          next.set('from', videoId);
+          return next;
+        },
+        {replace: true},
+      );
+    },
+    [setSearch],
+  );
   return (
     <QueryState loading={playlist.isLoading} error={playlist.error}>
       {playlist.data && (
@@ -23,7 +40,13 @@ export function WatchPage() {
             </div>
             <p>private progressive MP4 playback in the curated screening order.</p>
           </header>
-          <ScreeningPlayer playlist={playlist.data.videos} getPlayback={getPlayback} />
+          <ScreeningPlayer
+            ref={player}
+            playlist={playlist.data.videos}
+            getPlayback={getPlayback}
+            initialVideoId={initialVideoId}
+            onActiveVideoChange={trackActiveVideo}
+          />
           {playlist.data.videos.length > 0 && (
             <section className="reelIndex" aria-labelledby="reel-index-heading">
               <p className="kicker">on demand</p>
@@ -32,10 +55,22 @@ export function WatchPage() {
                 {playlist.data.videos.map((clip) => (
                   <li key={clip.videoId}>
                     <span>{String(clip.position + 1).padStart(2, '0')}</span>
-                    <Link href={`/years/${yearId}/watch/${clip.videoId}`}>
-                      <strong>{clip.projectName}</strong>
-                      <small>{formatDuration(clip.durationSeconds)}</small>
-                    </Link>
+                    <div>
+                      <Link href={`/years/${yearId}/watch/${clip.videoId}`}>
+                        <strong>{clip.projectName}</strong>
+                        <small>
+                          {[clip.groupName, formatDuration(clip.durationSeconds)]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </small>
+                      </Link>
+                      <button
+                        className="textAction"
+                        onClick={() => player.current?.playFrom(clip.videoId)}
+                      >
+                        play from here
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ol>

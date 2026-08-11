@@ -1,4 +1,11 @@
-import {useCallback, useEffect, useRef, useState} from 'react';
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useRef,
+  useState,
+} from 'react';
 
 import type {PlaylistItem, PlaybackResponse} from '../../shared/videos';
 import {createPlayerAudioGraph} from './audio';
@@ -8,23 +15,51 @@ import {
   type ScreeningController,
 } from './controller';
 
-const INITIAL_STATE: PlayerState = {phase: 'idle', index: 0, error: null};
+export interface ScreeningPlayerHandle {
+  playFrom(videoId: string): void;
+}
 
-export function ScreeningPlayer({
-  playlist,
-  getPlayback,
-}: {
-  playlist: PlaylistItem[];
-  getPlayback: (videoId: string) => Promise<PlaybackResponse>;
-}) {
+const initialState = (index: number): PlayerState => ({
+  phase: 'idle',
+  index,
+  error: null,
+  countdownSeconds: null,
+});
+
+export const ScreeningPlayer = forwardRef<
+  ScreeningPlayerHandle,
+  {
+    playlist: PlaylistItem[];
+    getPlayback: (videoId: string) => Promise<PlaybackResponse>;
+    initialVideoId?: string | null;
+    onActiveVideoChange?: (videoId: string) => void;
+  }
+>(function ScreeningPlayer(
+  {playlist, getPlayback, initialVideoId, onActiveVideoChange},
+  ref,
+) {
   const shell = useRef<HTMLDivElement>(null);
   const videos = [
     useRef<HTMLVideoElement>(null),
     useRef<HTMLVideoElement>(null),
   ] as const;
   const controller = useRef<ScreeningController | null>(null);
-  const [state, setState] = useState(INITIAL_STATE);
+  const announcedVideoId = useRef<string | null>(null);
+  const requestedIndex = playlist.findIndex((clip) => clip.videoId === initialVideoId);
+  const [state, setState] = useState(initialState(Math.max(0, requestedIndex)));
   const clip = playlist[state.index];
+
+  const publishState = useCallback(
+    (next: PlayerState) => {
+      setState(next);
+      const videoId = playlist[next.index]?.videoId;
+      if (next.phase === 'title' && videoId && announcedVideoId.current !== videoId) {
+        announcedVideoId.current = videoId;
+        onActiveVideoChange?.(videoId);
+      }
+    },
+    [onActiveVideoChange, playlist],
+  );
 
   const buildController = useCallback(() => {
     if (controller.current) return controller.current;
@@ -37,10 +72,21 @@ export function ScreeningPlayer({
       elements: [first, second],
       audio,
       getPlayback,
-      onState: setState,
+      onState: publishState,
     });
     return controller.current;
-  }, [getPlayback, playlist, videos]);
+  }, [getPlayback, playlist, publishState, videos]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      playFrom(videoId) {
+        const index = playlist.findIndex((item) => item.videoId === videoId);
+        if (index >= 0) void buildController()?.jumpTo(index);
+      },
+    }),
+    [buildController, playlist],
+  );
 
   useEffect(() => () => controller.current?.destroy(), []);
 
@@ -61,7 +107,7 @@ export function ScreeningPlayer({
       <section className="screeningEmpty">
         <span>∅</span>
         <h2>no videos are ready</h2>
-        <p>uploading, processing, measuring, and failed videos stay out of the reel.</p>
+        <p>uploading, processing, and failed videos stay out of the reel.</p>
       </section>
     );
   }
@@ -69,6 +115,7 @@ export function ScreeningPlayer({
   const activeSlot = state.index % 2;
   const showingTitle = state.phase === 'title';
   const team = clip.teamMembers.join(' · ') || 'Hackweek team';
+  const projectMeta = [clip.groupName, team].filter(Boolean).join(' · ');
 
   return (
     <div className="screeningPlayer" ref={shell} tabIndex={-1}>
@@ -88,24 +135,33 @@ export function ScreeningPlayer({
         <div className={`titleCard ${showingTitle ? 'visible' : ''}`} aria-live="polite">
           <p>#{String(state.index + 1).padStart(2, '0')} / Hackweek</p>
           <h2>{clip.projectName}</h2>
+          {clip.groupName && <strong>{clip.groupName}</strong>}
           <span>{team}</span>
+          {state.countdownSeconds && (
+            <b
+              className="titleCountdown"
+              aria-label={`${state.countdownSeconds} seconds until video`}
+            >
+              {state.countdownSeconds}
+            </b>
+          )}
         </div>
         {['playing', 'paused'].includes(state.phase) && (
           <div className="clipOverlay" aria-live="polite">
             <strong>{clip.projectName}</strong>
-            <span>{team}</span>
+            <span>{projectMeta}</span>
           </div>
         )}
         {state.phase === 'idle' && (
           <div className="startCard">
             <span className="screeningMark">#H</span>
             <h2>the Hackweek reel</h2>
-            <p>{playlist.length} ready project videos · private progressive MP4</p>
+            <p>{playlist.length} ready project videos</p>
             <button
               className="screeningStart"
-              onClick={() => void buildController()?.start()}
+              onClick={() => void buildController()?.start(state.index)}
             >
-              play all
+              {state.index === 0 ? 'play all' : `play from ${clip.projectName}`}
             </button>
             <small>sound starts only after you press play</small>
           </div>
@@ -114,18 +170,19 @@ export function ScreeningPlayer({
           <div className="startCard" aria-live="polite">
             <span className="screeningMark">✓</span>
             <h2>that’s the reel</h2>
-            <p>all {playlist.length} ready videos played.</p>
+            <p>all remaining ready videos played.</p>
           </div>
         )}
         {state.phase === 'error' && (
           <div className="playerError" role="alert">
-            <strong>playback stopped</strong>
+            <strong>{clip.projectName} could not be played</strong>
             <p>{state.error}</p>
+            <small>continuing automatically…</small>
             <button
               className="screeningStart"
               onClick={() => void controller.current?.skip()}
             >
-              {state.index < playlist.length - 1 ? 'skip to next project' : 'finish reel'}
+              {state.index < playlist.length - 1 ? 'skip now' : 'finish reel'}
             </button>
           </div>
         )}
@@ -157,7 +214,7 @@ export function ScreeningPlayer({
       </div>
     </div>
   );
-}
+});
 
 export function handleScreeningShortcut(
   event: Pick<KeyboardEvent, 'code' | 'key' | 'target' | 'preventDefault'>,

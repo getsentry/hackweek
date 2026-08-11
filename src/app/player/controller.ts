@@ -8,10 +8,12 @@ export interface PlayerState {
   phase: PlayerPhase;
   index: number;
   error: string | null;
+  countdownSeconds: number | null;
 }
 
 export interface ScreeningController {
-  start(): Promise<void>;
+  start(index?: number): Promise<void>;
+  jumpTo(index: number): Promise<void>;
   togglePause(): Promise<void>;
   skip(): Promise<void>;
   destroy(): void;
@@ -24,6 +26,7 @@ export function createScreeningController({
   getPlayback,
   onState,
   titleDurationMs = 1_800,
+  errorDurationMs = 1_800,
   attach = attachMp4,
 }: {
   playlist: PlaylistItem[];
@@ -32,18 +35,22 @@ export function createScreeningController({
   getPlayback: (videoId: string) => Promise<PlaybackResponse>;
   onState: (state: PlayerState) => void;
   titleDurationMs?: number;
+  errorDurationMs?: number;
   attach?: typeof attachMp4;
 }): ScreeningController {
   let index = 0;
   let active: 0 | 1 = 0;
   let phase: PlayerPhase = 'idle';
+  let countdownSeconds: number | null = null;
   let destroyed = false;
   let operation = 0;
-  let titleTimer: ReturnType<typeof setTimeout> | null = null;
+  let transitionTimer: ReturnType<typeof setTimeout> | null = null;
+  let countdownTimer: ReturnType<typeof setInterval> | null = null;
   const attachments: [MediaAttachment | null, MediaAttachment | null] = [null, null];
   const attachedVideoIds: [string | null, string | null] = [null, null];
   const slotOperations: [number, number] = [0, 0];
-  const notify = (error: string | null = null) => onState({phase, index, error});
+  const notify = (error: string | null = null) =>
+    onState({phase, index, error, countdownSeconds});
 
   const endedHandlers = elements.map((_element, slot) => () => {
     if (phase === 'playing' && slot === active) void advance();
@@ -51,6 +58,14 @@ export function createScreeningController({
   elements.forEach((element, slot) =>
     element.addEventListener('ended', endedHandlers[slot]),
   );
+
+  function clearTransitionTimers() {
+    if (transitionTimer) clearTimeout(transitionTimer);
+    if (countdownTimer) clearInterval(countdownTimer);
+    transitionTimer = null;
+    countdownTimer = null;
+    countdownSeconds = null;
+  }
 
   async function prepare(clipIndex: number, slot: 0 | 1) {
     const clip = playlist[clipIndex];
@@ -86,18 +101,20 @@ export function createScreeningController({
     audio.setGain(slot, clip.gainDb);
   }
 
-  async function playCurrent() {
-    if (destroyed) return;
-    const currentOperation = ++operation;
-    phase = 'title';
+  function beginTitleCountdown(currentOperation: number) {
+    const endsAt = Date.now() + titleDurationMs;
+    countdownSeconds = Math.max(1, Math.ceil(titleDurationMs / 1_000));
     notify();
-    await prepare(index, active);
-    if (destroyed || currentOperation !== operation || phase !== 'title') return;
-
-    const nextSlot = active === 0 ? 1 : 0;
-    void prepare(index + 1, nextSlot).catch(() => undefined);
-    titleTimer = setTimeout(() => {
-      titleTimer = null;
+    countdownTimer = setInterval(() => {
+      if (destroyed || currentOperation !== operation || phase !== 'title') return;
+      const next = Math.max(1, Math.ceil((endsAt - Date.now()) / 1_000));
+      if (next !== countdownSeconds) {
+        countdownSeconds = next;
+        notify();
+      }
+    }, 100);
+    transitionTimer = setTimeout(() => {
+      clearTransitionTimers();
       if (destroyed || currentOperation !== operation || phase !== 'title') return;
       phase = 'playing';
       notify();
@@ -109,12 +126,24 @@ export function createScreeningController({
     }, titleDurationMs);
   }
 
+  async function playCurrent() {
+    if (destroyed) return;
+    clearTransitionTimers();
+    const currentOperation = ++operation;
+    phase = 'title';
+    notify();
+    await prepare(index, active);
+    if (destroyed || currentOperation !== operation || phase !== 'title') return;
+    elements[active].currentTime = 0;
+
+    const nextSlot = active === 0 ? 1 : 0;
+    void prepare(index + 1, nextSlot).catch(() => undefined);
+    beginTitleCountdown(currentOperation);
+  }
+
   async function advance() {
     operation += 1;
-    if (titleTimer) {
-      clearTimeout(titleTimer);
-      titleTimer = null;
-    }
+    clearTransitionTimers();
     elements[active].pause();
     if (index >= playlist.length - 1) {
       phase = 'complete';
@@ -130,22 +159,40 @@ export function createScreeningController({
 
   function fail(message: string) {
     operation += 1;
-    if (titleTimer) {
-      clearTimeout(titleTimer);
-      titleTimer = null;
-    }
+    clearTransitionTimers();
     elements[active].pause();
     phase = 'error';
     notify(message);
+    const failedOperation = operation;
+    transitionTimer = setTimeout(() => {
+      transitionTimer = null;
+      if (destroyed || failedOperation !== operation || phase !== 'error') return;
+      void advance();
+    }, errorDurationMs);
+  }
+
+  async function playFrom(nextIndex: number) {
+    if (!Number.isInteger(nextIndex) || nextIndex < 0 || nextIndex >= playlist.length)
+      return;
+    operation += 1;
+    clearTransitionTimers();
+    elements[active].pause();
+    index = nextIndex;
+    active = (nextIndex % 2) as 0 | 1;
+    await audio.resume();
+    await playCurrent().catch((error: unknown) =>
+      fail(error instanceof Error ? error.message : 'playback could not start'),
+    );
   }
 
   return {
-    async start() {
+    async start(startIndex = 0) {
       if (!playlist.length || phase !== 'idle') return;
-      await audio.resume();
-      await playCurrent().catch((error: unknown) =>
-        fail(error instanceof Error ? error.message : 'playback could not start'),
-      );
+      await playFrom(startIndex);
+    },
+    async jumpTo(nextIndex) {
+      if (!playlist.length) return;
+      await playFrom(nextIndex);
     },
     async togglePause() {
       if (phase === 'playing') {
@@ -172,7 +219,7 @@ export function createScreeningController({
       operation += 1;
       slotOperations[0] += 1;
       slotOperations[1] += 1;
-      if (titleTimer) clearTimeout(titleTimer);
+      clearTransitionTimers();
       elements.forEach((element, slot) => {
         element.pause();
         element.removeEventListener('ended', endedHandlers[slot]);

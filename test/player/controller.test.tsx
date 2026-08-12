@@ -32,12 +32,11 @@ describe('dual screening controller', () => {
         return {destroy: vi.fn()};
       },
       onState: (state) => states.push(state),
-      titleDurationMs: 10,
     });
 
     await controller.start();
     await Promise.resolve();
-    expect(states.at(-1)).toMatchObject({phase: 'title', countdownSeconds: 1});
+    expect(states.at(-1)).toMatchObject({phase: 'title', countdownSeconds: 5});
     expect(attached).toEqual([
       '/api/videos/video-1/content',
       '/api/videos/video-2/content',
@@ -48,7 +47,9 @@ describe('dual screening controller', () => {
     ]);
     expect(states.at(-1)?.index).toBe(0);
 
-    await vi.advanceTimersByTimeAsync(10);
+    await vi.advanceTimersByTimeAsync(4_999);
+    expect(states.at(-1)?.phase).toBe('title');
+    await vi.advanceTimersByTimeAsync(1);
     expect(states.at(-1)?.phase).toBe('playing');
     expect(vi.mocked(videos[0].play).mock.calls).toHaveLength(1);
     expect(states.at(-1)?.index).toBe(0);
@@ -66,7 +67,7 @@ describe('dual screening controller', () => {
     expect(audio.resume).toHaveBeenCalledTimes(2);
     expect(states.at(-1)?.phase).toBe('title');
     expect(states.at(-1)?.index).toBe(1);
-    await vi.advanceTimersByTimeAsync(10);
+    await vi.advanceTimersByTimeAsync(5_000);
     expect(vi.mocked(videos[1].play).mock.calls).toHaveLength(1);
 
     videos[1].dispatchEvent(new Event('ended'));

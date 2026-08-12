@@ -28,7 +28,7 @@ export function createScreeningController({
   audio,
   getPlayback,
   onState,
-  titleDurationMs = 1_800,
+  titleDurationMs = 5_000,
   errorDurationMs = 1_800,
   attach = attachMp4,
 }: {

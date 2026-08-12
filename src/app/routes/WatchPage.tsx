@@ -45,6 +45,7 @@ export function WatchPage() {
             ref={player}
             playlist={playlist.data.videos}
             getPlayback={getPlayback}
+            yearId={yearId}
             initialVideoId={initialVideoId}
             onActiveVideoChange={trackActiveVideo}
           />

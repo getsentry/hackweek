@@ -1904,7 +1904,7 @@ main {
     radial-gradient(circle at 80% 15%, rgba(255, 112, 188, 0.3), transparent 19%),
     linear-gradient(135deg, #1d1127, #4e2a9a);
 }
-.screeningStage video {
+.screeningClip {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -1914,7 +1914,7 @@ main {
   background: #000;
   transition: opacity 250ms ease;
 }
-.screeningStage video.active {
+.screeningClip.active {
   opacity: 1;
 }
 .clipOverlay {
@@ -1946,74 +1946,218 @@ main {
 .playerError {
   position: absolute;
   inset: 0;
+}
+.titleCard {
+  z-index: 2;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 78% 14%, rgba(255, 112, 188, 0.48), transparent 24%),
+    linear-gradient(135deg, #1d1127, #4e2a9a 58%, #7553ff);
+  transition: opacity 300ms ease;
+}
+.titleCard::after {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  content: '';
+  background:
+    linear-gradient(180deg, rgba(12, 5, 32, 0.56) 0%, transparent 30%),
+    linear-gradient(
+      0deg,
+      rgba(12, 5, 32, 0.96) 0%,
+      rgba(12, 5, 32, 0.7) 38%,
+      transparent 76%
+    );
+}
+.titleCard.visible {
+  opacity: 1;
+}
+.titleCardBackdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #12042f;
+  transform: scale(1.005);
+}
+.titleCardFrame {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  width: 100%;
+  height: 100%;
+  padding: clamp(1.25rem, 4vw, 3.5rem);
+  grid-template-rows: auto 1fr;
+  text-align: left;
+  text-shadow: 0 2px 18px rgba(12, 5, 32, 0.72);
+}
+.titleCardTopline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  color: rgba(255, 255, 255, 0.86);
+  font-size: clamp(0.62rem, 1.1vw, 0.82rem);
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+.titleCardCopy {
+  align-self: end;
+  max-width: min(78%, 56rem);
+}
+.titleCardCopy > p {
+  display: flex;
+  gap: 0.65rem;
+  align-items: center;
+  margin: 0 0 clamp(0.55rem, 1.2vw, 0.9rem);
+  color: #e5dcff;
+  font-size: clamp(0.65rem, 1.2vw, 0.9rem);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.titleCardCopy > p strong {
+  display: inline-flex;
+  padding: 0.38rem 0.65rem;
+  color: #150b21;
+  font-size: 0.82em;
+  line-height: 1;
+  letter-spacing: 0.08em;
+  border-radius: 999px;
+  background: var(--pink);
+  text-shadow: none;
+}
+.titleCard h2,
+.startCard h2 {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(2rem, 5.8vw, 5.2rem);
+  line-height: 0.93;
+  letter-spacing: -0.06em;
+}
+.titleCard h2 {
+  max-width: 16ch;
+}
+.titleCardTeam {
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+  margin-top: clamp(0.65rem, 1.6vw, 1.2rem);
+}
+.titleCardTeam small {
+  color: var(--green);
+  font-size: clamp(0.58rem, 1vw, 0.76rem);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.titleCardTeam span {
+  overflow: hidden;
+  color: #fff;
+  font-size: clamp(0.78rem, 1.5vw, 1.08rem);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.titleCountdown {
+  position: absolute;
+  right: clamp(1.25rem, 4vw, 3.5rem);
+  bottom: clamp(1.25rem, 4vw, 3.5rem);
+  display: grid;
+  min-width: clamp(3.8rem, 7vw, 5.5rem);
+  aspect-ratio: 1;
+  place-content: center;
+  text-align: center;
+  color: var(--ink);
+  border: 2px solid rgba(255, 255, 255, 0.62);
+  border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 0 6px rgba(146, 221, 0, 0.16);
+  text-shadow: none;
+}
+.titleCountdown small,
+.titleCountdown b {
+  display: block;
+}
+.titleCountdown small {
+  font-size: clamp(0.42rem, 0.75vw, 0.56rem);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.titleCountdown b {
+  font-size: clamp(1.3rem, 2.6vw, 2rem);
+  line-height: 1;
+}
+.startCard,
+.playerError {
   display: grid;
   align-content: center;
   justify-items: center;
   padding: clamp(1.5rem, 8vw, 7rem);
   text-align: center;
 }
-.titleCard {
-  z-index: 2;
-  opacity: 0;
-  pointer-events: none;
-  background:
-    repeating-linear-gradient(
-      -8deg,
-      transparent 0 25px,
-      rgba(255, 255, 255, 0.05) 26px 29px
-    ),
-    linear-gradient(135deg, #4e2a9a, #7553ff 60%, #9f77ff);
-  transition: opacity 300ms ease;
-}
-.titleCard.visible {
-  opacity: 1;
-}
-.titleCard p {
-  color: #dfd3ff;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-.titleCard h2,
-.startCard h2 {
-  max-width: 13ch;
-  margin: 0.5rem 0;
-  color: #fff;
-  font-size: clamp(2.2rem, 7vw, 6.4rem);
-  line-height: 0.95;
-  letter-spacing: -0.065em;
-}
-.titleCard strong,
-.titleCard span {
-  display: block;
-  color: #ffd1ea;
-  font-weight: 500;
-}
-.titleCard strong {
-  margin-bottom: 0.25rem;
-  color: #fff;
-}
-.titleCountdown {
-  display: grid;
-  width: 2.4rem;
-  margin-top: 1rem;
-  aspect-ratio: 1;
-  place-items: center;
-  color: var(--ink);
-  border-radius: 50%;
-  background: var(--green);
-}
 .startCard {
   z-index: 3;
+  overflow: hidden;
   background: radial-gradient(circle at 50% 35%, #4e2a9a, #1d1127 62%);
+}
+.startCard--artwork {
+  align-content: end;
+  padding: 0;
+  background: #12042f;
+}
+.startCard--artwork::after {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  content: '';
+  background: linear-gradient(0deg, rgba(12, 5, 32, 0.96), transparent 62%);
+  pointer-events: none;
+}
+.startCardArtwork {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.startCardContent {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  justify-items: center;
+}
+.startCard--artwork .startCardContent {
+  width: 100%;
+  padding: clamp(1rem, 3vw, 2.25rem);
+}
+.startCard--artwork h2 {
+  font-size: clamp(1.7rem, 4.5vw, 3.7rem);
 }
 .startCard p,
 .startCard small {
   color: #d9cae5;
 }
+.startCardContent > p:not(.startCardKicker) {
+  margin-bottom: 0;
+}
+.startCardKicker {
+  margin: 0 0 0.35rem;
+  color: var(--pink) !important;
+  font-size: clamp(0.58rem, 1vw, 0.76rem);
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
 .screeningMark {
   display: grid;
   width: clamp(3.5rem, 8vw, 6rem);
+  margin-bottom: 1rem;
   aspect-ratio: 1;
   place-items: center;
   color: var(--ink);
@@ -2193,9 +2337,48 @@ kbd {
     grid-row: 4;
     grid-column: 1 / -1;
   }
+  .titleCardFrame {
+    padding: 1rem;
+  }
+  .titleCardTopline span:last-child {
+    display: none;
+  }
+  .titleCardCopy {
+    max-width: calc(100% - 4.25rem);
+  }
+  .titleCardCopy > p {
+    gap: 0.4rem;
+    margin-bottom: 0.35rem;
+  }
   .titleCard h2,
   .startCard h2 {
-    font-size: clamp(1.8rem, 10vw, 3rem);
+    font-size: clamp(1.5rem, 8vw, 2.4rem);
+  }
+  .titleCardTeam {
+    display: block;
+    margin-top: 0.45rem;
+  }
+  .titleCardTeam small {
+    display: block;
+    margin-bottom: 0.12rem;
+  }
+  .titleCountdown {
+    right: 1rem;
+    bottom: 1rem;
+    min-width: 3.25rem;
+    box-shadow: 0 0 0 3px rgba(146, 221, 0, 0.16);
+  }
+  .startCard--artwork .startCardContent {
+    padding: 0.75rem;
+  }
+  .startCard--artwork .startCardKicker,
+  .startCard--artwork .startCardContent > p,
+  .startCard--artwork .startCardContent > small {
+    display: none;
+  }
+  .startCard--artwork .screeningStart {
+    min-height: 2.6rem;
+    margin-bottom: 0;
   }
 }
 

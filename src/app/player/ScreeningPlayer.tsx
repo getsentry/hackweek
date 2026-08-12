@@ -7,6 +7,8 @@ import {
   useState,
 } from 'react';
 
+import year2026Banner from '../../assets/images/banner/year-2026.png';
+import year2026Intro from '../../assets/videos/reel/year-2026-intro.mp4';
 import type {PlaylistItem, PlaybackResponse} from '../../shared/videos';
 import {createPlayerAudioGraph} from './audio';
 import {
@@ -33,11 +35,12 @@ export const ScreeningPlayer = forwardRef<
   {
     playlist: PlaylistItem[];
     getPlayback: (videoId: string) => Promise<PlaybackResponse>;
+    yearId: string;
     initialVideoId?: string | null;
     onActiveVideoChange?: (videoId: string) => void;
   }
 >(function ScreeningPlayer(
-  {playlist, getPlayback, initialVideoId, onActiveVideoChange},
+  {playlist, getPlayback, yearId, initialVideoId, onActiveVideoChange},
   ref,
 ) {
   const shell = useRef<HTMLDivElement>(null);
@@ -120,6 +123,7 @@ export const ScreeningPlayer = forwardRef<
   const clip = playlist[activeIndex];
   const activeSlot = activeIndex % 2;
   const showingTitle = state.phase === 'title';
+  const hasYear2026Artwork = yearId === '2026';
   const team =
     clip.teamMembers.map(({displayName}) => displayName).join(' · ') || 'Hackweek team';
   const projectMeta = [clip.groupName, team].filter(Boolean).join(' · ');
@@ -131,29 +135,62 @@ export const ScreeningPlayer = forwardRef<
       <div className="screeningStage" aria-label="Hackweek screening player">
         <video
           ref={videos[0]}
-          className={activeSlot === 0 && !showingTitle ? 'active' : ''}
+          className={`screeningClip ${activeSlot === 0 && !showingTitle ? 'active' : ''}`}
           playsInline
           aria-label="screening video one"
         />
         <video
           ref={videos[1]}
-          className={activeSlot === 1 && !showingTitle ? 'active' : ''}
+          className={`screeningClip ${activeSlot === 1 && !showingTitle ? 'active' : ''}`}
           playsInline
           aria-label="screening video two"
         />
-        <div className={`titleCard ${showingTitle ? 'visible' : ''}`} aria-live="polite">
-          <p>#{String(activeIndex + 1).padStart(2, '0')} / Hackweek</p>
-          <h2>{clip.projectName}</h2>
-          {clip.groupName && <strong>{clip.groupName}</strong>}
-          <span>{team}</span>
-          {state.countdownSeconds && (
-            <b
-              className="titleCountdown"
-              aria-label={`${state.countdownSeconds} seconds until video`}
-            >
-              {state.countdownSeconds}
-            </b>
+        <div
+          className={`titleCard ${hasYear2026Artwork ? 'titleCard--artwork' : ''} ${showingTitle ? 'visible' : ''}`}
+          aria-live="polite"
+        >
+          {hasYear2026Artwork && showingTitle && (
+            <video
+              className="titleCardBackdrop"
+              src={year2026Intro}
+              poster={year2026Banner}
+              preload="auto"
+              autoPlay
+              loop
+              muted
+              playsInline
+              aria-hidden="true"
+            />
           )}
+          <div className="titleCardFrame">
+            <div className="titleCardTopline">
+              <span>
+                project {String(activeIndex + 1).padStart(2, '0')} /{' '}
+                {String(playlist.length).padStart(2, '0')}
+              </span>
+              <span>Hackweek {yearId}</span>
+            </div>
+            <div className="titleCardCopy">
+              <p>
+                {clip.groupName && <strong>{clip.groupName}</strong>}
+                up next
+              </p>
+              <h2>{clip.projectName}</h2>
+              <div className="titleCardTeam">
+                <small>built by</small>
+                <span>{team}</span>
+              </div>
+            </div>
+            {state.countdownSeconds && (
+              <div
+                className="titleCountdown"
+                aria-label={`${state.countdownSeconds} seconds until video`}
+              >
+                <small>playing in</small>
+                <b>{state.countdownSeconds}</b>
+              </div>
+            )}
+          </div>
         </div>
         {['playing', 'paused'].includes(state.phase) && (
           <div className="clipOverlay" aria-live="polite" key={clip.videoId}>
@@ -162,17 +199,27 @@ export const ScreeningPlayer = forwardRef<
           </div>
         )}
         {state.phase === 'idle' && (
-          <div className="startCard">
-            <span className="screeningMark">#H</span>
-            <h2>the Hackweek reel</h2>
-            <p>{playlist.length} ready project videos</p>
-            <button
-              className="screeningStart"
-              onClick={() => void buildController()?.start(activeIndex)}
-            >
-              {activeIndex === 0 ? 'play all' : `play from ${clip.projectName}`}
-            </button>
-            <small>sound starts only after you press play</small>
+          <div className={`startCard ${hasYear2026Artwork ? 'startCard--artwork' : ''}`}>
+            {hasYear2026Artwork && (
+              <img
+                className="startCardArtwork"
+                src={year2026Banner}
+                alt="Hackweek 2026"
+              />
+            )}
+            <div className="startCardContent">
+              {!hasYear2026Artwork && <span className="screeningMark">#H</span>}
+              <p className="startCardKicker">Hackweek {yearId} screening</p>
+              <h2>the project reel</h2>
+              <p>{playlist.length} ready project videos</p>
+              <button
+                className="screeningStart"
+                onClick={() => void buildController()?.start(activeIndex)}
+              >
+                {activeIndex === 0 ? 'play all' : `play from ${clip.projectName}`}
+              </button>
+              <small>sound starts only after you press play</small>
+            </div>
           </div>
         )}
         {state.phase === 'complete' && (

@@ -249,6 +249,7 @@ describe('video user experience', () => {
     fetchMock.mockImplementation(async () => json({videos: playlist}));
     const reel = renderRoute(<WatchPage />, '/years/2026/watch', '/years/:yearId/watch');
     expect(await screen.findByRole('heading', {name: 'play the reel'})).toBeTruthy();
+    expect(screen.getByRole('img', {name: 'Hackweek 2026'})).toBeTruthy();
     expect(screen.getByRole('button', {name: 'play all'})).toBeTruthy();
     expect(screen.getByRole('heading', {name: 'playlist'})).toBeTruthy();
     expect(screen.getByText('Ada Lovelace · Grace Hopper')).toBeTruthy();
@@ -272,13 +273,14 @@ describe('video user experience', () => {
       await screen.findByRole('button', {name: 'play from Second project'}),
     ).toBeTruthy();
 
-    renderQuery(<ScreeningPlayer playlist={[]} getPlayback={vi.fn()} />);
+    renderQuery(<ScreeningPlayer yearId="2026" playlist={[]} getPlayback={vi.fn()} />);
     expect(screen.getByRole('heading', {name: 'no videos are ready'})).toBeTruthy();
   });
 
   it('falls back safely when a refreshed playlist removes the selected clip', () => {
     const view = render(
       <ScreeningPlayer
+        yearId="2026"
         playlist={playlist}
         initialVideoId="video-2"
         getPlayback={vi.fn()}
@@ -288,6 +290,7 @@ describe('video user experience', () => {
 
     view.rerender(
       <ScreeningPlayer
+        yearId="2026"
         playlist={[playlist[0]]}
         initialVideoId="video-2"
         getPlayback={vi.fn()}
@@ -317,7 +320,9 @@ describe('video user experience', () => {
       configurable: true,
       value: requestFullscreen,
     });
-    renderQuery(<ScreeningPlayer playlist={playlist} getPlayback={vi.fn()} />);
+    renderQuery(
+      <ScreeningPlayer yearId="2026" playlist={playlist} getPlayback={vi.fn()} />,
+    );
     const timeline = screen.getByRole('slider', {name: 'video position'});
     expect(timeline.hasAttribute('disabled')).toBe(true);
     expect(timeline.getAttribute('max')).toBe('30');

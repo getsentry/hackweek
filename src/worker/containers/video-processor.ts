@@ -19,7 +19,7 @@ interface ProcessingStorageRow {
 export class VideoProcessorContainer extends Container<ProcessorContainerEnv> {
   defaultPort = 8080;
   requiredPorts = [8080];
-  sleepAfter = '5m';
+  sleepAfter = '1m';
   enableInternet = false;
   allowedHosts = ['video-r2'];
 }

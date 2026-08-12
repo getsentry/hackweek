@@ -41,7 +41,7 @@
       "class_name": "VideoProcessorContainer",
       "image": "./Dockerfile.video-processor",
       "image_build_context": ".",
-      "max_instances": 2,
+      "max_instances": 5,
       "instance_type": "standard-2"
     }
   ],

@@ -76,38 +76,66 @@ export class VideoProcessingWorkflow extends WorkflowEntrypoint<
     logVideoProcessing('info', 'processing_started', {videoId, attempt});
 
     let result: VideoProcessorResult;
-    try {
-      result = await step.do(
-        'run pinned ffmpeg processor',
-        {
-          retries: {limit: 1, delay: '2 seconds', backoff: 'constant'},
-          timeout: '30 minutes',
-        },
-        async () => {
-          const container = getContainer(
-            this.env.VIDEO_PROCESSOR,
-            `${videoId}-attempt-${attempt}`,
-          );
-          await container.setOutboundByHost('video-r2', 'videoR2', {videoId, attempt});
-          const response = await container.fetch('http://container/process', {
-            method: 'POST',
-            headers: {'content-type': 'application/json'},
-            body: JSON.stringify({videoId, attempt}),
-          });
-          if (!response.ok) {
-            const body = await response.text();
-            throw new Error(`FFmpeg processor returned ${response.status}: ${body}`);
-          }
-          return parseProcessorResult(await response.json());
-        },
-      );
-    } catch (error) {
-      const message = errorMessage(error);
-      logVideoProcessing('error', 'processor_failed', {videoId, attempt, message});
-      await step.do('record processor failure', () =>
-        failVideoProcessingAttempt(this.env.DB, videoId, attempt, message),
-      );
-      return {status: 'failed', stage: 'processor'};
+    for (;;) {
+      let outcome:
+        | {status: 'processed'; result: VideoProcessorResult}
+        | {status: 'capacity'};
+      try {
+        outcome = await step.do(
+          'run pinned ffmpeg processor',
+          {
+            retries: {limit: 1, delay: '2 seconds', backoff: 'constant'},
+            timeout: '30 minutes',
+          },
+          async () => {
+            const container = getContainer(
+              this.env.VIDEO_PROCESSOR,
+              `${videoId}-attempt-${attempt}`,
+            );
+            try {
+              await container.setOutboundByHost('video-r2', 'videoR2', {
+                videoId,
+                attempt,
+              });
+              const response = await container.fetch('http://container/process', {
+                method: 'POST',
+                headers: {'content-type': 'application/json'},
+                body: JSON.stringify({videoId, attempt}),
+              });
+              if (!response.ok) {
+                const body = await response.text();
+                if (isContainerCapacityResponse(response.status, body)) {
+                  return {status: 'capacity'} as const;
+                }
+                throw new Error(`FFmpeg processor returned ${response.status}: ${body}`);
+              }
+              return {
+                status: 'processed',
+                result: parseProcessorResult(await response.json()),
+              } as const;
+            } finally {
+              await destroyProcessorContainer(container, videoId, attempt);
+            }
+          },
+        );
+      } catch (error) {
+        const message = errorMessage(error);
+        logVideoProcessing('error', 'processor_failed', {videoId, attempt, message});
+        await step.do('record processor failure', () =>
+          failVideoProcessingAttempt(this.env.DB, videoId, attempt, message),
+        );
+        return {status: 'failed', stage: 'processor'};
+      }
+      if (outcome.status === 'capacity') {
+        logVideoProcessing('info', 'waiting_for_container_capacity', {
+          videoId,
+          attempt,
+        });
+        await step.sleep('wait for container capacity', '15 seconds');
+        continue;
+      }
+      result = outcome.result;
+      break;
     }
 
     const published = await step.do('publish only if attempt is current', () =>
@@ -129,6 +157,38 @@ export class VideoProcessingWorkflow extends WorkflowEntrypoint<
       },
     );
     return {status: published ? 'ready' : 'stale', result};
+  }
+}
+
+export function isContainerCapacityResponse(status: number, body: string) {
+  return (
+    status === 500 &&
+    body.includes('Maximum number of running container instances exceeded')
+  );
+}
+
+async function destroyProcessorContainer(
+  container: {destroy(): Promise<void>; stop(): Promise<void>},
+  videoId: string,
+  attempt: number,
+) {
+  try {
+    await container.destroy();
+  } catch (error) {
+    logVideoProcessing('error', 'container_destroy_failed', {
+      videoId,
+      attempt,
+      message: errorMessage(error),
+    });
+    try {
+      await container.stop();
+    } catch (stopError) {
+      logVideoProcessing('error', 'container_stop_failed', {
+        videoId,
+        attempt,
+        message: errorMessage(stopError),
+      });
+    }
   }
 }
 

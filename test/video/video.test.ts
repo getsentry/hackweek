@@ -12,6 +12,7 @@ import {
   reapExpiredMultipartVideoUploads,
   VIDEO_PART_SIZE,
 } from '../../src/worker/services/videos';
+import {isContainerCapacityResponse} from '../../src/worker/workflows/video-processing';
 import type {VideoProcessorResult} from '../../src/worker/video-processing';
 import {createSessionCookie} from '../auth/fixture';
 
@@ -65,6 +66,19 @@ beforeEach(async () => {
 });
 
 describe('R2 multipart video lifecycle', () => {
+  it('recognizes only the platform instance ceiling as transient capacity', () => {
+    expect(
+      isContainerCapacityResponse(
+        500,
+        'Failed to start container: Maximum number of running container instances exceeded. Try again later',
+      ),
+    ).toBe(true);
+    expect(isContainerCapacityResponse(422, 'Input does not contain a video')).toBe(
+      false,
+    );
+    expect(isContainerCapacityResponse(500, 'Derivative R2 write failed')).toBe(false);
+  });
+
   it('streams resumable parts, completes idempotently, and records the queued handoff', async () => {
     const forbidden = await createUpload(projectId, outsiderToken, 11);
     expect(forbidden.status).toBe(403);

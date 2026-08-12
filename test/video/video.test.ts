@@ -404,10 +404,52 @@ describe('R2 multipart video lifecycle', () => {
     expect(promoted.status).toBe(404);
   });
 
+  it('normalizes browser MIME metadata while retaining video filename validation', async () => {
+    const opaqueProject = await createProject('Opaque browser MIME');
+    const opaque = await api(`/projects/${opaqueProject}/video/upload`, ownerToken, {
+      method: 'POST',
+      body: {
+        fileName: 'camera-export.mp4',
+        fileSize: 10,
+        contentType: 'application/octet-stream',
+      },
+    });
+    expect(opaque.status).toBe(201);
+    expect(opaque.body.upload.contentType).toBeNull();
+    await api(
+      `/projects/${opaqueProject}/video/upload/${opaque.body.upload.uploadId}`,
+      ownerToken,
+      {
+        method: 'DELETE',
+      },
+    );
+
+    const parameterProject = await createProject('Parameterized browser MIME');
+    const parameterized = await api(
+      `/projects/${parameterProject}/video/upload`,
+      ownerToken,
+      {
+        method: 'POST',
+        body: {
+          fileName: 'camera.mov',
+          fileSize: 10,
+          contentType: 'video/quicktime; codecs=hvc1',
+        },
+      },
+    );
+    expect(parameterized.status).toBe(201);
+    expect(parameterized.body.upload.contentType).toBe('video/quicktime');
+    await api(
+      `/projects/${parameterProject}/video/upload/${parameterized.body.upload.uploadId}`,
+      ownerToken,
+      {method: 'DELETE'},
+    );
+  });
+
   it('rejects malformed, oversized, closed, idea, stale, and incomplete requests deterministically', async () => {
     const malformed = await api(`/projects/${projectId}/video/upload`, ownerToken, {
       method: 'POST',
-      body: {fileName: 'demo.mp4', fileSize: 10, contentType: 'text/plain'},
+      body: {fileName: 'notes.txt', fileSize: 10, contentType: 'text/plain'},
     });
     const oversized = await createUpload(projectId, ownerToken, MAX_VIDEO_BYTES + 1);
     expect(malformed.status).toBe(400);

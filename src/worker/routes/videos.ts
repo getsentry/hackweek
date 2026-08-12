@@ -249,18 +249,32 @@ function parseUpload(value: unknown): DirectUploadRequest {
   ) {
     invalid(`File size must be between 1 and ${MAX_VIDEO_BYTES} bytes`);
   }
-  if (
-    input.contentType !== null &&
-    (typeof input.contentType !== 'string' ||
-      !/^video\/[a-zA-Z0-9!#$&^_.+-]{1,100}$/.test(input.contentType))
-  ) {
-    invalid('Content type must be a valid video media type');
-  }
+  const fileName = input.fileName.trim();
   return {
-    fileName: input.fileName.trim(),
+    fileName,
     fileSize: input.fileSize,
-    contentType: input.contentType,
+    contentType: normalizeVideoContentType(input.contentType, fileName),
   };
+}
+
+function normalizeVideoContentType(value: unknown, fileName: string) {
+  if (value === null) return null;
+  if (
+    typeof value !== 'string' ||
+    value.length > 255 ||
+    Array.from(value).some((character) => {
+      const code = character.charCodeAt(0);
+      return code <= 31 || code === 127;
+    })
+  ) {
+    invalid('Content type is invalid');
+  }
+  const mediaType = value.split(';', 1)[0].trim().toLowerCase();
+  if (/^video\/[a-zA-Z0-9!#$&^_.+-]{1,100}$/.test(mediaType)) return mediaType;
+  if (/\.(?:3g2|3gp|avi|m2ts|m4v|mkv|mov|mp4|mpeg|mpg|mts|ogv|webm)$/i.test(fileName)) {
+    return null;
+  }
+  invalid('File must be a recognized video');
 }
 
 function parseCompletion(value: unknown): CompleteVideoUploadRequest {

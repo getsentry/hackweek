@@ -453,6 +453,18 @@ describe('clickable project routes', () => {
     expect(screen.queryByRole('heading', {name: 'Overview'})).toBeNull();
   });
 
+  it('renders project actions with consistent lowercase labels', async () => {
+    fetchMock.mockResolvedValue(json({project: projectFixture}));
+
+    renderRoute(
+      <ProjectDetailsPage />,
+      '/years/2026/projects/project',
+      '/years/:yearId/projects/:projectId',
+    );
+
+    expect(await screen.findByRole('button', {name: 'withdraw'})).toBeTruthy();
+  });
+
   it('renders project descriptions as GitHub-flavored Markdown', async () => {
     fetchMock.mockResolvedValue(
       json({

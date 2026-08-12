@@ -89,7 +89,7 @@ export function ProjectDetailsPage() {
                     });
                   }}
                 >
-                  Withdraw
+                  withdraw
                 </button>
               )}
             </div>

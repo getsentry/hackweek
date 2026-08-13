@@ -40,7 +40,7 @@ jobs:
           node -e "const c=require('./wrangler.production.json'); const videos=c.r2_buckets.find(x=>x.binding==='VIDEOS'); const workflow=c.workflows.find(x=>x.binding==='VIDEO_PROCESSING_WORKFLOW'); const container=c.containers.find(x=>x.class_name==='VideoProcessorContainer'); if (c.account_id !== '20d94f53c7cab0b469521b703ff1923c' || videos?.bucket_name !== 'hackweek-video-media-production' || workflow?.name !== 'hackweek-video-processing-production' || container?.name !== 'hackweek-video-processor-production' || container?.max_instances !== 5 || c.vars.VIDEO_PROCESSOR_CONCURRENCY !== '2') process.exit(1); for (const value of [c.d1_databases[0].database_id,c.r2_buckets[0].bucket_name,c.vars.APP_ORIGIN,c.vars.GOOGLE_REDIRECT_URI,c.vars.GOOGLE_CLIENT_ID]) if (!value || /replace.me/i.test(value) || value === '00000000-0000-0000-0000-000000000000') process.exit(1)"
       - run: npm run build
       - name: Apply expand-compatible D1 migrations
-        run: npx wrangler d1 migrations apply hackweek-db --remote --config wrangler.production.json --yes
+        run: npx wrangler d1 migrations apply hackweek-db --remote --config wrangler.production.json
         env: &cloudflare
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

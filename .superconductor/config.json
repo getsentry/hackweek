@@ -1,0 +1,10 @@
+{
+  "setup": ["node scripts/setup-worktree.mjs"],
+  "run": [
+    {
+      "name": "Development server",
+      "commands": ["npm run dev:video"],
+      "default": true
+    }
+  ]
+}

@@ -2264,6 +2264,70 @@ kbd {
 .screeningEmpty p {
   color: var(--muted);
 }
+.reelGroups {
+  padding: clamp(1rem, 2.5vw, 1.5rem);
+  margin-bottom: 1.25rem;
+  border: 1px solid var(--line);
+  border-radius: 0.85rem;
+  background: var(--soft);
+}
+.reelGroups > header {
+  display: flex;
+  gap: 1rem;
+  align-items: end;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+.reelGroups h2,
+.reelGroups p {
+  margin: 0;
+}
+.reelGroups > header > p {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+.reelGroupGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+  gap: 0.55rem;
+}
+.reelGroupGrid button {
+  padding: 0.8rem 0.9rem;
+  text-align: left;
+  color: var(--ink);
+  border: 1px solid #c9c3d1;
+  border-radius: 0.65rem;
+  background: var(--paper);
+  transition:
+    color 100ms ease,
+    border-color 100ms ease,
+    background 100ms ease,
+    transform 100ms ease;
+}
+.reelGroupGrid button:hover {
+  border-color: var(--blurple);
+  transform: translateY(-1px);
+}
+.reelGroupGrid button[aria-pressed='true'] {
+  color: #fff;
+  border-color: var(--dark-blurple);
+  background: var(--dark-blurple);
+}
+.reelGroupGrid strong,
+.reelGroupGrid span {
+  display: block;
+}
+.reelGroupGrid strong {
+  font-size: 0.88rem;
+}
+.reelGroupGrid span {
+  margin-top: 0.2rem;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+.reelGroupGrid button[aria-pressed='true'] span {
+  color: #d9cae5;
+}
 .reelIndex {
   padding-top: 4rem;
 }
@@ -2326,6 +2390,13 @@ kbd {
   }
 }
 @media (max-width: 560px) {
+  .reelGroups > header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .reelGroupGrid {
+    grid-template-columns: 1fr 1fr;
+  }
   .videoPanel > header {
     align-items: flex-start;
     flex-direction: column;

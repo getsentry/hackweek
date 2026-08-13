@@ -68,6 +68,7 @@ export interface PlaylistItem {
   videoId: string;
   projectId: string;
   projectName: string;
+  groupId: string | null;
   groupName: string | null;
   teamMembers: Array<{id: string; displayName: string}>;
   durationSeconds: number;

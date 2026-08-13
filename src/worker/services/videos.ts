@@ -105,7 +105,7 @@ export async function listPlaylist(
   const {results} = await db
     .prepare(
       `SELECT pv.id video_id, p.id project_id, p.name project_name,
-        g.name group_name, pv.duration_seconds, pv.gain_db, so.position
+        g.id group_id, g.name group_name, pv.duration_seconds, pv.gain_db, so.position
        FROM projects p
        JOIN video_submissions pv ON pv.project_id = p.id
        LEFT JOIN groups g ON g.id = p.group_id
@@ -121,6 +121,7 @@ export async function listPlaylist(
       video_id: string;
       project_id: string;
       project_name: string;
+      group_id: string | null;
       group_name: string | null;
       duration_seconds: number;
       gain_db: number;
@@ -149,6 +150,7 @@ export async function listPlaylist(
     videoId: row.video_id,
     projectId: row.project_id,
     projectName: row.project_name,
+    groupId: row.group_id,
     groupName: row.group_name,
     teamMembers: membersByProject.get(row.project_id) ?? [],
     durationSeconds: row.duration_seconds,

@@ -251,6 +251,12 @@ describe('video user experience', () => {
     expect(await screen.findByRole('heading', {name: 'play the reel'})).toBeTruthy();
     expect(screen.getByRole('img', {name: 'Hackweek 2026'})).toBeTruthy();
     expect(screen.getByRole('button', {name: 'play all'})).toBeTruthy();
+    expect(screen.getByRole('heading', {name: 'choose a group'})).toBeTruthy();
+    expect(
+      screen
+        .getByRole('button', {name: 'all groups 2 videos'})
+        .getAttribute('aria-pressed'),
+    ).toBe('true');
     expect(screen.getByRole('heading', {name: 'playlist'})).toBeTruthy();
     expect(screen.getByText('Ada Lovelace · Grace Hopper')).toBeTruthy();
     const firstRow = screen
@@ -265,6 +271,18 @@ describe('video user experience', () => {
       screen.queryByText(
         'private progressive MP4 playback in the curated screening order.',
       ),
+    ).toBeNull();
+
+    await userEvent.click(screen.getByRole('button', {name: 'Europe 1 video'}));
+    expect(
+      screen.getByRole('button', {name: 'Europe 1 video'}).getAttribute('aria-pressed'),
+    ).toBe('true');
+    expect(screen.getByRole('heading', {name: 'Europe playlist'})).toBeTruthy();
+    expect(
+      screen.getByRole('button', {name: 'start reel from First project'}),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole('button', {name: 'start reel from Second project'}),
     ).toBeNull();
     reel.unmount();
 
@@ -395,6 +413,7 @@ const playlist: PlaylistItem[] = [
     videoId: 'video-1',
     projectId: 'project',
     projectName: 'First project',
+    groupId: 'europe',
     groupName: 'Europe',
     teamMembers: [
       {id: 'ada', displayName: 'Ada Lovelace'},
@@ -408,6 +427,7 @@ const playlist: PlaylistItem[] = [
     videoId: 'video-2',
     projectId: 'project-2',
     projectName: 'Second project',
+    groupId: 'americas',
     groupName: 'Americas',
     teamMembers: [{id: 'linus', displayName: 'Linus Torvalds'}],
     durationSeconds: 45,

@@ -157,6 +157,7 @@ const playlist: PlaylistItem[] = [
     videoId: 'video-1',
     projectId: 'project-1',
     projectName: 'First',
+    groupId: 'europe',
     groupName: 'Europe',
     teamMembers: [
       {id: 'ada', displayName: 'Ada'},
@@ -170,6 +171,7 @@ const playlist: PlaylistItem[] = [
     videoId: 'video-2',
     projectId: 'project-2',
     projectName: 'Second',
+    groupId: 'americas',
     groupName: 'Americas',
     teamMembers: [{id: 'linus', displayName: 'Linus'}],
     durationSeconds: 20,

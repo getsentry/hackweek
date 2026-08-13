@@ -3,6 +3,7 @@ import {describe, expect, it} from 'vitest';
 import {
   localObjectFilename,
   objectMetadataMatches,
+  randomSample,
   reconcileBucket,
   type R2ObjectMetadata,
   wranglerMetadataArgs,
@@ -61,6 +62,17 @@ describe('Cloudflare account R2 migration', () => {
         http_metadata: {contentType: 'application/octet-stream'},
       }),
     ).toBe(false);
+  });
+
+  it('selects a unique random sample without mutating the input', () => {
+    const values = Array.from({length: 20}, (_, index) => index);
+    const sample = randomSample(values, 10);
+
+    expect(sample).toHaveLength(10);
+    expect(new Set(sample).size).toBe(10);
+    expect(sample.every((value) => values.includes(value))).toBe(true);
+    expect(values).toEqual(Array.from({length: 20}, (_, index) => index));
+    expect(() => randomSample(values, 21)).toThrow(/Cannot sample/);
   });
 
   it('maps supported HTTP metadata and storage class to Wrangler flags', () => {

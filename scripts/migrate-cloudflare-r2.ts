@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import {execFile} from 'node:child_process';
-import {createHash} from 'node:crypto';
+import {createHash, randomInt} from 'node:crypto';
 import {createReadStream} from 'node:fs';
 import {chmod, mkdir, rm, stat, writeFile} from 'node:fs/promises';
 import path from 'node:path';
@@ -44,6 +44,7 @@ interface Arguments {
   workDir: string;
   confirm?: string;
   keepDownloads: boolean;
+  sampleSize?: number;
 }
 
 export interface R2ObjectMetadata {
@@ -259,6 +260,14 @@ function parseArguments(argv: string[]): Arguments {
     flags.set(flag.slice(2), value);
   }
   const root = path.resolve(flags.get('work-dir') ?? 'migration-output/cloudflare-r2');
+  const sample = flags.get('sample');
+  const sampleSize = sample === undefined ? undefined : Number(sample);
+  if (sampleSize !== undefined && (!Number.isSafeInteger(sampleSize) || sampleSize < 1)) {
+    throw new Error('--sample must be a positive integer');
+  }
+  if (sampleSize !== undefined && !command.startsWith('verify-')) {
+    throw new Error('--sample is supported only by verify commands');
+  }
   return {
     command,
     report: path.resolve(
@@ -267,6 +276,7 @@ function parseArguments(argv: string[]): Arguments {
     workDir: root,
     confirm: flags.get('confirm'),
     keepDownloads: flags.get('keep-downloads') === 'true',
+    sampleSize,
   };
 }
 
@@ -489,8 +499,12 @@ async function verifyObjects(
   const destinationByKey = new Map(
     destinationObjects.map((object) => [object.key, object]),
   );
+  const candidates =
+    args.sampleSize === undefined
+      ? sourceObjects
+      : randomSample(sourceObjects, args.sampleSize);
   const result: VerificationResult = {verified: 0, failed: 0, errors: []};
-  for (const [index, object] of sourceObjects.entries()) {
+  for (const [index, object] of candidates.entries()) {
     const destinationObject = destinationByKey.get(object.key);
     const sourceFile = path.join(
       args.workDir,
@@ -539,11 +553,11 @@ async function verifyObjects(
         }
       }
       result.verified += 1;
-      printProgress('verified', index + 1, sourceObjects.length);
+      printProgress('verified', index + 1, candidates.length);
     } catch (error) {
       result.failed += 1;
       result.errors.push({index: index + 1, message: errorMessage(error)});
-      printProgress('failed', index + 1, sourceObjects.length);
+      printProgress('failed', index + 1, candidates.length);
     } finally {
       if (!args.keepDownloads) {
         await Promise.all([
@@ -554,6 +568,18 @@ async function verifyObjects(
     }
   }
   return result;
+}
+
+export function randomSample<T>(values: T[], size: number) {
+  if (size > values.length) {
+    throw new Error(`Cannot sample ${size} objects from ${values.length}`);
+  }
+  const shuffled = [...values];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const selected = randomInt(index + 1);
+    [shuffled[index], shuffled[selected]] = [shuffled[selected], shuffled[index]];
+  }
+  return shuffled.slice(0, size);
 }
 
 export function wranglerMetadataArgs(object: R2ObjectMetadata) {

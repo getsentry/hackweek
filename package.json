@@ -25,7 +25,8 @@
     "migrate:dry-run": "tsx scripts/migrate/cli.ts dry-run",
     "migrate:local": "tsx scripts/migrate/cli.ts import --target local",
     "migrate:cloudflare": "tsx scripts/migrate/cli.ts import --target cloudflare",
-    "migrate:reconcile": "tsx scripts/migrate/cli.ts reconcile"
+    "migrate:reconcile": "tsx scripts/migrate/cli.ts reconcile",
+    "migrate:cloudflare-r2": "tsx scripts/migrate-cloudflare-r2.ts"
   },
   "dependencies": {
     "@cloudflare/containers": "0.3.7",

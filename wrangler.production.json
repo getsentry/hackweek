@@ -1,7 +1,7 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "hackweek",
-  "account_id": "773afa1f62ff86c80db4f24f7ff1e9c8",
+  "account_id": "20d94f53c7cab0b469521b703ff1923c",
   "main": "./src/worker/index.ts",
   "compatibility_date": "2026-08-03",
   "assets": {
@@ -14,7 +14,7 @@
     {
       "binding": "DB",
       "database_name": "hackweek-db",
-      "database_id": "7063a770-b791-4fcd-aedf-ddf5fff2e312",
+      "database_id": "c28c9eb5-7962-480e-8b3d-229fff5ca112",
       "migrations_dir": "migrations"
     }
   ],

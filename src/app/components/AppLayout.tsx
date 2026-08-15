@@ -92,17 +92,41 @@ export function AppLayout({
   );
 }
 
+export function HackweekLoader() {
+  return (
+    <div className="hackweekLoader" aria-hidden="true">
+      <div className="hackweekLoaderTiles">
+        <span />
+        <span />
+        <span />
+        <span />
+        <span />
+      </div>
+      <div className="hackweekLoaderTrack">
+        <span />
+      </div>
+    </div>
+  );
+}
+
 export function PageState({
   title,
   detail,
   tone = 'neutral',
+  loading = false,
 }: {
   title: string;
   detail: string;
   tone?: 'neutral' | 'error' | 'forbidden';
+  loading?: boolean;
 }) {
   return (
-    <section className={`pageState pageState--${tone}`} aria-live="polite">
+    <section
+      className={`pageState pageState--${tone}${loading ? ' pageState--loading' : ''}`}
+      aria-busy={loading || undefined}
+      aria-live="polite"
+    >
+      {loading && <HackweekLoader />}
       <p className="kicker">Hackweek</p>
       <h1>{title}</h1>
       <p>{detail}</p>
@@ -121,7 +145,9 @@ export function QueryState({
   children: ReactNode;
 }) {
   if (loading) {
-    return <PageState title="Loading Hackweek" detail="Loading Hackweek records…" />;
+    return (
+      <PageState title="Loading Hackweek" detail="Loading Hackweek records…" loading />
+    );
   }
   if (error) {
     return (

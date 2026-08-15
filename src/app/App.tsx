@@ -1,6 +1,6 @@
 import {Redirect, Route, Switch} from 'wouter';
 
-import {AppLayout, PageState} from './components/AppLayout';
+import {AppLayout, HackweekLoader, PageState} from './components/AppLayout';
 import {GoogleIcon} from './components/GoogleIcon';
 import {AdminAnalyticsPage} from './routes/AdminAnalyticsPage';
 import {AdminPage} from './routes/AdminPage';
@@ -17,7 +17,13 @@ export function App() {
   const session = useSession();
 
   if (session.status === 'loading') {
-    return <AuthState title="Loading Hackweek" detail="checking your Sentry account…" />;
+    return (
+      <AuthState
+        title="Loading Hackweek"
+        detail="loading projects, ideas, and teams…"
+        loading
+      />
+    );
   }
   if (session.status === 'unauthenticated') {
     const detail =
@@ -101,14 +107,21 @@ function AuthState({
   title,
   detail,
   login = false,
+  loading = false,
 }: {
   title: string;
   detail: string;
   login?: boolean;
+  loading?: boolean;
 }) {
   return (
-    <main className="authShell">
-      <section className="authState" aria-live="polite">
+    <main className={`authShell${loading ? ' authShell--loading' : ''}`}>
+      <section
+        className={`authState${loading ? ' authState--loading' : ''}`}
+        aria-busy={loading || undefined}
+        aria-live="polite"
+      >
+        {loading && <HackweekLoader />}
         <p className="kicker">Sentry #Hackweek</p>
         <h1>{title}</h1>
         <p>{detail}</p>

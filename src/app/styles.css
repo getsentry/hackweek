@@ -1496,6 +1496,13 @@ main {
   min-height: 100vh;
   background: var(--soft);
 }
+.authShell--loading {
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 20% 15%, rgba(255, 112, 188, 0.14), transparent 28rem),
+    radial-gradient(circle at 82% 78%, rgba(117, 83, 255, 0.14), transparent 32rem),
+    var(--soft);
+}
 .pageState,
 .authState {
   position: relative;
@@ -1529,6 +1536,97 @@ main {
   padding-bottom: 2rem;
   color: var(--muted);
   line-height: 1.7;
+}
+.authState--loading {
+  animation: loadingStateIn 400ms ease-out both;
+}
+.pageState--loading {
+  animation: loadingStateIn 400ms ease-out 200ms both;
+}
+.authState--loading {
+  overflow: hidden;
+  border-color: rgba(117, 83, 255, 0.18);
+  box-shadow: 0 24px 70px rgba(78, 42, 154, 0.1);
+}
+.authState--loading::before {
+  position: absolute;
+  top: -8rem;
+  left: 50%;
+  width: 24rem;
+  height: 14rem;
+  content: '';
+  background: radial-gradient(circle, rgba(117, 83, 255, 0.1), transparent 70%);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.hackweekLoader {
+  position: relative;
+  width: min(13rem, 72vw);
+  margin: 0 auto clamp(2rem, 5vw, 3rem);
+}
+.hackweekLoaderTiles {
+  display: flex;
+  height: 3.4rem;
+  gap: 0.42rem;
+  align-items: flex-end;
+  justify-content: center;
+}
+.hackweekLoaderTiles span {
+  --loader-color: var(--blurple);
+  --loader-tilt: -3deg;
+  display: block;
+  width: clamp(1.35rem, 5vw, 1.8rem);
+  height: clamp(1.75rem, 6vw, 2.3rem);
+  border: 2px solid rgba(29, 17, 39, 0.12);
+  border-radius: 0.4rem;
+  background: var(--loader-color);
+  box-shadow: 0 0.3rem 0 rgba(29, 17, 39, 0.1);
+  animation: loadingTile 1.35s cubic-bezier(0.45, 0, 0.2, 1) infinite both;
+}
+.hackweekLoaderTiles span:nth-child(1) {
+  --loader-color: var(--dark-blurple);
+  --loader-tilt: -7deg;
+  animation-delay: -1.08s;
+}
+.hackweekLoaderTiles span:nth-child(2) {
+  --loader-color: var(--pink);
+  --loader-tilt: 3deg;
+  animation-delay: -0.81s;
+}
+.hackweekLoaderTiles span:nth-child(3) {
+  --loader-color: var(--green);
+  --loader-tilt: -2deg;
+  animation-delay: -0.54s;
+}
+.hackweekLoaderTiles span:nth-child(4) {
+  --loader-color: var(--yellow);
+  --loader-tilt: 6deg;
+  animation-delay: -0.27s;
+}
+.hackweekLoaderTiles span:nth-child(5) {
+  --loader-tilt: -4deg;
+}
+.hackweekLoaderTrack {
+  position: relative;
+  overflow: hidden;
+  height: 0.22rem;
+  margin-top: 0.7rem;
+  border-radius: 999px;
+  background: var(--lavender);
+}
+.hackweekLoaderTrack span {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--pink) 28%,
+    var(--blurple) 50%,
+    var(--green) 72%,
+    transparent 100%
+  );
+  animation: loadingTrack 1.8s ease-in-out infinite;
 }
 .googleLogin {
   display: inline-flex;
@@ -2471,6 +2569,48 @@ kbd {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes loadingStateIn {
+  from {
+    opacity: 0;
+    transform: translateY(0.6rem) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes loadingTile {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: translateY(0) rotate(var(--loader-tilt)) scale(0.9);
+  }
+  38% {
+    opacity: 1;
+    transform: translateY(-0.72rem) rotate(var(--loader-tilt)) scale(1);
+  }
+  68% {
+    opacity: 0.72;
+    transform: translateY(0) rotate(var(--loader-tilt)) scale(0.94);
+  }
+}
+
+@keyframes loadingTrack {
+  0% {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+  25%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(100%);
   }
 }
 

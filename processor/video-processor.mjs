@@ -355,8 +355,8 @@ async function processRequest(payload) {
 function validatePayload(value) {
   if (
     !value ||
-    typeof value !== 'object' ||
-    typeof value.videoId !== 'string' ||
+    Object.prototype.toString.call(value) !== '[object Object]' ||
+    Object.prototype.toString.call(value.videoId) !== '[object String]' ||
     !/^[a-zA-Z0-9-]{1,128}$/.test(value.videoId) ||
     !Number.isInteger(value.attempt) ||
     value.attempt < 1

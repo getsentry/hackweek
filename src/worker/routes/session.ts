@@ -1,6 +1,7 @@
 import {Hono} from 'hono';
 
 import type {ApiErrorResponse, SessionResponse, SessionViewMode} from '../../shared/api';
+import {isJsonObject, type JsonInput} from '../../shared/json';
 import {parseUpdateProfile, ProfileValidationError} from '../../shared/profile';
 import type {AuthBindings, AuthVariables} from '../middleware/auth';
 import {setSessionViewMode} from '../services/sessions';
@@ -68,13 +69,8 @@ sessionRoutes.put('/profile', async (c) => {
   }
 });
 
-function parseViewMode(value: unknown): SessionViewMode {
-  if (
-    typeof value !== 'object' ||
-    value === null ||
-    !('mode' in value) ||
-    (value.mode !== 'admin' && value.mode !== 'member')
-  ) {
+function parseViewMode(value: JsonInput): SessionViewMode {
+  if (!isJsonObject(value) || (value.mode !== 'admin' && value.mode !== 'member')) {
     throw new ViewModeValidationError();
   }
   return value.mode;

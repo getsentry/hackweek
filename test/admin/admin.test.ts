@@ -205,7 +205,8 @@ async function createCategory(name: string) {
     body: {name},
   });
   expect(response.status).toBe(201);
-  return response.body.category as {id: string};
+  const category: {id: string} = response.body.category;
+  return category;
 }
 
 async function tokenAndSession(kind: 'admin' | 'member') {
@@ -228,15 +229,14 @@ async function api(
   token: string,
   options: {method?: string; body?: unknown} = {},
 ) {
+  const headers = new Headers({Cookie: token});
+  if (options.method && options.method !== 'GET') {
+    headers.set('Origin', 'https://hackweek.test');
+  }
+  if (options.body !== undefined) headers.set('Content-Type', 'application/json');
   const response = await SELF.fetch(`${base}${path}`, {
     method: options.method,
-    headers: {
-      Cookie: token,
-      ...(options.method && options.method !== 'GET'
-        ? {Origin: 'https://hackweek.test'}
-        : {}),
-      ...(options.body === undefined ? {} : {'Content-Type': 'application/json'}),
-    },
+    headers,
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
   });
   return {

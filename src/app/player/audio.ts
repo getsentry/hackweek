@@ -15,11 +15,21 @@ export interface PlayerAudioGraph {
   close(): Promise<void>;
 }
 
+export interface PlayerAudioContext {
+  state: AudioContextState;
+  destination: AudioDestinationNode;
+  createDynamicsCompressor(): DynamicsCompressorNode;
+  createMediaElementSource(element: HTMLMediaElement): MediaElementAudioSourceNode;
+  createGain(): GainNode;
+  resume(): Promise<void>;
+  close(): Promise<void>;
+}
+
 export function createPlayerAudioGraph(
   elements: [HTMLVideoElement, HTMLVideoElement],
-  AudioContextClass: typeof AudioContext = window.AudioContext,
+  createContext: () => PlayerAudioContext = () => new window.AudioContext(),
 ): PlayerAudioGraph {
-  const context = new AudioContextClass();
+  const context = createContext();
   const limiter = context.createDynamicsCompressor();
   limiter.threshold.value = -3;
   limiter.knee.value = 6;
@@ -28,13 +38,14 @@ export function createPlayerAudioGraph(
   limiter.release.value = 0.25;
   limiter.connect(context.destination);
 
-  const gains = elements.map((element) => {
+  const gainFor = (element: HTMLVideoElement) => {
     const source = context.createMediaElementSource(element);
     const gain = context.createGain();
     source.connect(gain);
     gain.connect(limiter);
     return gain;
-  }) as [GainNode, GainNode];
+  };
+  const gains: [GainNode, GainNode] = [gainFor(elements[0]), gainFor(elements[1])];
 
   return {
     async resume() {

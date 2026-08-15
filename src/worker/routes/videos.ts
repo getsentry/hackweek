@@ -8,6 +8,12 @@ import type {
   PlaylistResponse,
   ProjectVideoResponse,
 } from '../../shared/videos';
+import {
+  isJsonNumber,
+  isJsonObject,
+  isJsonString,
+  type JsonInput,
+} from '../../shared/json';
 import type {WorkerEnv} from '../index';
 import {errorResponse, ServiceError} from '../services/errors';
 import {
@@ -227,14 +233,13 @@ projectVideoRoutes.delete('/:projectId/video', async (c) => {
   }
 });
 
-function parseUpload(value: unknown): DirectUploadRequest {
-  if (!value || typeof value !== 'object') invalid('Request body must be an object');
-  const input = value as Record<string, unknown>;
+function parseUpload(value: JsonInput): DirectUploadRequest {
+  if (!isJsonObject(value)) invalid('Request body must be an object');
   if (
-    typeof input.fileName !== 'string' ||
-    input.fileName.trim().length === 0 ||
-    input.fileName.trim().length > 255 ||
-    Array.from(input.fileName).some((character) => {
+    !isJsonString(value.fileName) ||
+    value.fileName.trim().length === 0 ||
+    value.fileName.trim().length > 255 ||
+    Array.from(value.fileName).some((character) => {
       const code = character.charCodeAt(0);
       return code <= 31 || code === 127;
     })
@@ -242,25 +247,25 @@ function parseUpload(value: unknown): DirectUploadRequest {
     invalid('File name is invalid');
   }
   if (
-    typeof input.fileSize !== 'number' ||
-    !Number.isSafeInteger(input.fileSize) ||
-    input.fileSize <= 0 ||
-    input.fileSize > MAX_VIDEO_BYTES
+    !isJsonNumber(value.fileSize) ||
+    !Number.isSafeInteger(value.fileSize) ||
+    value.fileSize <= 0 ||
+    value.fileSize > MAX_VIDEO_BYTES
   ) {
     invalid(`File size must be between 1 and ${MAX_VIDEO_BYTES} bytes`);
   }
-  const fileName = input.fileName.trim();
+  const fileName = value.fileName.trim();
   return {
     fileName,
-    fileSize: input.fileSize,
-    contentType: normalizeVideoContentType(input.contentType, fileName),
+    fileSize: value.fileSize,
+    contentType: normalizeVideoContentType(value.contentType, fileName),
   };
 }
 
-function normalizeVideoContentType(value: unknown, fileName: string) {
+function normalizeVideoContentType(value: JsonInput, fileName: string) {
   if (value === null) return null;
   if (
-    typeof value !== 'string' ||
+    !isJsonString(value) ||
     value.length > 255 ||
     Array.from(value).some((character) => {
       const code = character.charCodeAt(0);
@@ -277,26 +282,26 @@ function normalizeVideoContentType(value: unknown, fileName: string) {
   invalid('File must be a recognized video');
 }
 
-function parseCompletion(value: unknown): CompleteVideoUploadRequest {
-  if (!value || typeof value !== 'object') invalid('Request body must be an object');
-  const parts = (value as Record<string, unknown>).parts;
+function parseCompletion(value: JsonInput): CompleteVideoUploadRequest {
+  if (!isJsonObject(value)) invalid('Request body must be an object');
+  const {parts} = value;
   if (!Array.isArray(parts) || parts.length === 0 || parts.length > 10_000) {
     invalid('Completed parts are required');
   }
   const parsed = parts.map((part) => {
-    if (!part || typeof part !== 'object') invalid('Completed part is invalid');
-    const record = part as Record<string, unknown>;
+    if (!isJsonObject(part)) invalid('Completed part is invalid');
     if (
-      !Number.isInteger(record.partNumber) ||
-      (record.partNumber as number) < 1 ||
-      (record.partNumber as number) > 10_000 ||
-      typeof record.etag !== 'string' ||
-      !record.etag ||
-      record.etag.length > 256
+      !isJsonNumber(part.partNumber) ||
+      !Number.isInteger(part.partNumber) ||
+      part.partNumber < 1 ||
+      part.partNumber > 10_000 ||
+      !isJsonString(part.etag) ||
+      !part.etag ||
+      part.etag.length > 256
     ) {
       invalid('Completed part is invalid');
     }
-    return {partNumber: record.partNumber as number, etag: record.etag};
+    return {partNumber: part.partNumber, etag: part.etag};
   });
   parsed.sort((left, right) => left.partNumber - right.partNumber);
   if (new Set(parsed.map((part) => part.partNumber)).size !== parsed.length) {
@@ -305,9 +310,9 @@ function parseCompletion(value: unknown): CompleteVideoUploadRequest {
   return {parts: parsed};
 }
 
-function parseRetirement(value: unknown) {
-  if (!value || typeof value !== 'object') invalid('Request body must be an object');
-  return (value as Record<string, unknown>).confirmed === true;
+function parseRetirement(value: JsonInput) {
+  if (!isJsonObject(value)) invalid('Request body must be an object');
+  return value.confirmed === true;
 }
 
 function videoContentHeaders(content: {
@@ -355,7 +360,7 @@ function invalid(message: string): never {
   throw new ServiceError('VALIDATION_FAILED', message, 400);
 }
 
-function respondError(c: Context<WorkerEnv>, error: unknown) {
-  const result = errorResponse(error);
+function respondError(c: Context<WorkerEnv>, cause: unknown) {
+  const result = errorResponse(cause);
   return c.json(result.response, result.status);
 }

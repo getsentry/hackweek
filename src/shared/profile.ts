@@ -1,13 +1,14 @@
 import type {UpdateProfileRequest} from './api';
+import {isJsonObject, isJsonString, type JsonInput} from './json';
 
 export class ProfileValidationError extends Error {}
 
-export function parseUpdateProfile(value: unknown): UpdateProfileRequest {
-  if (!isObject(value)) {
+export function parseUpdateProfile(value: JsonInput): UpdateProfileRequest {
+  if (!isJsonObject(value)) {
     throw new ProfileValidationError('Profile must be a JSON object');
   }
 
-  if (typeof value.displayName !== 'string') {
+  if (!isJsonString(value.displayName)) {
     throw new ProfileValidationError('Display name is required');
   }
 
@@ -16,12 +17,12 @@ export function parseUpdateProfile(value: unknown): UpdateProfileRequest {
     throw new ProfileValidationError('Display name must be between 1 and 100 characters');
   }
 
-  if (value.avatarUrl !== null && typeof value.avatarUrl !== 'string') {
+  if (value.avatarUrl !== null && !isJsonString(value.avatarUrl)) {
     throw new ProfileValidationError('Avatar URL must be a URL or null');
   }
 
   let avatarUrl: string | null = null;
-  if (typeof value.avatarUrl === 'string' && value.avatarUrl.length > 0) {
+  if (isJsonString(value.avatarUrl) && value.avatarUrl.length > 0) {
     if (value.avatarUrl.length > 2048) {
       throw new ProfileValidationError('Avatar URL is too long');
     }
@@ -40,8 +41,4 @@ export function parseUpdateProfile(value: unknown): UpdateProfileRequest {
   }
 
   return {displayName, avatarUrl};
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

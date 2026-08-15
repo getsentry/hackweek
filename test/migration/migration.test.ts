@@ -20,7 +20,7 @@ import {
 const fixtureRoot = path.resolve('test/fixtures/firebase');
 
 async function fixture(name: string) {
-  return JSON.parse(await readFile(path.join(fixtureRoot, name), 'utf8')) as unknown;
+  return JSON.parse(await readFile(path.join(fixtureRoot, name), 'utf8'));
 }
 
 describe('Firebase migration transformation', () => {
@@ -235,19 +235,17 @@ describe('Firebase migration transformation', () => {
 
   it('accepts legacy empty collections and awards without custom names', async () => {
     const database = await fixture('database.json');
-    const root = database as {
+    const root: {
       years: Record<
         string,
         {
           votes: unknown;
-          awards: Record<string, {name: string}> | string;
+          awards: Record<string, {name: string}>;
         }
       >;
-    };
+    } = database;
     root.years['2024'].votes = '';
-    const award = Object.values(
-      root.years['2024'].awards as Record<string, {name: string}>,
-    )[0];
+    const award = Object.values(root.years['2024'].awards)[0];
     award.name = '';
 
     const result = await transformFirebaseExport(root);
@@ -260,14 +258,14 @@ describe('Firebase migration transformation', () => {
 
   it('reports and omits legacy votes that conflict with current eligibility', async () => {
     const database = await fixture('database.json');
-    const root = database as {
+    const root: {
       years: Record<
         string,
         {
           votes: Record<string, {creator: string; project: string}>;
         }
       >;
-    };
+    } = database;
     const vote = Object.values(root.years['2024'].votes)[0];
     vote.creator = 'user-member';
     vote.project = 'project-history';

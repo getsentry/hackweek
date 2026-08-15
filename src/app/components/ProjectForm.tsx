@@ -237,7 +237,10 @@ export function ProjectForm({
             <div
               className="teamSearch"
               onBlur={(event) => {
-                if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                if (
+                  !(event.relatedTarget instanceof Node) ||
+                  !event.currentTarget.contains(event.relatedTarget)
+                ) {
                   setMemberResultsOpen(false);
                   setHighlightedMember(-1);
                 }

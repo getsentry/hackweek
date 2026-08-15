@@ -11,7 +11,7 @@ const fixtureRoot = path.resolve('test/fixtures/firebase');
 export async function parseLocalReadinessFixture() {
   const source = JSON.parse(
     await readFile(path.join(fixtureRoot, 'database.json'), 'utf8'),
-  ) as unknown;
+  );
   const manifest = await readStorageManifest(
     path.join(fixtureRoot, 'storage-manifest.json'),
   );

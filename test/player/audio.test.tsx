@@ -5,6 +5,7 @@ import {
   clampGainDb,
   createPlayerAudioGraph,
   gainDbToLinear,
+  type PlayerAudioContext,
 } from '../../src/app/player/audio';
 
 describe('screening audio graph', () => {
@@ -15,23 +16,26 @@ describe('screening audio graph', () => {
   });
 
   it('creates one context, per-element gains, and one shared limiter resumed by gesture', async () => {
-    const destination = {} as AudioDestinationNode;
-    const limiter = node() as unknown as DynamicsCompressorNode;
-    Object.assign(limiter, {
+    const destination: AudioDestinationNode = Object.create(null);
+    const limiter: DynamicsCompressorNode = Object.assign(Object.create(null), {
+      connect: vi.fn(),
       threshold: {value: 0},
       knee: {value: 0},
       ratio: {value: 0},
       attack: {value: 0},
       release: {value: 0},
     });
-    const gains = [gainNode(), gainNode()];
-    const sources = [node(), node()];
+    const gains: [GainNode, GainNode] = [gainNode(), gainNode()];
+    const sources: [MediaElementAudioSourceNode, MediaElementAudioSourceNode] = [
+      mediaSourceNode(),
+      mediaSourceNode(),
+    ];
     const resume = vi.fn(async () => undefined);
     const close = vi.fn(async () => undefined);
     let sourceIndex = 0;
     let gainIndex = 0;
-    const Context = vi.fn(function Context(this: Record<string, unknown>) {
-      Object.assign(this, {
+    const createContext = vi.fn(
+      (): PlayerAudioContext => ({
         state: 'suspended',
         destination,
         createDynamicsCompressor: () => limiter,
@@ -39,17 +43,17 @@ describe('screening audio graph', () => {
         createGain: () => gains[gainIndex++],
         resume,
         close,
-      });
-    }) as unknown as typeof AudioContext;
+      }),
+    );
 
     const graph = createPlayerAudioGraph(
       [document.createElement('video'), document.createElement('video')],
-      Context,
+      createContext,
     );
     graph.setGain(1, 6);
     await graph.resume();
 
-    expect(Context).toHaveBeenCalledTimes(1);
+    expect(createContext).toHaveBeenCalledTimes(1);
     expect(vi.mocked(sources[0].connect).mock.calls[0]?.[0]).toBe(gains[0]);
     expect(vi.mocked(sources[1].connect).mock.calls[0]?.[0]).toBe(gains[1]);
     expect(vi.mocked(gains[0].connect).mock.calls[0]?.[0]).toBe(limiter);
@@ -60,10 +64,13 @@ describe('screening audio graph', () => {
   });
 });
 
-function node() {
-  return {connect: vi.fn()};
+function mediaSourceNode(): MediaElementAudioSourceNode {
+  return Object.assign(Object.create(null), {connect: vi.fn()});
 }
 
-function gainNode() {
-  return {connect: vi.fn(), gain: {value: 1}} as unknown as GainNode;
+function gainNode(): GainNode {
+  return Object.assign(Object.create(null), {
+    connect: vi.fn(),
+    gain: {value: 1},
+  });
 }

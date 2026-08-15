@@ -94,7 +94,7 @@ describe('R2 multipart video lifecycle', () => {
       completedParts: [],
     });
 
-    const uploadId = created.body.upload.uploadId as string;
+    const uploadId = created.body.upload.uploadId;
     const firstPart = await putPart(
       projectId,
       uploadId,
@@ -185,7 +185,7 @@ describe('R2 multipart video lifecycle', () => {
 
   it('reaps an expired upload with lost resume state before creating a fresh upload', async () => {
     const stale = await createUpload(projectId, ownerToken, 11);
-    const staleUploadId = stale.body.upload.uploadId as string;
+    const staleUploadId = stale.body.upload.uploadId;
     expect(
       (
         await putPart(
@@ -219,9 +219,9 @@ describe('R2 multipart video lifecycle', () => {
 
   it('retries idempotent expiry cleanup without releasing after transient R2 failure', async () => {
     const stale = await createUpload(projectId, ownerToken, 10);
-    const staleUploadId = stale.body.upload.uploadId as string;
+    const staleUploadId = stale.body.upload.uploadId;
     await expireUpload(staleUploadId);
-    const failingBucket = {
+    const failingBucket: R2Bucket = Object.assign(Object.create(env.VIDEOS), {
       resumeMultipartUpload() {
         return {
           abort: async () => {
@@ -229,7 +229,7 @@ describe('R2 multipart video lifecycle', () => {
           },
         };
       },
-    } as unknown as R2Bucket;
+    });
 
     await expect(
       reapExpiredMultipartVideoUploads(env.DB, failingBucket, {projectId, limit: 1}),
@@ -249,7 +249,7 @@ describe('R2 multipart video lifecycle', () => {
 
   it('handles missing multipart state and simultaneous fresh creates idempotently', async () => {
     const stale = await createUpload(projectId, ownerToken, 10);
-    const staleUploadId = stale.body.upload.uploadId as string;
+    const staleUploadId = stale.body.upload.uploadId;
     const staleStorage = await uploadStorage(staleUploadId);
     await env.VIDEOS.resumeMultipartUpload(
       staleStorage.original_r2_key,
@@ -271,7 +271,7 @@ describe('R2 multipart video lifecycle', () => {
 
   it('fences an expired upload before an old completion can publish', async () => {
     const stale = await createUpload(projectId, ownerToken, 11);
-    const staleUploadId = stale.body.upload.uploadId as string;
+    const staleUploadId = stale.body.upload.uploadId;
     const part = await putPart(
       projectId,
       staleUploadId,
@@ -303,7 +303,7 @@ describe('R2 multipart video lifecycle', () => {
 
   it('leases an in-flight completion against a concurrent fresh create', async () => {
     const created = await createUpload(projectId, ownerToken, 11);
-    const uploadId = created.body.upload.uploadId as string;
+    const uploadId = created.body.upload.uploadId;
     const part = await putPart(
       projectId,
       uploadId,
@@ -330,7 +330,7 @@ describe('R2 multipart video lifecycle', () => {
       upload.original_r2_key,
       upload.r2_upload_id,
     );
-    const blockingBucket = {
+    const blockingBucket: R2Bucket = Object.assign(Object.create(env.VIDEOS), {
       head: env.VIDEOS.head.bind(env.VIDEOS),
       resumeMultipartUpload() {
         return {
@@ -341,7 +341,7 @@ describe('R2 multipart video lifecycle', () => {
           },
         };
       },
-    } as unknown as R2Bucket;
+    });
     const owner = {
       id: ownerId,
       email: `video-owner-${suffix}@sentry.io`,
@@ -496,7 +496,7 @@ describe('R2 multipart video lifecycle', () => {
       .run();
 
     const created = await createUpload(projectId, ownerToken, 10);
-    const uploadId = created.body.upload.uploadId as string;
+    const uploadId = created.body.upload.uploadId;
     const incomplete = await api(
       `/projects/${projectId}/video/upload/${uploadId}/complete`,
       ownerToken,
@@ -516,7 +516,7 @@ describe('R2 multipart video lifecycle', () => {
 
   it('allows aborting incomplete uploads idempotently but never completed objects', async () => {
     const created = await createUpload(projectId, ownerToken, 8);
-    const uploadId = created.body.upload.uploadId as string;
+    const uploadId = created.body.upload.uploadId;
     const first = await api(
       `/projects/${projectId}/video/upload/${uploadId}`,
       ownerToken,
@@ -820,9 +820,9 @@ async function publishReadyVideo(project: string, token: string, bytes: string) 
 }
 
 function fetchVideoContent(videoId: string, token: string, range?: string) {
-  return SELF.fetch(`${base}/videos/${videoId}/content`, {
-    headers: {Cookie: token, ...(range ? {Range: range} : {})},
-  });
+  const headers = new Headers({Cookie: token});
+  if (range) headers.set('Range', range);
+  return SELF.fetch(`${base}/videos/${videoId}/content`, {headers});
 }
 
 async function responseText(response: Response) {
@@ -850,7 +850,7 @@ async function uploadStorage(uploadId: string) {
 async function completeSmallUpload(project: string, token: string, bytes: string) {
   const created = await createUpload(project, token, bytes.length);
   expect(created.status).toBe(201);
-  const uploadId = created.body.upload.uploadId as string;
+  const uploadId = created.body.upload.uploadId;
   const part = await putPart(
     project,
     uploadId,
@@ -892,6 +892,10 @@ async function putPart(
   body: Uint8Array,
   token: string,
 ) {
+  const payload =
+    body.buffer instanceof ArrayBuffer
+      ? body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength)
+      : Uint8Array.from(body).buffer;
   const response = await SELF.fetch(
     `${base}/projects/${project}/video/upload/${uploadId}/parts/${partNumber}`,
     {
@@ -902,10 +906,7 @@ async function putPart(
         'Content-Type': 'application/octet-stream',
         'Content-Length': String(body.byteLength),
       },
-      body: body.buffer.slice(
-        body.byteOffset,
-        body.byteOffset + body.byteLength,
-      ) as ArrayBuffer,
+      body: payload,
     },
   );
   return parseResponse(response);
@@ -917,7 +918,7 @@ async function createProject(name: string) {
     body: projectPayload(name),
   });
   expect(response.status, JSON.stringify(response.body)).toBe(201);
-  return response.body.project.id as string;
+  return response.body.project.id;
 }
 
 function projectPayload(name: string): ProjectWriteRequest {
@@ -943,15 +944,14 @@ async function api(
   token: string,
   options: {method?: string; body?: unknown} = {},
 ) {
+  const headers = new Headers({Cookie: token});
+  if (options.method && options.method !== 'GET') {
+    headers.set('Origin', 'https://hackweek.test');
+  }
+  if (options.body !== undefined) headers.set('Content-Type', 'application/json');
   const response = await SELF.fetch(`${base}${path}`, {
     method: options.method,
-    headers: {
-      Cookie: token,
-      ...(options.method && options.method !== 'GET'
-        ? {Origin: 'https://hackweek.test'}
-        : {}),
-      ...(options.body === undefined ? {} : {'Content-Type': 'application/json'}),
-    },
+    headers,
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
   });
   return parseResponse(response);

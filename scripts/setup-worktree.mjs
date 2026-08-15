@@ -128,7 +128,7 @@ async function masterWorktree() {
       ),
     );
   const master = worktrees.find((worktree) => worktree.branch === 'refs/heads/master');
-  if (typeof master?.worktree !== 'string') {
+  if (Object.prototype.toString.call(master?.worktree) !== '[object String]') {
     throw new Error(
       'The master branch must have a checked-out worktree to seed local state',
     );
@@ -148,7 +148,8 @@ async function filesMatch(left, right) {
     ]);
     return leftContent.equals(rightContent);
   } catch (error) {
-    if (error && typeof error === 'object' && error.code === 'ENOENT') return false;
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT')
+      return false;
     throw error;
   }
 }
@@ -157,7 +158,8 @@ async function exists(value) {
   return stat(value).then(
     () => true,
     (error) => {
-      if (error && typeof error === 'object' && error.code === 'ENOENT') return false;
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT')
+        return false;
       throw error;
     },
   );

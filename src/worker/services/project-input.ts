@@ -1,10 +1,16 @@
+import {
+  isJsonBoolean,
+  isJsonObject,
+  isJsonString,
+  type JsonInput,
+} from '../../shared/json';
 import type {GroupWriteRequest, ProjectWriteRequest} from '../../shared/projects';
 import {ServiceError} from './errors';
 
 const MAX_MEMBERS = 50;
 
-export function parseProjectWrite(value: unknown): ProjectWriteRequest {
-  if (!isObject(value)) {
+export function parseProjectWrite(value: JsonInput): ProjectWriteRequest {
+  if (!isJsonObject(value)) {
     invalid('Project must be a JSON object');
   }
 
@@ -51,15 +57,15 @@ export function parseProjectWrite(value: unknown): ProjectWriteRequest {
   };
 }
 
-export function parseGroupWrite(value: unknown): GroupWriteRequest {
-  if (!isObject(value)) {
+export function parseGroupWrite(value: JsonInput): GroupWriteRequest {
+  if (!isJsonObject(value)) {
     invalid('Group must be a JSON object');
   }
   return {name: requiredText(value.name, 'Group name', 100)};
 }
 
-function requiredText(value: unknown, label: string, max: number) {
-  if (typeof value !== 'string') {
+function requiredText(value: JsonInput, label: string, max: number) {
+  if (!isJsonString(value)) {
     invalid(`${label} is required`);
   }
   const result = value.trim();
@@ -69,32 +75,28 @@ function requiredText(value: unknown, label: string, max: number) {
   return result;
 }
 
-function optionalText(value: unknown, label: string, max: number) {
+function optionalText(value: JsonInput, label: string, max: number) {
   if (value === null || value === undefined || value === '') {
     return null;
   }
-  if (typeof value !== 'string' || value.trim().length > max) {
+  if (!isJsonString(value) || value.trim().length > max) {
     invalid(`${label} must be at most ${max} characters`);
   }
   return value.trim() || null;
 }
 
-function optionalId(value: unknown, label: string) {
+function optionalId(value: JsonInput, label: string) {
   if (value === null || value === undefined || value === '') {
     return null;
   }
   return requiredText(value, label, 128);
 }
 
-function booleanValue(value: unknown, label: string) {
-  if (typeof value !== 'boolean') {
+function booleanValue(value: JsonInput, label: string) {
+  if (!isJsonBoolean(value)) {
     invalid(`${label} must be a boolean`);
   }
   return value;
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function invalid(message: string): never {

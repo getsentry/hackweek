@@ -131,9 +131,9 @@ function safeConfig(c: {env: AuthBindings}) {
   }
 }
 
-function callbackFailure(c: Parameters<typeof callbackErrorRedirect>[0], error: unknown) {
+function callbackFailure(c: Parameters<typeof callbackErrorRedirect>[0], cause: unknown) {
   const reason =
-    error instanceof AuthenticationError && error.code === 'AUTH_FORBIDDEN'
+    cause instanceof AuthenticationError && cause.code === 'AUTH_FORBIDDEN'
       ? 'forbidden'
       : 'failed';
   return callbackErrorRedirect(c, reason);

@@ -1,3 +1,5 @@
+import {isJsonString} from '../../shared/json';
+
 export interface HistoricalVideoSource {
   createReadUrl(key: string, expiresInSeconds: number): Promise<string>;
 }
@@ -77,7 +79,7 @@ async function sha256Hex(value: string) {
 }
 
 async function hmac(key: string | ArrayBuffer, value: string) {
-  const rawKey = typeof key === 'string' ? new TextEncoder().encode(key) : key;
+  const rawKey = isJsonString(key) ? new TextEncoder().encode(key) : key;
   const cryptoKey = await crypto.subtle.importKey(
     'raw',
     rawKey,

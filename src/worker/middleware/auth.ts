@@ -227,10 +227,10 @@ function readCookie(header: string | undefined, name: string) {
   return undefined;
 }
 
-function authenticationErrorResponse(c: {json: Function}, error: unknown) {
+function authenticationErrorResponse(c: {json: Function}, cause: unknown) {
   const authError =
-    error instanceof AuthenticationError
-      ? error
+    cause instanceof AuthenticationError
+      ? cause
       : new AuthenticationError('AUTH_INVALID', 'Authentication failed', 401);
   const response: ApiErrorResponse = {
     error: {code: authError.code, message: authError.message},

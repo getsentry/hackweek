@@ -10,20 +10,20 @@ export class ServiceError extends Error {
   }
 }
 
-export function errorResponse(error: unknown) {
-  if (error instanceof ServiceError) {
+export function errorResponse(cause: unknown) {
+  if (cause instanceof ServiceError) {
     const response: ApiErrorResponse = {
-      error: {code: error.code, message: error.message},
+      error: {code: cause.code, message: cause.message},
     };
-    return {response, status: error.status} as const;
+    return {response, status: cause.status} as const;
   }
 
-  if (error instanceof SyntaxError) {
+  if (cause instanceof SyntaxError) {
     const response: ApiErrorResponse = {
       error: {code: 'VALIDATION_FAILED', message: 'Request body must be valid JSON'},
     };
     return {response, status: 400} as const;
   }
 
-  throw error;
+  throw cause;
 }

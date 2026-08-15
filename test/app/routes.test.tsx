@@ -167,8 +167,7 @@ describe('clickable project routes', () => {
   it('reveals the screening reel to admins or after submissions close', async () => {
     let submissionsClosed = false;
     fetchMock.mockImplementation(async (input) => {
-      const url =
-        typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      const url = input instanceof Request ? input.url : input.toString();
       if (url.includes('/api/years/2026')) {
         return json({
           year: {
@@ -211,8 +210,7 @@ describe('clickable project routes', () => {
 
   it('defaults to the grid view when storage is unavailable', async () => {
     fetchMock.mockImplementation(async (input) => {
-      const url =
-        typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      const url = input instanceof Request ? input.url : input.toString();
       if (url.includes('/api/years/2026')) {
         return json({
           year: {
@@ -290,8 +288,7 @@ describe('clickable project routes', () => {
 
   it('switches to compact list rows and restores the stored preference', async () => {
     fetchMock.mockImplementation(async (input) => {
-      const url =
-        typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      const url = input instanceof Request ? input.url : input.toString();
       if (url.includes('/api/years/2026')) {
         return json({
           year: {
@@ -328,11 +325,12 @@ describe('clickable project routes', () => {
       .closest('.projectRow');
     expect(list.className).toBe('projectList');
     expect(row).toBeTruthy();
-    expect(within(row as HTMLElement).getByText('Orbital')).toBeTruthy();
-    expect(within(row as HTMLElement).getByText('looking for help')).toBeTruthy();
-    expect(within(row as HTMLElement).getByLabelText('Member One')).toBeTruthy();
-    expect(within(row as HTMLElement).queryByText('2 attachments')).toBeNull();
-    expect(within(row as HTMLElement).queryByText(projectFixture.summary)).toBeNull();
+    if (!(row instanceof HTMLElement)) throw new Error();
+    expect(within(row).getByText('Orbital')).toBeTruthy();
+    expect(within(row).getByText('looking for help')).toBeTruthy();
+    expect(within(row).getByLabelText('Member One')).toBeTruthy();
+    expect(within(row).queryByText('2 attachments')).toBeNull();
+    expect(within(row).queryByText(projectFixture.summary)).toBeNull();
     expect(window.localStorage.getItem('hackweek.projectsView')).toBe('list');
 
     firstRender.unmount();
@@ -353,8 +351,7 @@ describe('clickable project routes', () => {
       resolveSearch = resolve;
     });
     fetchMock.mockImplementation(async (input) => {
-      const url =
-        typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      const url = input instanceof Request ? input.url : input.toString();
       if (url.includes('/api/years/2026')) {
         return json({
           year: {
@@ -430,11 +427,7 @@ describe('clickable project routes', () => {
     await waitFor(() => {
       const lastInput = fetchMock.mock.calls.at(-1)?.[0];
       const lastUrl =
-        typeof lastInput === 'string'
-          ? lastInput
-          : lastInput instanceof URL
-            ? lastInput.href
-            : lastInput?.url;
+        lastInput instanceof Request ? lastInput.url : lastInput?.toString();
       expect(lastUrl).not.toContain('q=');
     });
   });
@@ -478,7 +471,10 @@ describe('clickable project routes', () => {
     expect(screen.getByRole('link', {name: 'details'}).getAttribute('target')).toBeNull();
     expect(rendered.container.querySelector('.markdown br')).toBeTruthy();
     expect(screen.getByText('Use <Widget> safely.')).toBeTruthy();
-    expect((screen.getByRole('checkbox') as HTMLInputElement).checked).toBe(true);
+    const checkbox = screen.getByRole('checkbox');
+    expect(checkbox).toBeInstanceOf(HTMLInputElement);
+    if (!(checkbox instanceof HTMLInputElement)) throw new Error();
+    expect(checkbox.checked).toBe(true);
   });
 
   it('sanitizes unsafe Markdown URLs and raw HTML', async () => {
@@ -581,7 +577,7 @@ function renderRoute(element: ReactNode, path: string, pattern = path) {
   );
 }
 
-function json(value: unknown, status = 200) {
+function json<T>(value: T, status = 200) {
   return new Response(JSON.stringify(value), {
     status,
     headers: {'Content-Type': 'application/json'},

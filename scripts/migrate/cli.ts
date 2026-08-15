@@ -30,7 +30,7 @@ interface Arguments {
 async function main() {
   const args = parseArguments(process.argv.slice(2));
   assertExplicitDestination(args.target, args.environment, args.confirmation);
-  const database = JSON.parse(await readFile(args.database, 'utf8')) as unknown;
+  const database = JSON.parse(await readFile(args.database, 'utf8'));
   const manifest = args.storageManifest
     ? await readStorageManifest(args.storageManifest)
     : [];
@@ -92,13 +92,22 @@ function destination(args: Arguments): ImportOptions {
   };
 }
 
-function parseArguments(argv: string[]): Arguments {
-  const command = argv.shift() as Arguments['command'] | undefined;
-  if (!command || !['validate', 'dry-run', 'import', 'reconcile'].includes(command)) {
-    throw new Error(
-      'Usage: cli.ts <validate|dry-run|import|reconcile> --database <export.json>',
-    );
+function parseCommand(value: string | undefined): Arguments['command'] {
+  switch (value) {
+    case 'validate':
+    case 'dry-run':
+    case 'import':
+    case 'reconcile':
+      return value;
+    default:
+      throw new Error(
+        'Usage: cli.ts <validate|dry-run|import|reconcile> --database <export.json>',
+      );
   }
+}
+
+function parseArguments(argv: string[]): Arguments {
+  const command = parseCommand(argv.shift());
   const flags = new Map<string, string>();
   for (let index = 0; index < argv.length; index += 2) {
     const flag = argv[index];
@@ -144,7 +153,7 @@ async function output(report: MigrationReport, filename?: string) {
   if (filename) console.log(`Report: ${path.resolve(filename)}`);
 }
 
-main().catch((error: unknown) => {
-  console.error(error instanceof Error ? error.message : error);
+main().catch((cause: unknown) => {
+  console.error(cause instanceof Error ? cause.message : cause);
   process.exitCode = 1;
 });

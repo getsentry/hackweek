@@ -27,7 +27,7 @@ interface VideoRow {
   original_name: string;
   content_type: string | null;
   size_bytes: number;
-  status: string;
+  status: ProjectVideo['status'];
   processing_attempt: number;
   processed_r2_key: string | null;
   duration_seconds: number | null;
@@ -891,8 +891,8 @@ function uploadCleanupUnavailable() {
   );
 }
 
-function isMissingMultipartUpload(error: unknown) {
-  const message = error instanceof Error ? error.message : String(error);
+function isMissingMultipartUpload(cause: unknown) {
+  const message = cause instanceof Error ? cause.message : String(cause);
   return (
     message.includes('(10024)') ||
     message.includes('The specified multipart upload does not exist')
@@ -971,7 +971,7 @@ function mapVideo(row: VideoRow): ProjectVideo {
   return {
     id: row.id,
     projectId: row.project_id,
-    status: row.status as ProjectVideo['status'],
+    status: row.status,
     originalName: row.original_name,
     contentType: row.content_type,
     sizeBytes: row.size_bytes,
@@ -1062,8 +1062,8 @@ function isExpired(upload: UploadRow, now: Date) {
   );
 }
 
-function isVideoSlotConflict(error: unknown) {
-  const message = error instanceof Error ? error.message : String(error);
+function isVideoSlotConflict(cause: unknown) {
+  const message = cause instanceof Error ? cause.message : String(cause);
   return (
     message.includes('video_uploads_active_project_idx') ||
     message.includes('active project video exists') ||

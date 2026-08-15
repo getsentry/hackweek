@@ -11,7 +11,7 @@ import {
 } from './types';
 import type {Destination, ImportOptions} from './import';
 
-const tables: Record<EntityName, string> = {
+const tables = {
   users: 'users',
   years: 'years',
   groups: 'groups',
@@ -22,12 +22,21 @@ const tables: Record<EntityName, string> = {
   votes: 'votes',
   awards: 'awards',
   media: 'media',
-};
+} satisfies Record<EntityName, string>;
 
-export function transformedCounts(data: MigrationData): Record<EntityName, number> {
-  return Object.fromEntries(
-    entityNames.map((name) => [name, data[name].length]),
-  ) as Record<EntityName, number>;
+export function transformedCounts(data: MigrationData) {
+  return {
+    users: data.users.length,
+    years: data.years.length,
+    groups: data.groups.length,
+    projects: data.projects.length,
+    projectMembers: data.projectMembers.length,
+    awardCategories: data.awardCategories.length,
+    projectNominations: data.projectNominations.length,
+    votes: data.votes.length,
+    awards: data.awards.length,
+    media: data.media.length,
+  } satisfies Record<EntityName, number>;
 }
 
 export function destinationCounts(options: ImportOptions, data: MigrationData) {
@@ -38,11 +47,11 @@ export function destinationCounts(options: ImportOptions, data: MigrationData) {
   const counts: Partial<Record<EntityName, number>> = {};
   const sourceCounts: Partial<Record<EntityName, number>> = {};
   for (const {row} of parsed.flatMap(({results}) => results)) {
-    const value = JSON.parse(row) as {
+    const value: {
       entity: EntityName;
       kind: 'all' | 'source';
       count: number;
-    };
+    } = JSON.parse(row);
     const target = value.kind === 'all' ? counts : sourceCounts;
     target[value.entity] = (target[value.entity] ?? 0) + value.count;
   }
@@ -55,7 +64,8 @@ function executeLocalCountQueries(options: ImportOptions, data: MigrationData) {
   writeFileSync(sqlFile, destinationCountSql(data), {mode: 0o600});
   try {
     const output = wranglerCountCommand(options, ['--file', sqlFile]);
-    return parseWranglerJson(output) as Array<{results: Array<{row: string}>}>;
+    const parsed: Array<{results: Array<{row: string}>}> = parseWranglerJson(output);
+    return parsed;
   } finally {
     rmSync(directory, {recursive: true, force: true});
   }
@@ -64,7 +74,8 @@ function executeLocalCountQueries(options: ImportOptions, data: MigrationData) {
 function executeRemoteCountQueries(options: ImportOptions, data: MigrationData) {
   return destinationCountStatements(data).flatMap((statement) => {
     const output = wranglerCountCommand(options, ['--command', statement]);
-    return parseWranglerJson(output) as Array<{results: Array<{row: string}>}>;
+    const parsed: Array<{results: Array<{row: string}>}> = parseWranglerJson(output);
+    return parsed;
   });
 }
 
@@ -129,41 +140,101 @@ export function reconcileCounts(report: MigrationReport) {
   }
 }
 
-function sourceCountQueries(name: EntityName, data: MigrationData) {
-  const rows = data[name] as unknown as Array<Record<string, unknown>>;
-  if (!rows.length) {
-    return [`SELECT json_object('entity','${name}','kind','source','count',0) row`];
+function sourceCountQueries(name: EntityName, data: MigrationData): string[] {
+  switch (name) {
+    case 'users':
+      return singleSourceCountQueries(
+        name,
+        'source_uid',
+        data.users.map((row) => row.sourceUid),
+      );
+    case 'years':
+      return singleSourceCountQueries(
+        name,
+        'id',
+        data.years.map((row) => row.id),
+      );
+    case 'groups':
+      return singleSourceCountQueries(
+        name,
+        'source_id',
+        data.groups.map((row) => row.sourceId),
+      );
+    case 'projects':
+      return singleSourceCountQueries(
+        name,
+        'source_id',
+        data.projects.map((row) => row.sourceId),
+      );
+    case 'projectMembers':
+      return pairSourceCountQueries(
+        name,
+        'user_id',
+        data.projectMembers.map((row) => [row.projectId, row.userId]),
+      );
+    case 'awardCategories':
+      return singleSourceCountQueries(
+        name,
+        'source_id',
+        data.awardCategories.map((row) => row.sourceId),
+      );
+    case 'projectNominations':
+      return pairSourceCountQueries(
+        name,
+        'award_category_id',
+        data.projectNominations.map((row) => [row.projectId, row.awardCategoryId]),
+      );
+    case 'votes':
+      return singleSourceCountQueries(
+        name,
+        'source_id',
+        data.votes.map((row) => row.sourceId),
+      );
+    case 'awards':
+      return singleSourceCountQueries(
+        name,
+        'source_id',
+        data.awards.map((row) => row.sourceId),
+      );
+    case 'media':
+      return singleSourceCountQueries(
+        name,
+        'source_id',
+        data.media.map((row) => row.sourceId),
+      );
   }
-  return chunks(rows, 100).map((chunk) => sourceCountQuery(name, chunk));
 }
 
-function sourceCountQuery(name: EntityName, rows: Array<Record<string, unknown>>) {
-  const column =
-    name === 'projectMembers' || name === 'projectNominations'
-      ? null
-      : name === 'years'
-        ? 'id'
-        : name === 'users'
-          ? 'source_uid'
-          : 'source_id';
-  const sourceProperty =
-    name === 'years' ? 'id' : name === 'users' ? 'sourceUid' : 'sourceId';
-  if (column) {
-    const values = rows.map((row) => `(${quote(row[sourceProperty])})`).join(',');
-    return `WITH expected(value) AS (VALUES ${values})
+function singleSourceCountQueries(name: EntityName, column: string, values: string[]) {
+  if (!values.length) return [emptySourceCountQuery(name)];
+  return chunks(values, 100).map((chunk) => {
+    const expected = chunk.map((value) => `(${quote(value)})`).join(',');
+    return `WITH expected(value) AS (VALUES ${expected})
       SELECT json_object('entity','${name}','kind','source','count',COUNT(*)) row
       FROM ${tables[name]} destination JOIN expected ON destination.${column}=expected.value`;
-  }
-  const secondColumn = name === 'projectMembers' ? 'user_id' : 'award_category_id';
-  const secondProperty = name === 'projectMembers' ? 'userId' : 'awardCategoryId';
-  const values = rows
-    .map((row) => `(${quote(row.projectId)},${quote(row[secondProperty])})`)
-    .join(',');
-  return `WITH expected(project_id, related_id) AS (VALUES ${values})
-    SELECT json_object('entity','${name}','kind','source','count',COUNT(*)) row
-    FROM ${tables[name]} destination JOIN expected
-      ON destination.project_id=expected.project_id
-      AND destination.${secondColumn}=expected.related_id`;
+  });
+}
+
+function pairSourceCountQueries(
+  name: EntityName,
+  secondColumn: string,
+  values: Array<[string, string]>,
+) {
+  if (!values.length) return [emptySourceCountQuery(name)];
+  return chunks(values, 100).map((chunk) => {
+    const expected = chunk
+      .map(([projectId, relatedId]) => `(${quote(projectId)},${quote(relatedId)})`)
+      .join(',');
+    return `WITH expected(project_id, related_id) AS (VALUES ${expected})
+      SELECT json_object('entity','${name}','kind','source','count',COUNT(*)) row
+      FROM ${tables[name]} destination JOIN expected
+        ON destination.project_id=expected.project_id
+        AND destination.${secondColumn}=expected.related_id`;
+  });
+}
+
+function emptySourceCountQuery(name: EntityName) {
+  return `SELECT json_object('entity','${name}','kind','source','count',0) row`;
 }
 
 function chunks<T>(values: T[], size: number) {
@@ -172,7 +243,7 @@ function chunks<T>(values: T[], size: number) {
   );
 }
 
-function quote(value: unknown) {
+function quote<T>(value: T) {
   return `'${String(value).replaceAll("'", "''")}'`;
 }
 

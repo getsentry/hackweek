@@ -144,8 +144,8 @@ export function createScreeningController({
       notify();
       void elements[active]
         .play()
-        .catch((error: unknown) =>
-          fail(error instanceof Error ? error.message : 'playback could not start'),
+        .catch((cause: unknown) =>
+          fail(cause instanceof Error ? cause.message : 'playback could not start'),
         );
     }, titleDurationMs);
   }
@@ -210,10 +210,10 @@ export function createScreeningController({
     clearTransitionTimers();
     elements[active].pause();
     index = nextIndex;
-    active = (nextIndex % 2) as 0 | 1;
+    active = nextIndex % 2 === 0 ? 0 : 1;
     await audio.resume();
-    await playCurrent().catch((error: unknown) =>
-      fail(error instanceof Error ? error.message : 'playback could not start'),
+    await playCurrent().catch((cause: unknown) =>
+      fail(cause instanceof Error ? cause.message : 'playback could not start'),
     );
   }
 

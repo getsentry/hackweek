@@ -77,7 +77,8 @@ describe('Google OAuth authorization code flow', () => {
     const idToken = await signGoogleIdToken({nonce});
     tokenFetch.mockImplementation(async (_input, init) => {
       expect(init?.body).toBeInstanceOf(URLSearchParams);
-      const body = init?.body as URLSearchParams;
+      if (!(init?.body instanceof URLSearchParams)) throw new Error();
+      const body = init.body;
       expect(body.get('code')).toBe('one-time-code');
       expect(body.get('client_secret')).toBe(googleAuthBindings.GOOGLE_CLIENT_SECRET);
       expect(body.get('code_verifier')).toHaveLength(86);

@@ -3,14 +3,18 @@ import {readFile} from 'node:fs/promises';
 import path from 'node:path';
 
 import {
-  entityNames,
+  isJsonNumber,
+  isJsonObject,
+  isJsonString,
+  type JsonInput,
+  type JsonObject,
+} from '../../src/shared/json';
+import {
   type EntityName,
   type MigrationData,
   type MigrationIssue,
   type StorageManifestEntry,
 } from './types';
-
-type JsonObject = Record<string, unknown>;
 
 export interface TransformResult {
   data: MigrationData;
@@ -27,8 +31,8 @@ export interface TransformResult {
   }>;
 }
 
-export async function transformFirebaseExport(
-  value: unknown,
+export async function transformFirebaseExport<T>(
+  value: T,
   manifest: StorageManifestEntry[] = [],
   storageRoot?: string,
 ): Promise<TransformResult> {
@@ -37,10 +41,18 @@ export async function transformFirebaseExport(
   const data = emptyData();
   const issues: MigrationIssue[] = [];
   reportUnknownKeys(root, new Set(['users', 'years']), '', issues);
-  const sourceCounts = Object.fromEntries(entityNames.map((name) => [name, 0])) as Record<
-    EntityName,
-    number
-  >;
+  const sourceCounts = {
+    users: 0,
+    years: 0,
+    groups: 0,
+    projects: 0,
+    projectMembers: 0,
+    awardCategories: 0,
+    projectNominations: 0,
+    votes: 0,
+    awards: 0,
+    media: 0,
+  } satisfies Record<EntityName, number>;
   const manifestByPath = new Map<string, StorageManifestEntry>();
   for (const [index, entry] of manifest.entries()) {
     const sourcePath = normalizeSourcePath(entry.path);
@@ -268,7 +280,7 @@ export async function transformFirebaseExport(
         data.projectNominations.push({
           projectId,
           awardCategoryId: categoryId,
-          position: (positionIndex + 1) as 1 | 2,
+          position: positionIndex === 0 ? 1 : 2,
         });
       }
 
@@ -511,29 +523,30 @@ function safeStorageFile(root: string, relative: string) {
   return candidate.startsWith(`${absoluteRoot}${path.sep}`) ? candidate : null;
 }
 
-function object(value: unknown): JsonObject | null {
-  return value !== null && typeof value === 'object' && !Array.isArray(value)
-    ? (value as JsonObject)
-    : null;
+function object<T>(value: T): JsonObject | null {
+  return isJsonObject(value) ? value : null;
 }
 
-function entries(value: unknown, at: string, issues: MigrationIssue[]) {
-  if (value === undefined || value === null || value === '')
-    return [] as Array<[string, unknown]>;
+function entries(
+  value: JsonInput,
+  at: string,
+  issues: MigrationIssue[],
+): Array<[string, JsonInput]> {
+  if (value === undefined || value === null || value === '') return [];
   const record = object(value);
   if (!record) {
     issue(issues, 'error', 'INVALID_COLLECTION', at, 'expected an object map');
-    return [] as Array<[string, unknown]>;
+    return [];
   }
   return Object.entries(record);
 }
 
-function text(value: unknown) {
-  return typeof value === 'string' && value.trim() ? value.trim() : null;
+function text(value: JsonInput) {
+  return isJsonString(value) && value.trim() ? value.trim() : null;
 }
 
-function timestamp(value: unknown) {
-  return typeof value === 'number' && Number.isFinite(value)
+function timestamp(value: JsonInput) {
+  return isJsonNumber(value) && Number.isFinite(value)
     ? new Date(value).toISOString()
     : '1970-01-01T00:00:00.000Z';
 }
@@ -583,42 +596,58 @@ function emptyData(): MigrationData {
 }
 
 function detectDuplicates(data: MigrationData, issues: MigrationIssue[]) {
-  for (const name of entityNames) {
-    const rows = data[name] as unknown as Array<Record<string, unknown>>;
-    const seen = new Set<string>();
-    for (const [index, row] of rows.entries()) {
-      const key =
-        name === 'projectMembers'
-          ? `${stringValue(row.projectId)}:${stringValue(row.userId)}`
-          : name === 'projectNominations'
-            ? `${stringValue(row.projectId)}:${stringValue(row.awardCategoryId)}`
-            : stringValue(row.id);
-      if (seen.has(key)) issue(issues, 'error', 'DUPLICATE_ID', `${name}/${index}`, key);
-      seen.add(key);
-    }
-  }
+  checkDuplicates('users', data.users, (row) => row.id, issues);
+  checkDuplicates('years', data.years, (row) => row.id, issues);
+  checkDuplicates('groups', data.groups, (row) => row.id, issues);
+  checkDuplicates('projects', data.projects, (row) => row.id, issues);
+  checkDuplicates(
+    'projectMembers',
+    data.projectMembers,
+    (row) => `${row.projectId}:${row.userId}`,
+    issues,
+  );
+  checkDuplicates('awardCategories', data.awardCategories, (row) => row.id, issues);
+  checkDuplicates(
+    'projectNominations',
+    data.projectNominations,
+    (row) => `${row.projectId}:${row.awardCategoryId}`,
+    issues,
+  );
+  checkDuplicates('votes', data.votes, (row) => row.id, issues);
+  checkDuplicates('awards', data.awards, (row) => row.id, issues);
+  checkDuplicates('media', data.media, (row) => row.id, issues);
 }
 
-function stringValue(value: unknown) {
-  return typeof value === 'string' ? value : '';
+function checkDuplicates<T>(
+  name: EntityName,
+  rows: T[],
+  keyFor: (row: T) => string,
+  issues: MigrationIssue[],
+) {
+  const seen = new Set<string>();
+  for (const [index, row] of rows.entries()) {
+    const key = keyFor(row);
+    if (seen.has(key)) issue(issues, 'error', 'DUPLICATE_ID', `${name}/${index}`, key);
+    seen.add(key);
+  }
 }
 
 export async function readStorageManifest(
   filename: string,
 ): Promise<StorageManifestEntry[]> {
-  const parsed: unknown = JSON.parse(await readFile(filename, 'utf8'));
+  const parsed: JsonInput = JSON.parse(await readFile(filename, 'utf8'));
   if (!Array.isArray(parsed)) throw new Error('Storage manifest must be a JSON array');
   return parsed.map((value, index) => {
     const entry = object(value);
-    if (!entry || typeof entry.path !== 'string') {
+    if (!entry || !isJsonString(entry.path)) {
       throw new Error(`Storage manifest entry ${index} must contain a path`);
     }
     return {
       path: entry.path,
-      file: typeof entry.file === 'string' ? entry.file : undefined,
-      size: typeof entry.size === 'number' ? entry.size : undefined,
-      sha256: typeof entry.sha256 === 'string' ? entry.sha256 : undefined,
-      contentType: typeof entry.contentType === 'string' ? entry.contentType : undefined,
+      file: isJsonString(entry.file) ? entry.file : undefined,
+      size: isJsonNumber(entry.size) ? entry.size : undefined,
+      sha256: isJsonString(entry.sha256) ? entry.sha256 : undefined,
+      contentType: isJsonString(entry.contentType) ? entry.contentType : undefined,
     };
   });
 }

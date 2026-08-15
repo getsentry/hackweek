@@ -62,8 +62,7 @@ describe('voting and administration journeys', () => {
 
   it('renders admin controls and sends year/category changes to aggregate APIs', async () => {
     fetchMock.mockImplementation(async (input, init) => {
-      const url =
-        typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      const url = input instanceof Request ? input.url : input.toString();
       if (init?.method === 'PUT' && url.includes('/admin/years/2026'))
         return json({year: adminFixture.year});
       if (init?.method === 'POST')
@@ -104,14 +103,16 @@ describe('voting and administration journeys', () => {
     renderRoute(<AdminPage />, '/admin/years/2025', '/admin/years/:yearId');
 
     expect(await screen.findByText(/This year is archived/)).toBeTruthy();
-    expect(
-      (screen.getByRole('checkbox', {name: 'Submissions closed'}) as HTMLInputElement)
-        .disabled,
-    ).toBe(true);
-    expect(
-      (screen.getByRole('checkbox', {name: 'Voting enabled'}) as HTMLInputElement)
-        .disabled,
-    ).toBe(true);
+    const submissionsClosed = screen.getByRole('checkbox', {
+      name: 'Submissions closed',
+    });
+    const votingEnabled = screen.getByRole('checkbox', {name: 'Voting enabled'});
+    expect(submissionsClosed).toBeInstanceOf(HTMLInputElement);
+    expect(votingEnabled).toBeInstanceOf(HTMLInputElement);
+    if (!(submissionsClosed instanceof HTMLInputElement)) throw new Error();
+    if (!(votingEnabled instanceof HTMLInputElement)) throw new Error();
+    expect(submissionsClosed.disabled).toBe(true);
+    expect(votingEnabled.disabled).toBe(true);
   });
 
   it('renders D1 aggregate analytics without raw vote identities', async () => {
@@ -161,7 +162,7 @@ function renderRoute(element: ReactNode, path: string, pattern: string) {
   );
 }
 
-function json(value: unknown, status = 200) {
+function json<T>(value: T, status = 200) {
   return new Response(JSON.stringify(value), {
     status,
     headers: {'Content-Type': 'application/json'},

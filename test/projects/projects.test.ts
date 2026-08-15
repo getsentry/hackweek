@@ -307,7 +307,8 @@ async function createProject(
     body: {...projectPayload(), ...overrides},
   });
   expect(response.status).toBe(201);
-  return response.body.project as {id: string};
+  const project: {id: string} = response.body.project;
+  return project;
 }
 
 function projectPayload(): ProjectWriteRequest {
@@ -335,15 +336,14 @@ async function api(
   token: string,
   options: {method?: string; body?: unknown} = {},
 ) {
+  const headers = new Headers({Cookie: token});
+  if (options.method && options.method !== 'GET') {
+    headers.set('Origin', 'https://hackweek.test');
+  }
+  if (options.body !== undefined) headers.set('Content-Type', 'application/json');
   const response = await SELF.fetch(`${base}${path}`, {
     method: options.method,
-    headers: {
-      Cookie: token,
-      ...(options.method && options.method !== 'GET'
-        ? {Origin: 'https://hackweek.test'}
-        : {}),
-      ...(options.body === undefined ? {} : {'Content-Type': 'application/json'}),
-    },
+    headers,
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
   });
   const body = response.status === 204 ? null : await response.json<any>();

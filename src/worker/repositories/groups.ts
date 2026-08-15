@@ -77,13 +77,13 @@ export async function deleteGroup(db: D1Database, groupId: string) {
   ]);
 }
 
-function constraintError(error: unknown) {
-  if (error instanceof Error && error.message.includes('UNIQUE constraint failed')) {
+function constraintError(cause: unknown) {
+  if (cause instanceof Error && cause.message.includes('UNIQUE constraint failed')) {
     return new ServiceError(
       'CONFLICT',
       'A group with this identifier already exists',
       409,
     );
   }
-  return error;
+  return cause;
 }

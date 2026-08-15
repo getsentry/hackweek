@@ -1,5 +1,6 @@
 import {createLocalJWKSet, createRemoteJWKSet, jwtVerify, type JWTPayload} from 'jose';
 
+import {isJsonString} from '../../shared/json';
 import {
   assertAllowedEmail,
   AuthenticationError,
@@ -72,7 +73,7 @@ export async function exchangeAuthorizationCode(
   }
   let body: TokenExchangeResponse;
   try {
-    body = (await response.json()) as TokenExchangeResponse;
+    body = await response.json();
   } catch {
     throw new AuthenticationError('AUTH_INVALID', 'Google token exchange failed', 401);
   }
@@ -105,12 +106,12 @@ export async function verifyGoogleIdToken(
   if (
     payload.aud !== config.clientId ||
     payload.nonce !== expectedNonce ||
-    typeof payload.sub !== 'string' ||
+    !isJsonString(payload.sub) ||
     !payload.sub
   ) {
     throw new AuthenticationError('AUTH_INVALID', 'Google ID token is invalid', 401);
   }
-  if (payload.email_verified !== true || typeof payload.email !== 'string') {
+  if (payload.email_verified !== true || !isJsonString(payload.email)) {
     throw new AuthenticationError(
       'AUTH_FORBIDDEN',
       'Verified Google email is required',
@@ -120,7 +121,7 @@ export async function verifyGoogleIdToken(
   const email = payload.email.trim().toLowerCase();
   assertAllowedEmail(email, config.allowedEmailDomain);
   const displayName =
-    typeof payload.name === 'string' && payload.name.trim()
+    isJsonString(payload.name) && payload.name.trim()
       ? payload.name.trim().slice(0, 100)
       : email.slice(0, email.lastIndexOf('@'));
   return {
@@ -133,8 +134,9 @@ export async function verifyGoogleIdToken(
 
 function parseJwks(value: string) {
   try {
-    const parsed = JSON.parse(value) as {keys?: unknown};
+    const parsed: {keys?: unknown} = JSON.parse(value);
     if (!Array.isArray(parsed.keys) || parsed.keys.length === 0) throw new Error();
+    // SAFETY: createLocalJWKSet performs the authoritative validation of every JWK.
     return parsed as Parameters<typeof createLocalJWKSet>[0];
   } catch {
     throw new AuthenticationError(
@@ -145,8 +147,8 @@ function parseJwks(value: string) {
   }
 }
 
-function safeAvatarUrl(value: unknown) {
-  if (typeof value !== 'string' || value.length > 2048) return null;
+function safeAvatarUrl<T>(value: T) {
+  if (!isJsonString(value) || value.length > 2048) return null;
   try {
     const url = new URL(value);
     return url.protocol === 'https:' ? url.toString() : null;

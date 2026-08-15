@@ -3,6 +3,7 @@ import {mkdtemp, rm, writeFile} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 
+import {isJsonNumber, isJsonString} from '../../src/shared/json';
 import type {MigrationData, MigrationReport} from './types';
 
 export type Destination = 'local' | 'cloudflare';
@@ -180,7 +181,9 @@ export function migrationSql(data: MigrationData, destination: Destination = 'lo
   return `${statements.join('\n')}\n`;
 }
 
-function sql(strings: TemplateStringsArray, ...values: unknown[]) {
+type SqlValue = boolean | null | number | string | undefined;
+
+function sql(strings: TemplateStringsArray, ...values: SqlValue[]) {
   return strings.reduce(
     (result, part, index) =>
       result + part + (index < values.length ? quote(values[index]) : ''),
@@ -188,11 +191,10 @@ function sql(strings: TemplateStringsArray, ...values: unknown[]) {
   );
 }
 
-function quote(value: unknown) {
+function quote(value: SqlValue) {
   if (value === null || value === undefined) return 'NULL';
-  if (typeof value === 'number') return String(value);
-  if (typeof value !== 'string')
-    throw new TypeError('SQL values must be strings or numbers');
+  if (isJsonNumber(value)) return String(value);
+  if (!isJsonString(value)) throw new TypeError('SQL values must be strings or numbers');
   return `'${value.replaceAll("'", "''")}'`;
 }
 
@@ -228,8 +230,7 @@ function wrangler(args: string[], config?: string) {
   );
 }
 
-function commandError(error: unknown) {
-  if (error && typeof error === 'object' && 'stderr' in error)
-    return String(error.stderr).trim();
-  return error instanceof Error ? error.message : String(error);
+function commandError(cause: unknown) {
+  if (cause instanceof Error && 'stderr' in cause) return String(cause.stderr).trim();
+  return cause instanceof Error ? cause.message : String(cause);
 }

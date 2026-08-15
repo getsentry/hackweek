@@ -1,6 +1,7 @@
 import {env} from 'cloudflare:test';
 import {importJWK, SignJWT, type JWTPayload} from 'jose';
 
+import {isJsonString} from '../../src/shared/json';
 import {SESSION_COOKIE_NAME} from '../../src/worker/middleware/auth';
 import {createSession} from '../../src/worker/services/sessions';
 import {synchronizeGoogleUser} from '../../src/worker/services/users';
@@ -32,13 +33,12 @@ const privateJwk = {
 };
 
 export async function createSessionCookie(overrides: JWTPayload = {}) {
-  const subject = typeof overrides.sub === 'string' ? overrides.sub : 'google-member';
-  const email =
-    typeof overrides.email === 'string' ? overrides.email : 'member@sentry.io';
+  const subject = isJsonString(overrides.sub) ? overrides.sub : 'google-member';
+  const email = isJsonString(overrides.email) ? overrides.email : 'member@sentry.io';
   const user = await synchronizeGoogleUser(env.DB, {
     subject,
     email: email.toLowerCase(),
-    displayName: typeof overrides.name === 'string' ? overrides.name : 'Hackweek Member',
+    displayName: isJsonString(overrides.name) ? overrides.name : 'Hackweek Member',
     avatarUrl: null,
   });
   const session = await createSession(env.DB, user.id);

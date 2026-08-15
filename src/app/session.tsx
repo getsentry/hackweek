@@ -54,7 +54,7 @@ export function SessionProvider({children}: {children: ReactNode}) {
     fetch('/api/session', {signal: controller.signal})
       .then(async (response) => {
         if (response.ok) {
-          const result = (await response.json()) as SessionResponse;
+          const result: SessionResponse = await response.json();
           setSession({
             status: 'authenticated',
             user: result.user,
@@ -64,7 +64,7 @@ export function SessionProvider({children}: {children: ReactNode}) {
           return;
         }
 
-        const result = (await response.json()) as ApiErrorResponse;
+        const result: ApiErrorResponse = await response.json();
         if (response.status === 401) {
           setSession({status: 'unauthenticated', user: null, reason: authError});
         } else if (response.status === 403 || result.error.code === 'AUTH_FORBIDDEN') {

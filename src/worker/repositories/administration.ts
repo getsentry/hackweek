@@ -362,7 +362,7 @@ export async function replaceNominations(
   }
   return categoryIds.map((categoryId, index) => ({
     categoryId,
-    position: (index + 1) as 1 | 2,
+    position: index === 0 ? 1 : 2,
   }));
 }
 
@@ -607,9 +607,9 @@ function mapAward(row: {
   };
 }
 
-function administrationConstraint(error: unknown, fallback: string) {
-  if (!(error instanceof Error)) return error;
-  if (error.message.includes('UNIQUE constraint failed')) {
+function administrationConstraint(cause: unknown, fallback: string) {
+  if (!(cause instanceof Error)) return cause;
+  if (cause.message.includes('UNIQUE constraint failed')) {
     return new ServiceError('CONFLICT', 'That record already exists', 409);
   }
   const known = [
@@ -621,7 +621,7 @@ function administrationConstraint(error: unknown, fallback: string) {
     'award references must',
     'screening entry must',
     'FOREIGN KEY constraint failed',
-  ].find((message) => error.message.includes(message));
+  ].find((message) => cause.message.includes(message));
   if (known) return new ServiceError('VALIDATION_FAILED', known, 400);
   return new ServiceError('CONFLICT', fallback, 409);
 }

@@ -58,7 +58,9 @@ describe('ProjectForm team picker', () => {
     await userEvent.type(search, 'alice');
     await userEvent.click(screen.getByRole('option', {name: /Alice Example/}));
 
-    expect((search as HTMLInputElement).value).toBe('');
+    expect(search).toBeInstanceOf(HTMLInputElement);
+    if (!(search instanceof HTMLInputElement)) throw new Error();
+    expect(search.value).toBe('');
     expect(screen.queryByRole('listbox')).toBeNull();
     expect(
       within(screen.getByRole('list', {name: 'Selected team members'})).getByText(
@@ -106,7 +108,9 @@ describe('ProjectForm team picker', () => {
 
     await userEvent.keyboard('{ArrowDown}{Enter}');
     expect(screen.getByText('Bob Builder')).toBeTruthy();
-    expect((search as HTMLInputElement).value).toBe('');
+    expect(search).toBeInstanceOf(HTMLInputElement);
+    if (!(search instanceof HTMLInputElement)) throw new Error();
+    expect(search.value).toBe('');
   });
 
   it('selects the first result instead of submitting on Enter', async () => {
@@ -153,7 +157,7 @@ function renderProjectForm({
   );
 }
 
-function json(value: unknown) {
+function json<T>(value: T) {
   return new Response(JSON.stringify(value), {
     status: 200,
     headers: {'Content-Type': 'application/json'},

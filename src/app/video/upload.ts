@@ -1,3 +1,9 @@
+import {
+  isJsonNumber,
+  isJsonObject,
+  isJsonString,
+  type JsonInput,
+} from '../../shared/json';
 import type {VideoUploadPart, VideoUploadSession} from '../../shared/videos';
 
 export type UploadPhase = 'uploading' | 'paused' | 'interrupted' | 'complete';
@@ -23,6 +29,39 @@ interface ResumeRecord {
   fileSize: number;
   lastModified: number;
   completedParts: VideoUploadPart[];
+}
+
+function parseResumeRecord(value: JsonInput): ResumeRecord {
+  if (
+    !isJsonObject(value) ||
+    !isJsonString(value.projectId) ||
+    !isJsonString(value.uploadId) ||
+    !isJsonString(value.fileName) ||
+    !isJsonNumber(value.fileSize) ||
+    !isJsonNumber(value.lastModified) ||
+    !Array.isArray(value.completedParts)
+  ) {
+    throw new Error('Invalid resumable upload record');
+  }
+  const completedParts = value.completedParts.map((part) => {
+    if (
+      !isJsonObject(part) ||
+      !isJsonNumber(part.partNumber) ||
+      !isJsonString(part.etag) ||
+      !isJsonNumber(part.sizeBytes)
+    ) {
+      throw new Error('Invalid resumable upload part');
+    }
+    return {partNumber: part.partNumber, etag: part.etag, sizeBytes: part.sizeBytes};
+  });
+  return {
+    projectId: value.projectId,
+    uploadId: value.uploadId,
+    fileName: value.fileName,
+    fileSize: value.fileSize,
+    lastModified: value.lastModified,
+    completedParts,
+  };
 }
 
 export function createMultipartUpload(
@@ -63,7 +102,7 @@ export function createMultipartUpload(
           signal: active.signal,
         });
         if (!response.ok) throw await responseError(response);
-        const result = (await response.json()) as {part: VideoUploadPart};
+        const result: {part: VideoUploadPart} = await response.json();
         parts = [...parts, result.part].sort(
           (left, right) => left.partNumber - right.partNumber,
         );
@@ -119,11 +158,11 @@ export function resumeStorageKey(projectId: string, file: File) {
 }
 
 export function readResumeRecord(projectId: string, file: File) {
-  if (typeof localStorage === 'undefined') return null;
+  if (!('localStorage' in globalThis)) return null;
   const value = localStorage.getItem(resumeStorageKey(projectId, file));
   if (!value) return null;
   try {
-    const record = JSON.parse(value) as ResumeRecord;
+    const record = parseResumeRecord(JSON.parse(value));
     if (
       record.projectId !== projectId ||
       record.fileName !== file.name ||
@@ -146,7 +185,7 @@ export function persistResumeRecord(
   session: VideoUploadSession,
   completedParts = session.completedParts,
 ) {
-  if (typeof localStorage === 'undefined') return;
+  if (!('localStorage' in globalThis)) return;
   const record: ResumeRecord = {
     projectId: session.projectId,
     uploadId: session.uploadId,
@@ -159,7 +198,7 @@ export function persistResumeRecord(
 }
 
 export function clearResumeRecord(projectId: string, file: File) {
-  if (typeof localStorage === 'undefined') return;
+  if (!('localStorage' in globalThis)) return;
   localStorage.removeItem(resumeStorageKey(projectId, file));
 }
 
@@ -173,7 +212,7 @@ function partUrl(session: VideoUploadSession, partNumber: number) {
 
 async function responseError(response: Response) {
   try {
-    const value = (await response.json()) as {error?: {message?: string}};
+    const value: {error?: {message?: string}} = await response.json();
     return new Error(value.error?.message || `Upload failed (${response.status})`);
   } catch {
     return new Error(`Upload failed (${response.status})`);

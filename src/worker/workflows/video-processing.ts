@@ -5,6 +5,13 @@ import {
   type WorkflowStep,
 } from 'cloudflare:workers';
 
+import {
+  isJsonNumber,
+  isJsonObject,
+  isJsonString,
+  type JsonInput,
+  type JsonObject,
+} from '../../shared/json';
 import {VideoProcessorContainer} from '../containers/video-processor';
 import {
   claimVideoProcessingAttempt,
@@ -200,49 +207,63 @@ function processingConcurrency(value: string) {
   return concurrency;
 }
 
-function parseProcessorResult(value: unknown): VideoProcessorResult {
-  if (!value || typeof value !== 'object') throw invalidProcessorResult();
-  const result = value as Record<string, unknown>;
-  const loudness = result.loudnessLufs;
+function parseProcessorResult(value: JsonInput): VideoProcessorResult {
+  if (!isJsonObject(value)) throw invalidProcessorResult();
+  const loudness = value.loudnessLufs;
   if (
-    !finitePositive(result.durationSeconds) ||
-    (result.durationSeconds as number) > VIDEO_PROCESSOR_MAX_DURATION_SECONDS + 0.05 ||
-    !integerBetween(result.width, 1, 1920) ||
-    !integerBetween(result.height, 1, 1080) ||
-    result.videoCodec !== 'h264' ||
-    result.audioCodec !== 'aac' ||
-    result.pixelFormat !== 'yuv420p' ||
-    result.fastStart !== true ||
-    result.loudnessTargetLufs !== VIDEO_PROCESSOR_TARGET_LUFS ||
-    result.loudnessToleranceLu !== VIDEO_PROCESSOR_LOUDNESS_TOLERANCE_LU ||
-    !['normalized', 'generated-silence'].includes(String(result.audioMode)) ||
-    typeof result.sha256 !== 'string' ||
-    !/^[a-f0-9]{64}$/.test(result.sha256) ||
-    (loudness !== null && typeof loudness !== 'number')
+    !finitePositive(value.durationSeconds) ||
+    value.durationSeconds > VIDEO_PROCESSOR_MAX_DURATION_SECONDS + 0.05 ||
+    !integerBetween(value.width, 1, 1920) ||
+    !integerBetween(value.height, 1, 1080) ||
+    value.videoCodec !== 'h264' ||
+    value.audioCodec !== 'aac' ||
+    value.pixelFormat !== 'yuv420p' ||
+    value.fastStart !== true ||
+    value.loudnessTargetLufs !== VIDEO_PROCESSOR_TARGET_LUFS ||
+    value.loudnessToleranceLu !== VIDEO_PROCESSOR_LOUDNESS_TOLERANCE_LU ||
+    (value.audioMode !== 'normalized' && value.audioMode !== 'generated-silence') ||
+    !isJsonString(value.sha256) ||
+    !/^[a-f0-9]{64}$/.test(value.sha256) ||
+    (loudness !== null && !isJsonNumber(loudness))
   ) {
     throw invalidProcessorResult();
   }
   if (
-    result.audioMode === 'normalized' &&
-    (typeof loudness !== 'number' ||
+    value.audioMode === 'normalized' &&
+    (!isJsonNumber(loudness) ||
       !Number.isFinite(loudness) ||
       Math.abs(loudness - VIDEO_PROCESSOR_TARGET_LUFS) >
         VIDEO_PROCESSOR_LOUDNESS_TOLERANCE_LU)
   ) {
     throw invalidProcessorResult();
   }
-  return result as unknown as VideoProcessorResult;
+  return {
+    durationSeconds: value.durationSeconds,
+    width: value.width,
+    height: value.height,
+    videoCodec: value.videoCodec,
+    audioCodec: value.audioCodec,
+    pixelFormat: value.pixelFormat,
+    loudnessLufs: loudness,
+    loudnessTargetLufs: value.loudnessTargetLufs,
+    loudnessToleranceLu: value.loudnessToleranceLu,
+    audioMode: value.audioMode,
+    fastStart: value.fastStart,
+    sha256: value.sha256,
+  };
 }
 
-function finitePositive(value: unknown): value is number {
-  return typeof value === 'number' && Number.isFinite(value) && value > 0;
+function finitePositive(value: JsonInput): value is number {
+  return isJsonNumber(value) && Number.isFinite(value) && value > 0;
 }
 
-function integerBetween(value: unknown, minimum: number, maximum: number) {
+function integerBetween(
+  value: JsonInput,
+  minimum: number,
+  maximum: number,
+): value is number {
   return (
-    Number.isInteger(value) &&
-    (value as number) >= minimum &&
-    (value as number) <= maximum
+    isJsonNumber(value) && Number.isInteger(value) && value >= minimum && value <= maximum
   );
 }
 
@@ -250,14 +271,10 @@ function invalidProcessorResult() {
   return new Error('FFmpeg processor returned invalid canonical metadata');
 }
 
-function errorMessage(error: unknown) {
-  return (error instanceof Error ? error.message : String(error)).slice(0, 500);
+function errorMessage(cause: unknown) {
+  return (cause instanceof Error ? cause.message : String(cause)).slice(0, 500);
 }
 
-function logVideoProcessing(
-  level: 'info' | 'error',
-  event: string,
-  fields: Record<string, unknown>,
-) {
+function logVideoProcessing(level: 'info' | 'error', event: string, fields: JsonObject) {
   console[level](JSON.stringify({component: 'video-processing', event, ...fields}));
 }

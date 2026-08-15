@@ -6,9 +6,16 @@ import type {
   VoteWriteRequest,
   YearWriteRequest,
 } from '../../shared/administration';
+import {
+  isJsonBoolean,
+  isJsonObject,
+  isJsonString,
+  type JsonInput,
+  type JsonObject,
+} from '../../shared/json';
 import {ServiceError} from './errors';
 
-export function parseVote(value: unknown): VoteWriteRequest {
+export function parseVote(value: JsonInput): VoteWriteRequest {
   const body = record(value);
   return {
     yearId: identifier(body.yearId, 'Year'),
@@ -17,28 +24,25 @@ export function parseVote(value: unknown): VoteWriteRequest {
   };
 }
 
-export function parseYear(value: unknown): YearWriteRequest {
+export function parseYear(value: JsonInput): YearWriteRequest {
   const body = record(value);
-  if (
-    typeof body.votingEnabled !== 'boolean' ||
-    typeof body.submissionsClosed !== 'boolean'
-  ) {
+  if (!isJsonBoolean(body.votingEnabled) || !isJsonBoolean(body.submissionsClosed)) {
     invalid('Year flags must be booleans');
   }
   return {
-    votingEnabled: body.votingEnabled as boolean,
-    submissionsClosed: body.submissionsClosed as boolean,
+    votingEnabled: body.votingEnabled,
+    submissionsClosed: body.submissionsClosed,
   };
 }
 
-export function parseNamed(value: unknown): NamedWriteRequest {
+export function parseNamed(value: JsonInput): NamedWriteRequest {
   const body = record(value);
-  const name = typeof body.name === 'string' ? body.name.trim() : '';
+  const name = isJsonString(body.name) ? body.name.trim() : '';
   if (!name || name.length > 120) invalid('Name must be between 1 and 120 characters');
   return {name};
 }
 
-export function parseAward(value: unknown): AwardWriteRequest {
+export function parseAward(value: JsonInput): AwardWriteRequest {
   const body = record(value);
   return {
     ...parseNamed(body),
@@ -47,7 +51,7 @@ export function parseAward(value: unknown): AwardWriteRequest {
   };
 }
 
-export function parseNominations(value: unknown): NominationsWriteRequest {
+export function parseNominations(value: JsonInput): NominationsWriteRequest {
   const body = record(value);
   if (!Array.isArray(body.categoryIds) || body.categoryIds.length > 2) {
     invalid('A project can have at most two nominations');
@@ -59,7 +63,7 @@ export function parseNominations(value: unknown): NominationsWriteRequest {
   return {categoryIds};
 }
 
-export function parseScreeningOrder(value: unknown): ScreeningOrderWriteRequest {
+export function parseScreeningOrder(value: JsonInput): ScreeningOrderWriteRequest {
   const body = record(value);
   if (!Array.isArray(body.projectIds)) invalid('Project order must be an array');
   const projectIds = body.projectIds.map((value) => identifier(value, 'Project'));
@@ -69,18 +73,18 @@ export function parseScreeningOrder(value: unknown): ScreeningOrderWriteRequest 
   return {projectIds};
 }
 
-function record(value: unknown): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+function record(value: JsonInput): JsonObject {
+  if (!isJsonObject(value)) {
     invalid('Request body must be an object');
   }
-  return value as Record<string, unknown>;
+  return value;
 }
 
-function identifier(value: unknown, label: string) {
-  if (typeof value !== 'string' || !value.trim() || value.length > 128) {
+function identifier(value: JsonInput, label: string) {
+  if (!isJsonString(value) || !value.trim() || value.length > 128) {
     invalid(`${label} identifier is invalid`);
   }
-  return value as string;
+  return value;
 }
 
 function invalid(message: string): never {

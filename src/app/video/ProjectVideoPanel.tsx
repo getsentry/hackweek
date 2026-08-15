@@ -203,12 +203,12 @@ export function ProjectVideoPanel(props: {
 }
 
 function VideoStatusCard({video}: {video: ProjectVideo}) {
-  const labels: Record<ProjectVideo['status'], string> = {
+  const labels = {
     queued: 'queued for processing',
     processing: 'processing video',
     ready: 'ready to watch',
     failed: 'needs attention',
-  };
+  } satisfies Record<ProjectVideo['status'], string>;
   return (
     <div className={`videoStatus videoStatus--${video.status}`}>
       <span className="statusDot" aria-hidden="true" />

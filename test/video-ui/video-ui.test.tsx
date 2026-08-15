@@ -163,10 +163,10 @@ describe('video user experience', () => {
 
     await vi.waitFor(() => expect(snapshots.at(-1)?.phase).toBe('complete'));
     const firstRequest = fetchMock.mock.calls[0][0];
-    if (typeof firstRequest !== 'string')
-      throw new Error('Expected a string request URL');
-    expect(firstRequest).toContain('/parts/2');
-    expect(firstRequest).not.toContain('/parts/1');
+    const firstUrl =
+      firstRequest instanceof Request ? firstRequest.url : firstRequest.toString();
+    expect(firstUrl).toContain('/parts/2');
+    expect(firstUrl).not.toContain('/parts/1');
     expect(readResumeRecord('project', file)).toBeNull();
   });
 
@@ -229,7 +229,9 @@ describe('video user experience', () => {
         title="First project"
       />,
     );
-    const video = screen.getByLabelText('First project video') as HTMLVideoElement;
+    const video = screen.getByLabelText('First project video');
+    expect(video).toBeInstanceOf(HTMLVideoElement);
+    if (!(video instanceof HTMLVideoElement)) throw new Error();
     expect(video.getAttribute('src')).toBe('/api/videos/video-1/content');
     expect(video.preload).toBe('auto');
 
@@ -374,7 +376,7 @@ function client() {
   return new QueryClient({defaultOptions: {queries: {retry: false}}});
 }
 
-function json(value: unknown, status = 200) {
+function json<T>(value: T, status = 200) {
   return new Response(JSON.stringify(value), {
     status,
     headers: {'Content-Type': 'application/json'},

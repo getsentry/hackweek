@@ -41,7 +41,9 @@ mediaRoutes.get('/:mediaId/content', async (c) => {
       c.env.ATTACHMENTS,
       c.req.param('mediaId'),
     );
-    return new Response(object.body, {headers: attachmentHeaders(media, object)});
+    return new Response(object.body, {
+      headers: attachmentHeaders(media, object, c.req.query('preview') === '1'),
+    });
   } catch (error) {
     const result = errorResponse(error);
     return c.json(result.response, result.status);

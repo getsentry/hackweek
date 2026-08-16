@@ -499,6 +499,57 @@ describe('clickable project routes', () => {
     expect(screen.getByText('<img src=x onerror=alert(1)>')).toBeTruthy();
   });
 
+  it('previews image attachments and opens the original in a new tab', async () => {
+    fetchMock.mockResolvedValue(
+      json({
+        project: {
+          ...projectFixture,
+          media: [
+            {
+              id: 'screenshot',
+              originalName: 'Launch screenshot.PNG',
+              mediaType: 'IMAGE/PNG',
+              sizeBytes: 2048,
+              status: 'available',
+              createdAt: '2026-01-02',
+            },
+            {
+              id: 'notes',
+              originalName: 'Notes.txt',
+              mediaType: 'text/plain',
+              sizeBytes: 9,
+              status: 'available',
+              createdAt: '2026-01-03',
+            },
+          ],
+        },
+      }),
+    );
+
+    const rendered = renderRoute(
+      <ProjectDetailsPage />,
+      '/years/2026/projects/project',
+      '/years/:yearId/projects/:projectId',
+    );
+
+    const imageLink = await screen.findByRole('link', {
+      name: 'Open Launch screenshot.PNG full size',
+    });
+    expect(imageLink.getAttribute('href')).toBe(
+      '/api/media/screenshot/content?preview=1',
+    );
+    expect(imageLink.getAttribute('target')).toBe('_blank');
+    expect(imageLink.getAttribute('rel')).toBe('noreferrer');
+    expect(imageLink.querySelector('img')?.getAttribute('src')).toBe(
+      '/api/media/screenshot/content?preview=1',
+    );
+    expect(rendered.container.querySelectorAll('.mediaPreview')).toHaveLength(1);
+
+    const notesLink = screen.getByRole('link', {name: /Notes\.txt/});
+    expect(notesLink.getAttribute('href')).toBe('/api/media/notes/content');
+    expect(notesLink.getAttribute('target')).toBeNull();
+  });
+
   it('renders an idea with no video and exposes the server claim permission', async () => {
     fetchMock.mockResolvedValue(
       json({

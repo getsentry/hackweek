@@ -175,22 +175,48 @@ export function ProjectDetailsPage() {
                 </p>
               ) : (
                 <ul className="mediaList">
-                  {project.data.project.media.map((media) => (
-                    <li key={media.id}>
-                      <a href={`/api/media/${media.id}/content`}>
-                        <strong>{media.originalName}</strong>
-                        <span>{formatBytes(media.sizeBytes)}</span>
-                      </a>
-                      {project.data.project.permissions.canManageMedia && (
-                        <button
-                          onClick={() => removeMedia.mutate(media.id)}
-                          disabled={removeMedia.isPending}
+                  {project.data.project.media.map((media) => {
+                    const isImage = isImageMediaType(media.mediaType);
+                    const contentUrl = `/api/media/${encodeURIComponent(media.id)}/content`;
+                    const href = isImage ? `${contentUrl}?preview=1` : contentUrl;
+                    return (
+                      <li
+                        key={media.id}
+                        className={isImage ? 'imageAttachment' : undefined}
+                      >
+                        <a
+                          className="mediaLink"
+                          href={href}
+                          {...(isImage
+                            ? {
+                                target: '_blank',
+                                rel: 'noreferrer',
+                                'aria-label': `Open ${media.originalName} full size`,
+                              }
+                            : {})}
                         >
-                          Delete
-                        </button>
-                      )}
-                    </li>
-                  ))}
+                          {isImage && (
+                            <span className="mediaPreview">
+                              <img src={href} alt="" loading="lazy" />
+                              <span>open full size ↗</span>
+                            </span>
+                          )}
+                          <span className="mediaMeta">
+                            <strong>{media.originalName}</strong>
+                            <small>{formatBytes(media.sizeBytes)}</small>
+                          </span>
+                        </a>
+                        {project.data.project.permissions.canManageMedia && (
+                          <button
+                            onClick={() => removeMedia.mutate(media.id)}
+                            disabled={removeMedia.isPending}
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </section>
@@ -208,6 +234,10 @@ function initials(value: string) {
     .map((part) => part[0])
     .join('')
     .toUpperCase();
+}
+
+function isImageMediaType(mediaType: string | null) {
+  return mediaType?.toLowerCase().startsWith('image/') ?? false;
 }
 
 function formatBytes(value: number | null) {

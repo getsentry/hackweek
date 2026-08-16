@@ -66,6 +66,25 @@ describe('private project media', () => {
     expect(await download.text()).toBe('private bytes');
   });
 
+  it('serves image previews inline while keeping other media as downloads', async () => {
+    const image = await upload(memberToken, 'Screenshot.png', 'image bytes', 'image/png');
+    const text = await upload(memberToken, 'Notes.txt', 'text bytes');
+
+    const [imagePreview, imageDownload, textPreview] = await Promise.all([
+      request(`/api/media/${image.body.media.id}/content?preview=1`, memberToken),
+      request(`/api/media/${image.body.media.id}/content`, memberToken),
+      request(`/api/media/${text.body.media.id}/content?preview=1`, memberToken),
+    ]);
+
+    expect(imagePreview.headers.get('Content-Type')).toBe('image/png');
+    expect(imagePreview.headers.get('Content-Disposition')).toContain('inline');
+    expect(imagePreview.headers.get('Content-Security-Policy')).toContain(
+      "script-src 'none'",
+    );
+    expect(imageDownload.headers.get('Content-Disposition')).toContain('attachment');
+    expect(textPreview.headers.get('Content-Disposition')).toContain('attachment');
+  });
+
   it('rejects media writes from non-members and when submissions close', async () => {
     const outsider = await upload(outsiderToken, 'nope.txt', 'blocked');
     await env.DB.prepare('UPDATE years SET submissions_closed = 1 WHERE id = ?')
@@ -116,9 +135,14 @@ describe('private project media', () => {
   });
 });
 
-async function upload(token: string, name: string, contents: string) {
+async function upload(
+  token: string,
+  name: string,
+  contents: string,
+  mediaType = 'text/plain',
+) {
   const data = new FormData();
-  data.set('file', new File([contents], name, {type: 'text/plain'}));
+  data.set('file', new File([contents], name, {type: mediaType}));
   const response = await request(`/api/media/projects/${projectId}`, token, {
     method: 'POST',
     body: data,

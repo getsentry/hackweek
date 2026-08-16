@@ -1215,16 +1215,73 @@ main {
   align-items: center;
   border-bottom: 1px solid var(--line);
 }
-.mediaList a {
+.mediaLink {
   display: flex;
-  flex: 1;
-  justify-content: space-between;
+  min-width: 0;
   padding: 1rem 0;
+  flex: 1;
+  gap: 1.25rem;
+  align-items: center;
   text-decoration: none;
 }
-.mediaList a span {
+.mediaMeta {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+}
+.mediaMeta strong {
+  overflow-wrap: anywhere;
+}
+.mediaMeta small {
+  flex: 0 0 auto;
   color: var(--muted);
   font-size: 0.75rem;
+}
+.mediaPreview {
+  position: relative;
+  display: block;
+  width: 10rem;
+  aspect-ratio: 8 / 5;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  background: var(--lavender);
+}
+.mediaPreview img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transition: transform 160ms ease;
+}
+.mediaPreview > span {
+  position: absolute;
+  right: 0.45rem;
+  bottom: 0.45rem;
+  padding: 0.32rem 0.45rem;
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 600;
+  border-radius: 0.35rem;
+  background: rgba(29, 17, 39, 0.8);
+  opacity: 0;
+  transform: translateY(0.2rem);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease;
+}
+.mediaLink:hover .mediaPreview img,
+.mediaLink:focus-visible .mediaPreview img {
+  transform: scale(1.035);
+}
+.mediaLink:hover .mediaPreview > span,
+.mediaLink:focus-visible .mediaPreview > span {
+  opacity: 1;
+  transform: translateY(0);
 }
 .mediaList button {
   margin-left: 1.5rem;
@@ -2736,6 +2793,20 @@ kbd {
     gap: 1rem;
     align-items: flex-start;
     flex-direction: column;
+  }
+  .imageAttachment {
+    align-items: flex-start;
+  }
+  .imageAttachment .mediaLink,
+  .imageAttachment .mediaMeta {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .mediaPreview {
+    width: min(12rem, 55vw);
+  }
+  .mediaList button {
+    margin-top: 1rem;
   }
   .operationsBar input {
     width: 100%;

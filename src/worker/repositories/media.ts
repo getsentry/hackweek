@@ -113,14 +113,28 @@ export async function deleteMedia(
   await db.prepare('DELETE FROM media WHERE id = ?').bind(mediaId).run();
 }
 
-export function attachmentHeaders(media: MediaRecord, object: R2ObjectBody) {
+export function attachmentHeaders(
+  media: MediaRecord,
+  object: R2ObjectBody,
+  preview = false,
+) {
   const headers = new Headers();
+  const isImagePreview = preview && isImageMediaType(media.media_type);
   object.writeHttpMetadata(headers);
   headers.set('Content-Type', media.media_type || 'application/octet-stream');
   headers.set('Content-Length', String(object.size));
-  headers.set('Content-Disposition', contentDisposition(media.original_name));
+  headers.set(
+    'Content-Disposition',
+    contentDisposition(media.original_name, isImagePreview ? 'inline' : 'attachment'),
+  );
   headers.set('Cache-Control', 'private, max-age=300');
   headers.set('X-Content-Type-Options', 'nosniff');
+  if (isImagePreview) {
+    headers.set(
+      'Content-Security-Policy',
+      "sandbox; script-src 'none'; object-src 'none'; base-uri 'none'",
+    );
+  }
   if (object.httpEtag) headers.set('ETag', object.httpEtag);
   return headers;
 }
@@ -189,7 +203,11 @@ function mediaKey(projectId: string, mediaId: string, originalName: string) {
   return `projects/${projectId}/media/${mediaId}/${safeName || 'attachment'}`;
 }
 
-function contentDisposition(filename: string) {
+function isImageMediaType(mediaType: string | null) {
+  return mediaType?.toLowerCase().startsWith('image/') ?? false;
+}
+
+function contentDisposition(filename: string, disposition: 'attachment' | 'inline') {
   const ascii = filename.replace(/[^\x20-\x7E]/g, '_').replace(/["\\]/g, '_');
-  return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
+  return `${disposition}; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
 }

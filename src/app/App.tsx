@@ -20,7 +20,7 @@ export function App() {
     return (
       <AuthState
         title="Loading Hackweek"
-        detail="loading projects, ideas, and teams…"
+        detail="checking your Sentry account…"
         loading
       />
     );

@@ -1,5 +1,21 @@
 export type VideoStatus = 'queued' | 'processing' | 'ready' | 'failed';
 export type VideoFailureStage = 'processing';
+export const VIDEO_PROCESSING_STAGES = [
+  'waiting_for_processor',
+  'downloading',
+  'inspecting',
+  'analyzing_audio',
+  'transcoding',
+  'checking_output',
+  'correcting_loudness',
+  'finalizing',
+  'uploading',
+] as const;
+export type VideoProcessingStage = (typeof VIDEO_PROCESSING_STAGES)[number];
+
+export function isVideoProcessingStage(value: string): value is VideoProcessingStage {
+  return VIDEO_PROCESSING_STAGES.some((stage) => stage === value);
+}
 export type VideoUploadStatus =
   | 'creating'
   | 'uploading'
@@ -22,6 +38,8 @@ export interface ProjectVideo {
   errorMessage: string | null;
   failureStage: VideoFailureStage | null;
   processingAttempt: number;
+  processingStage: VideoProcessingStage | null;
+  processingProgress: number | null;
   createdAt: string;
 }
 

@@ -10,6 +10,7 @@ import {
   MAX_VIDEO_BYTES,
   publishVideoProcessingAttempt,
   reapExpiredMultipartVideoUploads,
+  reportVideoProcessingProgress,
   VIDEO_PART_SIZE,
 } from '../../src/worker/services/videos';
 import {isContainerCapacityResponse} from '../../src/worker/workflows/video-processing';
@@ -529,6 +530,36 @@ describe('R2 multipart video lifecycle', () => {
     );
     expect(first.status).toBe(204);
     expect(duplicate.status).toBe(204);
+  });
+
+  it('reports progress only for the current running processing attempt', async () => {
+    const {video} = await completeSmallUpload(projectId, ownerToken, 'progress source');
+    const claim = await claimVideoProcessingAttempt(env.DB, video.id, 1, 1);
+    if (claim.status !== 'claimed') throw new Error('attempt was not claimed');
+
+    expect(
+      await reportVideoProcessingProgress(env.DB, video.id, 1, 'transcoding', 63),
+    ).toBe(true);
+    const status = await api(`/projects/${projectId}/video`, ownerToken);
+    expect(status.headers.get('cache-control')).toBe('private, no-store');
+    expect(status.body.video).toMatchObject({
+      status: 'processing',
+      processingStage: 'transcoding',
+      processingProgress: 63,
+    });
+
+    expect(
+      await publishVideoProcessingAttempt(
+        env.DB,
+        video.id,
+        1,
+        claim.outputKey,
+        canonicalResult,
+      ),
+    ).toBe(true);
+    expect(
+      await reportVideoProcessingProgress(env.DB, video.id, 1, 'uploading', 100),
+    ).toBe(false);
   });
 
   it('conditionally publishes canonical metadata exactly once for the current attempt', async () => {

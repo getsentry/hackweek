@@ -1,7 +1,11 @@
 import {useRef, useState, type ChangeEvent, type DragEvent} from 'react';
 import {useQueryClient} from '@tanstack/react-query';
 
-import type {PlaybackResponse, ProjectVideo} from '../../shared/videos';
+import type {
+  PlaybackResponse,
+  ProjectVideo,
+  VideoProcessingStage,
+} from '../../shared/videos';
 import {IndividualPlayer} from '../player/IndividualPlayer';
 import {useCreateVideoUpload, useDeleteVideo, useRetryVideo} from '../queries/videos';
 import {createMultipartUpload, type ResumableUpload, type UploadSnapshot} from './upload';
@@ -205,28 +209,60 @@ export function ProjectVideoPanel(props: {
 function VideoStatusCard({video}: {video: ProjectVideo}) {
   const labels = {
     queued: 'queued for processing',
-    processing: 'processing video',
+    processing: processingStageLabel(video.processingStage),
     ready: 'ready to watch',
     failed: 'needs attention',
   } satisfies Record<ProjectVideo['status'], string>;
   return (
-    <div className={`videoStatus videoStatus--${video.status}`}>
+    <div className={`videoStatus videoStatus--${video.status}`} aria-live="polite">
       <span className="statusDot" aria-hidden="true" />
-      <div>
+      <div className="videoStatusBody">
         <strong>{labels[video.status]}</strong>
         <p>
           {video.status === 'ready'
             ? `${formatDuration(video.durationSeconds)} · audio normalized`
             : video.errorMessage || statusDetail(video.status)}
         </p>
+        {video.status === 'processing' && (
+          <ProcessingProgress progress={video.processingProgress} />
+        )}
       </div>
     </div>
   );
 }
 
+function ProcessingProgress({progress}: {progress: number | null}) {
+  return (
+    <div className="processingProgress">
+      {progress === null ? (
+        <progress aria-label="video conversion progress" />
+      ) : (
+        <progress aria-label="video conversion progress" max={100} value={progress} />
+      )}
+      <span>{progress === null ? 'working…' : `${progress}%`}</span>
+    </div>
+  );
+}
+
+function processingStageLabel(stage: VideoProcessingStage | null) {
+  if (stage === null) return 'processing video';
+  const labels = {
+    waiting_for_processor: 'starting video processor',
+    downloading: 'downloading original',
+    inspecting: 'inspecting source video',
+    analyzing_audio: 'analyzing audio',
+    transcoding: 'converting video',
+    checking_output: 'checking converted video',
+    correcting_loudness: 'correcting audio loudness',
+    finalizing: 'finalizing converted video',
+    uploading: 'saving converted video',
+  } satisfies Record<VideoProcessingStage, string>;
+  return labels[stage];
+}
+
 function statusDetail(status: ProjectVideo['status']) {
   if (status === 'queued') return 'the immutable original is ready for processing.';
-  if (status === 'processing') return 'the uploaded video is being normalized.';
+  if (status === 'processing') return 'processing continues in the background.';
   return 'this video is not included in the screening playlist.';
 }
 

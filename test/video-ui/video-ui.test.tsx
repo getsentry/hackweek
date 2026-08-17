@@ -187,6 +187,28 @@ describe('video user experience', () => {
     expect(screen.queryByText(/private R2 storage/i)).toBeNull();
   });
 
+  it('shows the live conversion stage and progress', () => {
+    renderQuery(
+      <ProjectVideoPanel
+        projectId="project"
+        video={{
+          ...baseVideo,
+          status: 'processing',
+          processingStage: 'transcoding',
+          processingProgress: 63,
+        }}
+        canManage
+      />,
+    );
+
+    expect(screen.getByText('converting video')).toBeTruthy();
+    expect(screen.getByText('63%')).toBeTruthy();
+    expect(
+      screen.getByRole('progressbar', {name: 'video conversion progress'}),
+    ).toHaveProperty('value', 63);
+    expect(screen.getByText('processing continues in the background.')).toBeTruthy();
+  });
+
   it('retries failed processing without requiring another upload', async () => {
     fetchMock.mockResolvedValue(
       json({video: {...baseVideo, status: 'queued', processingAttempt: 2}}, 202),
@@ -396,6 +418,8 @@ const baseVideo: ProjectVideo = {
   errorMessage: null,
   failureStage: null,
   processingAttempt: 1,
+  processingStage: null,
+  processingProgress: null,
   createdAt: '2030-01-01T00:00:00.000Z',
 };
 const uploadSession: VideoUploadSession = {

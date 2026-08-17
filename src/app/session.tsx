@@ -30,7 +30,9 @@ type SessionState =
 const SessionContext = createContext<SessionState | null>(null);
 
 export function SessionProvider({children}: {children: ReactNode}) {
-  const authError = new URLSearchParams(window.location.search).get('auth_error');
+  const [authError] = useState(() =>
+    new URLSearchParams(window.location.search).get('auth_error'),
+  );
   const [session, setSession] = useState<SessionState>({
     status: 'loading',
     user: null,

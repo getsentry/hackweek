@@ -96,6 +96,7 @@ describe('Google sign-in experience', () => {
     expect(
       await screen.findByText('Your sign-in could not be completed. Please start again.'),
     ).toBeTruthy();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(screen.queryByText('attacker')).toBeNull();
   });
 });

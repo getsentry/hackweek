@@ -74,6 +74,37 @@ describe('project and history APIs', () => {
     expect(page.body.projects[0].members).toBeInstanceOf(Array);
   });
 
+  it('lists more than 100 projects without exceeding D1 bound-parameter limits', async () => {
+    const user = await env.DB.prepare('SELECT id FROM users WHERE google_subject = ?')
+      .bind(`project-member-${suffix}`)
+      .first<{id: string}>();
+    const statements = Array.from({length: 101}, (_, index) => {
+      const id = `bulk-project-${suffix}-${index}`;
+      return [
+        env.DB.prepare(
+          `INSERT INTO projects (id, source_id, year_id, creator_id, name, kind, group_id)
+           VALUES (?, ?, ?, ?, ?, 'project', ?)`,
+        ).bind(id, id, yearId, user!.id, `Bulk project ${index}`, groupId),
+        env.DB.prepare(
+          'INSERT INTO project_members (project_id, user_id) VALUES (?, ?)',
+        ).bind(id, user!.id),
+      ];
+    }).flat();
+    await env.DB.batch(statements);
+
+    const page = await api(
+      `/projects?year=${yearId}&kind=project&limit=101`,
+      memberToken,
+    );
+
+    expect(page.status).toBe(200);
+    expect(page.body.projects).toHaveLength(101);
+    expect(page.body.nextCursor).toBeNull();
+    expect(page.body.projects[0].members).toEqual([
+      expect.objectContaining({email: `project-member-${suffix}@sentry.io`}),
+    ]);
+  });
+
   it('searches titles and descriptions before pagination with relevant results first', async () => {
     const exact = await createProject(memberToken, {
       name: 'Signal',

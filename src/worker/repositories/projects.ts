@@ -534,24 +534,33 @@ async function assertUsersExist(db: D1Database, ids: string[]) {
   }
 }
 
+// D1 allows at most 100 bound parameters per query.
+// https://developers.cloudflare.com/d1/platform/limits/
+const D1_MAX_BOUND_PARAMETERS = 100;
+
 async function membersByProjectIds(db: D1Database, ids: string[]) {
   const result = new Map<string, ProjectMember[]>();
   if (!ids.length) return result;
-  const placeholders = ids.map(() => '?').join(',');
-  const {results} = await db
-    .prepare(
-      `SELECT pm.project_id, u.id, u.email, u.display_name, u.avatar_url, u.is_admin
-       FROM project_members pm JOIN users u ON u.id = pm.user_id
-       WHERE pm.project_id IN (${placeholders})
-       ORDER BY u.display_name COLLATE NOCASE, u.id`,
-    )
-    .bind(...ids)
-    .all<MemberRow>();
-  for (const row of results) {
-    const members = result.get(row.project_id) ?? [];
-    members.push(mapMember(row));
-    result.set(row.project_id, members);
+
+  for (let offset = 0; offset < ids.length; offset += D1_MAX_BOUND_PARAMETERS) {
+    const chunk = ids.slice(offset, offset + D1_MAX_BOUND_PARAMETERS);
+    const placeholders = chunk.map(() => '?').join(',');
+    const {results} = await db
+      .prepare(
+        `SELECT pm.project_id, u.id, u.email, u.display_name, u.avatar_url, u.is_admin
+         FROM project_members pm JOIN users u ON u.id = pm.user_id
+         WHERE pm.project_id IN (${placeholders})
+         ORDER BY u.display_name COLLATE NOCASE, u.id`,
+      )
+      .bind(...chunk)
+      .all<MemberRow>();
+    for (const row of results) {
+      const members = result.get(row.project_id) ?? [];
+      members.push(mapMember(row));
+      result.set(row.project_id, members);
+    }
   }
+
   return result;
 }
 

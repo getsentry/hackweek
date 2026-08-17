@@ -5,6 +5,7 @@ import {
   type JsonInput,
 } from '../../shared/json';
 import type {VideoUploadPart, VideoUploadSession} from '../../shared/videos';
+import {apiResponseError} from '../queries/api';
 
 export type UploadPhase = 'uploading' | 'paused' | 'interrupted' | 'complete';
 
@@ -101,7 +102,9 @@ export function createMultipartUpload(
           body,
           signal: active.signal,
         });
-        if (!response.ok) throw await responseError(response);
+        if (!response.ok) {
+          throw await apiResponseError(response, `Upload failed (${response.status})`);
+        }
         const result: {part: VideoUploadPart} = await response.json();
         parts = [...parts, result.part].sort(
           (left, right) => left.partNumber - right.partNumber,
@@ -118,7 +121,9 @@ export function createMultipartUpload(
           parts: parts.map(({partNumber, etag}) => ({partNumber, etag})),
         }),
       });
-      if (!completed.ok) throw await responseError(completed);
+      if (!completed.ok) {
+        throw await apiResponseError(completed, `Upload failed (${completed.status})`);
+      }
       clearResumeRecord(session.projectId, file);
       phase = 'complete';
       error = null;
@@ -208,13 +213,4 @@ function uploadUrl(session: VideoUploadSession) {
 
 function partUrl(session: VideoUploadSession, partNumber: number) {
   return `${uploadUrl(session)}/parts/${partNumber}`;
-}
-
-async function responseError(response: Response) {
-  try {
-    const value: {error?: {message?: string}} = await response.json();
-    return new Error(value.error?.message || `Upload failed (${response.status})`);
-  } catch {
-    return new Error(`Upload failed (${response.status})`);
-  }
 }

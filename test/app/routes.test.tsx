@@ -183,6 +183,13 @@ describe('clickable project routes', () => {
           awards: [],
         });
       }
+      if (url.includes('/api/votes?')) {
+        return json({
+          year: {id: '2026', votingEnabled: true},
+          categories: [],
+          votes: [],
+        });
+      }
       return json({projects: [], nextCursor: null});
     });
 
@@ -207,6 +214,147 @@ describe('clickable project routes', () => {
     submissionsClosed = true;
     renderRoute(<ProjectsPage />, '/years/2026/projects', '/years/:yearId/projects');
     expect(await screen.findByRole('link', {name: 'watch reel'})).toBeTruthy();
+  });
+
+  it('shows open-voting progress and links each selected project', async () => {
+    mockProjectsOverview({
+      categories: [
+        {id: 'delight', yearId: '2026', name: 'Delight'},
+        {id: 'impact', yearId: '2026', name: 'Impact'},
+        {id: 'craft', yearId: '2026', name: 'Craft'},
+      ],
+      votes: [
+        {
+          id: 'vote-1',
+          yearId: '2026',
+          projectId: 'signal-forge',
+          projectName: 'Signal forge',
+          categoryId: 'delight',
+        },
+        {
+          id: 'vote-2',
+          yearId: '2026',
+          projectId: 'quiet-hours',
+          projectName: 'Quiet hours',
+          categoryId: 'impact',
+        },
+      ],
+    });
+
+    renderRoute(<ProjectsPage />, '/years/2026/projects', '/years/:yearId/projects');
+
+    const ballot = await screen.findByRole('region', {name: 'your ballot'});
+    const counts = within(ballot).getByLabelText('Ballot counts');
+    expect(counts.textContent).toContain('2 votes cast');
+    expect(counts.textContent).toContain('1 vote remaining');
+    expect(
+      within(ballot).getByText('keep exploring — 1 vote left to cast.'),
+    ).toBeTruthy();
+    const progress = within(ballot).getByRole('progressbar', {
+      name: 'ballot progress',
+    });
+    expect(progress.getAttribute('value')).toBe('2');
+    expect(progress.getAttribute('max')).toBe('3');
+    expect(
+      within(ballot)
+        .getByRole('link', {name: /Signal forge/})
+        .getAttribute('href'),
+    ).toBe('/years/2026/projects/signal-forge');
+    expect(
+      within(ballot)
+        .getByRole('link', {name: /Quiet hours/})
+        .getAttribute('href'),
+    ).toBe('/years/2026/projects/quiet-hours');
+    expect(within(ballot).getAllByRole('link')).toHaveLength(2);
+  });
+
+  it('encourages a first vote and celebrates a completed ballot', async () => {
+    mockProjectsOverview({
+      categories: [{id: 'delight', yearId: '2026', name: 'Delight'}],
+    });
+    const emptyBallot = renderRoute(
+      <ProjectsPage />,
+      '/years/2026/projects',
+      '/years/:yearId/projects',
+    );
+
+    expect(
+      await screen.findByText('open a project to cast your first vote.'),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(
+        'open any project that catches your eye and choose a category there.',
+      ),
+    ).toBeTruthy();
+    emptyBallot.unmount();
+
+    fetchMock.mockReset();
+    mockProjectsOverview({
+      categories: [{id: 'delight', yearId: '2026', name: 'Delight'}],
+      votes: [
+        {
+          id: 'vote-1',
+          yearId: '2026',
+          projectId: 'signal-forge',
+          projectName: 'Signal forge',
+          categoryId: 'delight',
+        },
+      ],
+    });
+    renderRoute(<ProjectsPage />, '/years/2026/projects', '/years/:yearId/projects');
+
+    expect(
+      await screen.findByText('ballot complete — every category has your pick.'),
+    ).toBeTruthy();
+    expect(screen.getByLabelText('Ballot counts').textContent).toContain(
+      '0 votes remaining',
+    );
+  });
+
+  it('explains when open voting has no configured categories', async () => {
+    mockProjectsOverview({});
+
+    renderRoute(<ProjectsPage />, '/years/2026/projects', '/years/:yearId/projects');
+
+    expect(
+      await screen.findByText(
+        'award categories are still being set up. check back soon.',
+      ),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(
+        'once categories are ready, project pages will be the place to vote.',
+      ),
+    ).toBeTruthy();
+    const progress = screen.getByRole('progressbar', {name: 'ballot progress'});
+    expect(progress.getAttribute('value')).toBe('0');
+  });
+
+  it('keeps closed-year browsing and ballot read failures local', async () => {
+    mockProjectsOverview({votingEnabled: false, projects: [projectFixture]});
+    const closed = renderRoute(
+      <ProjectsPage />,
+      '/years/2026/projects',
+      '/years/:yearId/projects',
+    );
+
+    expect(await screen.findByRole('heading', {name: 'A small machine'})).toBeTruthy();
+    expect(screen.queryByRole('region', {name: 'your ballot'})).toBeNull();
+    expect(
+      fetchMock.mock.calls.some(([input]) => {
+        const url = input instanceof Request ? input.url : input.toString();
+        return url.includes('/api/votes?');
+      }),
+    ).toBe(false);
+    closed.unmount();
+
+    fetchMock.mockReset();
+    mockProjectsOverview({ballotError: true, projects: [projectFixture]});
+    renderRoute(<ProjectsPage />, '/years/2026/projects', '/years/:yearId/projects');
+
+    expect(await screen.findByText('progress is taking a break')).toBeTruthy();
+    expect(screen.getByRole('heading', {name: 'A small machine'})).toBeTruthy();
+    expect(screen.queryByRole('heading', {name: 'Something went wrong'})).toBeNull();
   });
 
   it('defaults to the grid view when storage is unavailable', async () => {
@@ -635,6 +783,56 @@ function json<T>(value: T, status = 200) {
   return new Response(JSON.stringify(value), {
     status,
     headers: {'Content-Type': 'application/json'},
+  });
+}
+
+function mockProjectsOverview({
+  votingEnabled = true,
+  categories = [],
+  votes = [],
+  projects = [],
+  ballotError = false,
+}: {
+  votingEnabled?: boolean;
+  categories?: Array<{id: string; yearId: string; name: string}>;
+  votes?: Array<{
+    id: string;
+    yearId: string;
+    projectId: string;
+    projectName: string;
+    categoryId: string;
+  }>;
+  projects?: ProjectDetail[];
+  ballotError?: boolean;
+}) {
+  fetchMock.mockImplementation(async (input) => {
+    const url = input instanceof Request ? input.url : input.toString();
+    if (url.includes('/api/years/2026')) {
+      return json({
+        year: {
+          id: '2026',
+          votingEnabled,
+          submissionsClosed: false,
+          isCurrent: true,
+          projectCount: projects.length,
+          ideaCount: 0,
+          groupCount: 0,
+          participantCount: 0,
+        },
+        groups: [],
+        awards: [],
+      });
+    }
+    if (url.includes('/api/votes?')) {
+      if (ballotError) {
+        return json(
+          {error: {code: 'BALLOT_UNAVAILABLE', message: 'Ballot unavailable'}},
+          503,
+        );
+      }
+      return json({year: {id: '2026', votingEnabled}, categories, votes});
+    }
+    return json({projects, nextCursor: null});
   });
 }
 

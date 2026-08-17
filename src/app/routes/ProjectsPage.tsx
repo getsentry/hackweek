@@ -1,9 +1,11 @@
 import {useEffect, useState} from 'react';
 import {Link, useParams} from 'wouter';
 
+import type {BallotStatusResponse} from '../../shared/administration';
 import {GroupManager} from '../components/GroupManager';
 import {ProjectCard} from '../components/ProjectCard';
 import {PageState, QueryState} from '../components/AppLayout';
+import {useBallotStatus} from '../queries/administration';
 import {useProjects, useYear} from '../queries/projects';
 
 type ProjectsView = 'grid' | 'list';
@@ -37,6 +39,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
   const [search, setSearch] = useState('');
   const [view, setView] = useState<ProjectsView>(getProjectsView);
   const year = useYear(yearId);
+  const ballot = useBallotStatus(yearId, year.data?.year.votingEnabled ?? false);
   const projects = useProjects(
     yearId,
     kind,
@@ -93,6 +96,14 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
               )}
             </div>
           </header>
+          {year.data.year.votingEnabled && (
+            <BallotOverview
+              yearId={yearId}
+              data={ballot.data}
+              error={ballot.error}
+              loading={ballot.isLoading}
+            />
+          )}
           <div
             className="projectSearch"
             role="search"
@@ -217,5 +228,106 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
         </main>
       )}
     </QueryState>
+  );
+}
+
+function BallotOverview({
+  yearId,
+  data,
+  error,
+  loading,
+}: {
+  yearId: string;
+  data?: BallotStatusResponse;
+  error: Error | null;
+  loading: boolean;
+}) {
+  if (loading) {
+    return (
+      <section className="ballotOverview ballotOverview--notice" aria-busy="true">
+        <div>
+          <p className="kicker">your ballot</p>
+          <h2>counting your picks…</h2>
+        </div>
+        <p>you can keep browsing while your progress loads.</p>
+      </section>
+    );
+  }
+
+  if (error) {
+    return (
+      <section className="ballotOverview ballotOverview--notice" role="status">
+        <div>
+          <p className="kicker">your ballot</p>
+          <h2>progress is taking a break</h2>
+        </div>
+        <p>we couldn't load your picks, but every project is still here to explore.</p>
+      </section>
+    );
+  }
+
+  if (!data?.year.votingEnabled) return null;
+
+  const selections = data.categories.flatMap((category) => {
+    const vote = data.votes.find((item) => item.categoryId === category.id);
+    return vote ? [{category, vote}] : [];
+  });
+  const categoryCount = data.categories.length;
+  const castCount = data.votes.length;
+  const remainingCount = Math.max(categoryCount - castCount, 0);
+  const complete = categoryCount > 0 && remainingCount === 0;
+  let message = 'open a project to cast your first vote.';
+  if (categoryCount === 0) {
+    message = 'award categories are still being set up. check back soon.';
+  } else if (complete) {
+    message = 'ballot complete — every category has your pick.';
+  } else if (castCount > 0) {
+    message = `keep exploring — ${remainingCount} ${remainingCount === 1 ? 'vote' : 'votes'} left to cast.`;
+  }
+
+  return (
+    <section className="ballotOverview" aria-labelledby="ballot-overview-title">
+      <div className="ballotOverviewProgress">
+        <p className="kicker">voting is open</p>
+        <h2 id="ballot-overview-title">your ballot</h2>
+        <p>{message}</p>
+        <div className="ballotCounts" aria-label="Ballot counts">
+          <strong>
+            {castCount} <span>{castCount === 1 ? 'vote' : 'votes'} cast</span>
+          </strong>
+          <strong>
+            {remainingCount}{' '}
+            <span>{remainingCount === 1 ? 'vote' : 'votes'} remaining</span>
+          </strong>
+        </div>
+        <progress aria-label="ballot progress" max={categoryCount || 1} value={castCount}>
+          {castCount} of {categoryCount}
+        </progress>
+        <small>
+          {castCount} of {categoryCount} categor{categoryCount === 1 ? 'y' : 'ies'}
+        </small>
+      </div>
+      <div className="ballotSelections">
+        <h3>{selections.length ? 'your picks so far' : 'where to begin'}</h3>
+        {selections.length ? (
+          <ul>
+            {selections.map(({category, vote}) => (
+              <li key={category.id}>
+                <span>{category.name}</span>
+                <Link href={`/years/${yearId}/projects/${vote.projectId}`}>
+                  {vote.projectName} <span aria-hidden="true">→</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>
+            {categoryCount
+              ? 'open any project that catches your eye and choose a category there.'
+              : 'once categories are ready, project pages will be the place to vote.'}
+          </p>
+        )}
+      </div>
+    </section>
   );
 }

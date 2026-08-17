@@ -567,6 +567,167 @@ main {
   background: var(--danger);
 }
 
+.ballotOverview {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(15rem, 0.78fr) minmax(0, 1.22fr);
+  gap: clamp(1.5rem, 4vw, 3.5rem);
+  overflow: hidden;
+  padding: clamp(1.5rem, 4vw, 2.25rem);
+  margin: 0 0 2.5rem;
+  color: #fff;
+  border-radius: 0.9rem;
+  background:
+    radial-gradient(
+      circle at 93% 15%,
+      rgba(255, 112, 188, 0.36) 0 5rem,
+      transparent 5.1rem
+    ),
+    var(--dark-blurple);
+  box-shadow: 0 14px 32px rgba(29, 17, 39, 0.16);
+  animation: rise 0.35s ease-out both;
+}
+.ballotOverview::after {
+  position: absolute;
+  right: -1.5rem;
+  bottom: -2.5rem;
+  width: 8rem;
+  height: 8rem;
+  content: '';
+  border: 1.25rem solid rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.ballotOverview .kicker {
+  color: var(--pink);
+}
+.ballotOverview h2,
+.ballotOverview h3,
+.ballotOverview p {
+  margin-top: 0;
+}
+.ballotOverview h2 {
+  margin-bottom: 0.7rem;
+  font-size: clamp(1.65rem, 4vw, 2.35rem);
+  line-height: 1;
+  letter-spacing: -0.045em;
+}
+.ballotOverviewProgress > p:last-of-type {
+  max-width: 28rem;
+  margin-bottom: 1.35rem;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+.ballotCounts {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 0.85rem;
+}
+.ballotCounts strong {
+  font-size: 1.35rem;
+  font-weight: 600;
+}
+.ballotCounts span {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+.ballotOverview progress {
+  display: block;
+  width: 100%;
+  height: 0.55rem;
+  overflow: hidden;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  appearance: none;
+}
+.ballotOverview progress::-webkit-progress-bar {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+}
+.ballotOverview progress::-webkit-progress-value {
+  border-radius: 999px;
+  background: var(--green);
+}
+.ballotOverview progress::-moz-progress-bar {
+  border-radius: 999px;
+  background: var(--green);
+}
+.ballotOverviewProgress small {
+  display: block;
+  margin-top: 0.45rem;
+  color: rgba(255, 255, 255, 0.58);
+  font-size: 0.68rem;
+}
+.ballotSelections {
+  position: relative;
+  z-index: 1;
+  align-self: center;
+}
+.ballotSelections h3 {
+  margin-bottom: 0.8rem;
+  color: rgba(255, 255, 255, 0.64);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.ballotSelections ul {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.ballotSelections li {
+  display: grid;
+  grid-template-columns: minmax(7rem, 0.7fr) minmax(0, 1.3fr);
+  gap: 1rem;
+  align-items: baseline;
+  padding: 0.72rem 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+}
+.ballotSelections li > span {
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.75rem;
+}
+.ballotSelections a {
+  min-width: 0;
+  overflow: hidden;
+  color: #fff;
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ballotSelections a:hover {
+  color: var(--green);
+}
+.ballotSelections > p {
+  max-width: 30rem;
+  margin-bottom: 0;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+.ballotOverview--notice {
+  grid-template-columns: minmax(14rem, 0.6fr) minmax(0, 1fr);
+  align-items: end;
+  padding-block: 1.5rem;
+  background: var(--dark-blurple);
+}
+.ballotOverview--notice h2 {
+  margin-bottom: 0;
+  font-size: 1.4rem;
+}
+.ballotOverview--notice > p {
+  margin-bottom: 0;
+  color: rgba(255, 255, 255, 0.74);
+  font-size: 0.85rem;
+  line-height: 1.55;
+}
+
 .projectControls,
 .operationsBar {
   display: flex;
@@ -2680,12 +2841,23 @@ kbd {
     grid-column: auto;
   }
   .detailHero,
+  .ballotOverview,
   .projectControls,
   .projectSearch,
   .operationsBar,
   .groupManager > header {
     align-items: stretch;
     flex-direction: column;
+  }
+  .ballotOverview {
+    gap: 1.75rem;
+  }
+  .ballotSelections li {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
+  }
+  .ballotSelections a {
+    text-align: left;
   }
   .projectSearch > div {
     width: 100%;

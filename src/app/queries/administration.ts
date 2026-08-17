@@ -69,14 +69,6 @@ export function useAdminMutations(yearId: string) {
       apiRequest<void>(`/admin/categories/${encodeURIComponent(id)}`, {method: 'DELETE'}),
     onSuccess: refresh,
   });
-  const nominations = useMutation({
-    mutationFn: ({projectId, categoryIds}: {projectId: string; categoryIds: string[]}) =>
-      apiRequest(
-        `/admin/projects/${encodeURIComponent(projectId)}/nominations`,
-        jsonRequest('PUT', {categoryIds}),
-      ),
-    onSuccess: refresh,
-  });
   const award = useMutation({
     mutationFn: ({id, input}: {id?: string; input: AwardWriteRequest}) =>
       apiRequest<{award: AwardSummary}>(
@@ -100,7 +92,7 @@ export function useAdminMutations(yearId: string) {
       ),
     onSuccess: refresh,
   });
-  return {year, category, removeCategory, nominations, award, removeAward, screening};
+  return {year, category, removeCategory, award, removeAward, screening};
 }
 
 export function useAnalytics(yearId?: string) {

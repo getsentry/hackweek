@@ -52,7 +52,6 @@ export interface AwardSummary {
 export interface AdminProjectSummary {
   id: string;
   name: string;
-  nominations: NominationSummary[];
   videoStatus: import('./videos').VideoStatus | null;
 }
 
@@ -88,10 +87,6 @@ export interface AwardWriteRequest {
   name: string;
   projectId: string;
   categoryId: string;
-}
-
-export interface NominationsWriteRequest {
-  categoryIds: string[];
 }
 
 export interface ScreeningOrderWriteRequest {

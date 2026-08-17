@@ -2,7 +2,6 @@ import {useEffect, useState} from 'react';
 import type {FormEvent} from 'react';
 import {Link, useParams} from 'wouter';
 
-import type {AdminProjectSummary} from '../../shared/administration';
 import {QueryState} from '../components/AppLayout';
 import {useAdminMutations, useAdminYear} from '../queries/administration';
 
@@ -35,7 +34,6 @@ export function AdminPage() {
     actions.year,
     actions.category,
     actions.removeCategory,
-    actions.nominations,
     actions.award,
     actions.removeAward,
     actions.screening,
@@ -118,20 +116,6 @@ export function AdminPage() {
                   </li>
                 ))}
               </ul>
-            </section>
-            <section className="controlPanel controlPanel--wide">
-              <p className="kicker">Eligibility</p>
-              <h2>Project nominations</h2>
-              {query.data.projects.map((project) => (
-                <NominationEditor
-                  key={project.id}
-                  project={project}
-                  categories={query.data.categories}
-                  onSave={(categoryIds) =>
-                    actions.nominations.mutate({projectId: project.id, categoryIds})
-                  }
-                />
-              ))}
             </section>
             <section className="controlPanel controlPanel--wide">
               <p className="kicker">Results</p>
@@ -273,51 +257,6 @@ export function AdminPage() {
         </p>
       )}
     </main>
-  );
-}
-
-function NominationEditor({
-  project,
-  categories,
-  onSave,
-}: {
-  project: AdminProjectSummary;
-  categories: {id: string; name: string}[];
-  onSave: (ids: string[]) => void;
-}) {
-  const [selected, setSelected] = useState(
-    project.nominations.map(({categoryId}) => categoryId),
-  );
-  useEffect(
-    () => setSelected(project.nominations.map(({categoryId}) => categoryId)),
-    [project.nominations],
-  );
-  return (
-    <div className="nominationRow">
-      <strong>{project.name}</strong>
-      <div>
-        {categories.map((category) => (
-          <label key={category.id}>
-            <input
-              type="checkbox"
-              checked={selected.includes(category.id)}
-              disabled={!selected.includes(category.id) && selected.length >= 2}
-              onChange={(event) =>
-                setSelected(
-                  event.target.checked
-                    ? [...selected, category.id]
-                    : selected.filter((id) => id !== category.id),
-                )
-              }
-            />
-            {category.name}
-          </label>
-        ))}
-      </div>
-      <button className="textAction" onClick={() => onSave(selected)}>
-        Save
-      </button>
-    </div>
   );
 }
 

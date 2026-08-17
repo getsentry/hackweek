@@ -72,6 +72,7 @@ describe('voting and administration journeys', () => {
     renderRoute(<AdminPage />, '/admin/years/2026', '/admin/years/:yearId');
 
     const submissions = await screen.findByRole('checkbox', {name: 'Submissions closed'});
+    expect(screen.queryByRole('heading', {name: 'Project nominations'})).toBeNull();
     await userEvent.click(submissions);
     await userEvent.type(screen.getByLabelText('Category name'), 'New category');
     await userEvent.click(screen.getByRole('button', {name: 'Add category'}));
@@ -209,6 +210,6 @@ const adminFixture = {
   },
   categories: [{id: 'category-1', yearId: '2026', name: 'Delight'}],
   awards: [],
-  projects: [{id: 'project-1', name: 'First project', nominations: []}],
+  projects: [{id: 'project-1', name: 'First project', videoStatus: null}],
   screeningOrder: [],
 };

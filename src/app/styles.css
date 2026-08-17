@@ -940,8 +940,7 @@ main {
 }
 .groupManager li,
 .adminList li,
-.orderList li,
-.nominationRow {
+.orderList li {
   display: flex;
   gap: 1rem;
   align-items: center;
@@ -1817,19 +1816,6 @@ main {
 .adminList,
 .orderList {
   margin: 1.5rem 0;
-}
-.nominationRow > div {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.8rem;
-}
-.nominationRow label {
-  color: var(--muted);
-  font-size: 0.82rem;
-}
-.nominationRow input {
-  margin-right: 0.35rem;
-  accent-color: var(--blurple);
 }
 .orderList li div {
   display: flex;
@@ -2757,8 +2743,7 @@ kbd {
   .projectControls,
   .projectSearch,
   .operationsBar,
-  .groupManager > header,
-  .nominationRow {
+  .groupManager > header {
     align-items: stretch;
     flex-direction: column;
   }

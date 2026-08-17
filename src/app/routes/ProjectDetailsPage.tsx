@@ -4,6 +4,8 @@ import {Link, useLocation, useParams} from 'wouter';
 
 import {QueryState} from '../components/AppLayout';
 import {Markdown} from '../components/Markdown';
+import {ProjectVoting} from '../components/ProjectVoting';
+import {useBallotStatus} from '../queries/administration';
 import {getPlayback, useProjectVideo} from '../queries/videos';
 import {ProjectVideoPanel} from '../video/ProjectVideoPanel';
 import {
@@ -20,6 +22,7 @@ export function ProjectDetailsPage() {
   }>();
   const [, navigate] = useLocation();
   const project = useProject(projectId);
+  const ballot = useBallotStatus(yearId, project.data?.project.kind === 'project');
   const withdraw = useDeleteProject();
   const upload = useUploadMedia(projectId);
   const removeMedia = useDeleteMedia(projectId);
@@ -144,6 +147,17 @@ export function ProjectDetailsPage() {
               </ul>
             </aside>
           </div>
+          {project.data.project.kind === 'project' && ballot.data?.year.votingEnabled && (
+            <ProjectVoting
+              ballot={ballot.data}
+              project={{
+                id: project.data.project.id,
+                name: project.data.project.name,
+                yearId: project.data.project.yearId,
+                canVote: project.data.project.permissions.canVote,
+              }}
+            />
+          )}
           {project.data.project.kind === 'project' && (
             <ProjectVideoPanel
               projectId={projectId}

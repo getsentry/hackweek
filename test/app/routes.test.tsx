@@ -389,7 +389,9 @@ describe('clickable project routes', () => {
     expect(await screen.findByRole('heading', {name: 'Project 51'})).toBeTruthy();
     expect(screen.getByRole('region', {name: 'project list'}).children).toHaveLength(51);
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringMatching(/\/api\/projects\?(?=.*year=2026)(?=.*limit=50)(?!.*cursor=)/),
+      expect.stringMatching(
+        /\/api\/projects\?(?=.*year=2026)(?=.*limit=50)(?!.*cursor=)/,
+      ),
       undefined,
     );
     expect(fetchMock).toHaveBeenCalledWith(

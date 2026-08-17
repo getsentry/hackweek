@@ -11,6 +11,7 @@ import {pipeline} from 'node:stream/promises';
 const TARGET_LUFS = -16;
 const LOUDNESS_TOLERANCE_LU = 0.7;
 const MAX_DURATION_SECONDS = 600;
+const PROGRESS_REPORT_TIMEOUT_MS = 5_000;
 const PORT = Number(process.env.PORT ?? 8080);
 const R2_ORIGIN = process.env.VIDEO_R2_ORIGIN ?? 'http://video-r2';
 const SCALE_FILTER =
@@ -475,6 +476,7 @@ function createProgressReporter(videoId, attempt) {
             'x-video-attempt': String(attempt),
           },
           body: JSON.stringify({stage: nextStage, progress: nextProgress}),
+          signal: AbortSignal.timeout(PROGRESS_REPORT_TIMEOUT_MS),
         });
         if (!response.ok) {
           throw new Error(`progress endpoint returned ${response.status}`);

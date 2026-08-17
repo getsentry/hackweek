@@ -74,6 +74,31 @@ describe('project and history APIs', () => {
     expect(page.body.projects[0].members).toBeInstanceOf(Array);
   });
 
+  it('exposes project voting permission for eligible viewers but not creators, members, or ideas', async () => {
+    const project = await createProject(memberToken);
+    const idea = await createProject(memberToken, {kind: 'idea', groupId: null});
+    const creatorView = await api(`/projects/${project.id}`, memberToken);
+
+    await session(outsiderToken);
+    const outsider = await env.DB.prepare('SELECT id FROM users WHERE google_subject = ?')
+      .bind(`project-outsider-${suffix}`)
+      .first<{id: string}>();
+    const eligibleView = await api(`/projects/${project.id}`, outsiderToken);
+    const ideaView = await api(`/projects/${idea.id}`, outsiderToken);
+
+    await env.DB.prepare(
+      'INSERT INTO project_members (project_id, user_id) VALUES (?, ?)',
+    )
+      .bind(project.id, outsider!.id)
+      .run();
+    const memberView = await api(`/projects/${project.id}`, outsiderToken);
+
+    expect(creatorView.body.project.permissions.canVote).toBe(false);
+    expect(eligibleView.body.project.permissions.canVote).toBe(true);
+    expect(memberView.body.project.permissions.canVote).toBe(false);
+    expect(ideaView.body.project.permissions.canVote).toBe(false);
+  });
+
   it('searches titles and descriptions before pagination with relevant results first', async () => {
     const exact = await createProject(memberToken, {
       name: 'Signal',

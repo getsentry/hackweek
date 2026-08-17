@@ -5,19 +5,22 @@ import type {
   AnalyticsResponse,
   AwardSummary,
   AwardWriteRequest,
+  BallotStatusResponse,
   ScreeningOrderItem,
   VoteSummary,
   VoteWriteRequest,
-  VotingResponse,
   YearWriteRequest,
 } from '../../shared/administration';
 import {apiRequest, jsonRequest} from './api';
 
-export function useVoting(yearId: string) {
+const ballotStatusQueryKey = (yearId: string) => ['ballot-status', yearId] as const;
+
+export function useBallotStatus(yearId: string, enabled = true) {
   return useQuery({
-    queryKey: ['voting', yearId],
+    queryKey: ballotStatusQueryKey(yearId),
     queryFn: () =>
-      apiRequest<VotingResponse>(`/votes?year=${encodeURIComponent(yearId)}`),
+      apiRequest<BallotStatusResponse>(`/votes?year=${encodeURIComponent(yearId)}`),
+    enabled,
   });
 }
 
@@ -29,7 +32,8 @@ export function useVoteMutation(yearId: string) {
         voteId ? `/votes/${encodeURIComponent(voteId)}` : '/votes',
         jsonRequest(voteId ? 'PUT' : 'POST', input),
       ),
-    onSuccess: () => void cache.invalidateQueries({queryKey: ['voting', yearId]}),
+    onSuccess: () =>
+      void cache.invalidateQueries({queryKey: ballotStatusQueryKey(yearId)}),
   });
 }
 
@@ -45,7 +49,7 @@ export function useAdminMutations(yearId: string) {
   const cache = useQueryClient();
   const refresh = () => {
     void cache.invalidateQueries({queryKey: ['admin-year', yearId]});
-    void cache.invalidateQueries({queryKey: ['voting', yearId]});
+    void cache.invalidateQueries({queryKey: ballotStatusQueryKey(yearId)});
     void cache.invalidateQueries({queryKey: ['year', yearId]});
     void cache.invalidateQueries({queryKey: ['years']});
   };

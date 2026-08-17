@@ -8,58 +8,12 @@ import {afterEach, describe, expect, it, vi} from 'vitest';
 
 import {AdminAnalyticsPage} from '../../src/app/routes/AdminAnalyticsPage';
 import {AdminPage} from '../../src/app/routes/AdminPage';
-import {VotingPage} from '../../src/app/routes/VotingPage';
 
 const fetchMock = vi.fn<typeof fetch>();
 vi.stubGlobal('fetch', fetchMock);
 afterEach(() => fetchMock.mockReset());
 
 describe('voting and administration journeys', () => {
-  it('renders compact Markdown in voting cards', async () => {
-    fetchMock.mockResolvedValue(
-      json({
-        ...votingFixture,
-        projects: [
-          {
-            ...votingFixture.projects[0],
-            summary: '**Working** details at [the docs](https://example.com).',
-          },
-        ],
-      }),
-    );
-    renderRoute(<VotingPage />, '/years/2026/vote', '/years/:yearId/vote');
-
-    expect((await screen.findByText('Working')).tagName).toBe('STRONG');
-    const link = screen.getByRole('link', {name: 'the docs'});
-    expect(link.closest('.markdown')?.classList.contains('markdown--compact')).toBe(true);
-    expect(link.getAttribute('target')).toBe('_blank');
-  });
-
-  it('moves an existing vote to the selected project through the API', async () => {
-    fetchMock.mockImplementation(async (_input, init) => {
-      if (init?.method === 'PUT') return json({vote: {...vote, projectId: 'project-2'}});
-      return json(votingFixture);
-    });
-    renderRoute(<VotingPage />, '/years/2026/vote', '/years/:yearId/vote');
-
-    expect(await screen.findByText('First project')).toBeTruthy();
-    await userEvent.click(screen.getByRole('button', {name: 'Move vote'}));
-
-    await waitFor(() =>
-      expect(fetchMock).toHaveBeenCalledWith(
-        '/api/votes/vote-1',
-        expect.objectContaining({
-          method: 'PUT',
-          body: JSON.stringify({
-            yearId: '2026',
-            projectId: 'project-2',
-            categoryId: 'category-1',
-          }),
-        }),
-      ),
-    );
-  });
-
   it('renders admin controls and sends year/category changes to aggregate APIs', async () => {
     fetchMock.mockImplementation(async (input, init) => {
       const url = input instanceof Request ? input.url : input.toString();
@@ -170,37 +124,6 @@ function json<T>(value: T, status = 200) {
   });
 }
 
-const vote = {
-  id: 'vote-1',
-  yearId: '2026',
-  projectId: 'project-1',
-  categoryId: 'category-1',
-};
-const votingFixture = {
-  year: {id: '2026', votingEnabled: true},
-  categories: [{id: 'category-1', yearId: '2026', name: 'Delight'}],
-  projects: [
-    {
-      id: 'project-1',
-      name: 'First project',
-      summary: 'One.',
-      groupName: 'Orbital',
-      memberNames: ['A'],
-      nominations: [{categoryId: 'category-1', position: 1}],
-      eligible: true,
-    },
-    {
-      id: 'project-2',
-      name: 'Second project',
-      summary: 'Two.',
-      groupName: null,
-      memberNames: ['B'],
-      nominations: [{categoryId: 'category-1', position: 1}],
-      eligible: true,
-    },
-  ],
-  votes: [vote],
-};
 const adminFixture = {
   year: {
     id: '2026',

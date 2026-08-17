@@ -78,6 +78,44 @@ describe('Google sign-in experience', () => {
     expect(screen.getByRole('link', {name: 'Sign in with Google'})).toBeTruthy();
   });
 
+  it('does not register the retired standalone ballot route', async () => {
+    window.history.replaceState(null, '', '/years/2026/vote');
+    fetchMock.mockImplementation(async (input) => {
+      const path =
+        input instanceof Request ? new URL(input.url).pathname : input.toString();
+      if (path === '/api/session') {
+        return Response.json({
+          user: {
+            id: 'member',
+            email: 'member@sentry.io',
+            displayName: 'Member One',
+            avatarUrl: null,
+            role: 'member',
+            actualRole: 'member',
+          },
+        });
+      }
+      return Response.json({years: []});
+    });
+    const queryClient = new QueryClient({
+      defaultOptions: {queries: {retry: false}},
+    });
+
+    const rendered = render(
+      <QueryClientProvider client={queryClient}>
+        <SessionProvider>
+          <App />
+        </SessionProvider>
+      </QueryClientProvider>,
+    );
+
+    expect(
+      await screen.findByRole('heading', {name: 'Lost in the archive'}),
+    ).toBeTruthy();
+    expect(screen.queryByRole('heading', {name: 'vote for projects'})).toBeNull();
+    rendered.unmount();
+  });
+
   it('explains a failed fixed callback without reflecting arbitrary text', async () => {
     window.history.replaceState(null, '', '/?auth_error=failed&message=attacker');
     fetchMock.mockResolvedValue(

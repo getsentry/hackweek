@@ -76,37 +76,40 @@ beforeEach(async () => {
 });
 
 describe('voting invariants', () => {
-  it('returns categories, nominated projects, and only the current user votes', async () => {
-    await env.DB.prepare(
-      `INSERT INTO project_nominations (project_id, award_category_id, position)
-       VALUES (?, ?, 1)`,
-    )
-      .bind(projectId, categoryId)
-      .run();
+  it('returns compact current-user ballot status without requiring nominations', async () => {
     const created = await api('/votes', voterToken, {method: 'POST', body: voteBody()});
     expect(created.status).toBe(201);
+    await env.DB.prepare('UPDATE projects SET name = ? WHERE id = ?')
+      .bind('Renamed signal', projectId)
+      .run();
 
     const voting = await api(`/votes?year=${yearId}`, voterToken);
     const otherUser = await api(`/votes?year=${yearId}`, memberToken);
+    const nominations = await env.DB.prepare(
+      'SELECT COUNT(*) count FROM project_nominations WHERE project_id = ?',
+    )
+      .bind(projectId)
+      .first<{count: number}>();
 
-    expect(voting.body).toMatchObject({
+    expect(nominations?.count).toBe(0);
+    expect(voting.body).toEqual({
       year: {id: yearId, votingEnabled: true},
-      categories: [{id: categoryId, name: 'Delight'}],
-      projects: expect.arrayContaining([
-        expect.objectContaining({
-          id: projectId,
-          nominations: [{categoryId, position: 1}],
-          eligible: true,
-        }),
-      ]),
-      votes: [expect.objectContaining({projectId, categoryId})],
+      categories: [{id: categoryId, yearId, name: 'Delight'}],
+      votes: [
+        {
+          id: created.body.vote.id,
+          yearId,
+          projectId,
+          projectName: 'Renamed signal',
+          categoryId,
+        },
+      ],
     });
-    expect(otherUser.body.votes).toEqual([]);
-    expect(
-      otherUser.body.projects.find(
-        (project: {id: string}) => project.id === ownProjectId,
-      ),
-    ).toMatchObject({eligible: false});
+    expect(otherUser.body).toEqual({
+      year: {id: yearId, votingEnabled: true},
+      categories: [{id: categoryId, yearId, name: 'Delight'}],
+      votes: [],
+    });
   });
 
   it('rejects disabled, self-project, cross-year, and invalid reference votes', async () => {
@@ -167,6 +170,7 @@ describe('voting invariants', () => {
       ),
     ]);
 
+    const status = await api(`/votes?year=${otherYearId}`, voterToken);
     const cast = await api('/votes', voterToken, {
       method: 'POST',
       body: {
@@ -187,6 +191,7 @@ describe('voting invariants', () => {
       method: 'DELETE',
     });
 
+    expect(status.body.year).toEqual({id: otherYearId, votingEnabled: false});
     for (const response of [cast, replaced, deleted]) {
       expect(response).toMatchObject({
         status: 400,

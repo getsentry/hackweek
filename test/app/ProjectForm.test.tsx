@@ -198,5 +198,11 @@ const projectFixture: ProjectDetail = {
   members: [alice],
   mediaCount: 0,
   media: [],
-  permissions: {canEdit: true, canDelete: true, canClaim: false, canManageMedia: true},
+  permissions: {
+    canEdit: true,
+    canDelete: true,
+    canClaim: false,
+    canManageMedia: true,
+    canVote: false,
+  },
 };

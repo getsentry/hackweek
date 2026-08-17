@@ -1027,7 +1027,6 @@ main {
 .projectNarrative > h2,
 .teamPanel h2,
 .mediaSection h2,
-.ballotSection h2,
 .controlPanel h2,
 .resultsTable h2 {
   margin: 0 0 1.25rem;
@@ -1730,63 +1729,6 @@ main {
   min-width: 14rem;
   margin-left: 0.5rem;
 }
-.ballotSections {
-  width: 100%;
-}
-.ballotSection {
-  margin-bottom: 4rem;
-}
-.ballotSection > header {
-  padding-bottom: 0.5rem;
-  border-bottom: 1px solid var(--line);
-}
-.ballotGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1rem;
-  padding-top: 1rem;
-}
-.ballotCard {
-  display: flex;
-  min-height: 17rem;
-  padding: 1.25rem;
-  flex-direction: column;
-  border: 1px solid var(--line);
-  border-radius: 0.75rem;
-  background: #fff;
-}
-.ballotCard--selected {
-  border-color: var(--blurple);
-  background: #f7f4ff;
-  box-shadow: inset 0 0 0 1px var(--blurple);
-}
-.ballotCard small {
-  color: var(--dark-blurple);
-  font-weight: 600;
-}
-.ballotCard h3 {
-  margin: 1rem 0 0.5rem;
-  font-size: 1.35rem;
-}
-.ballotCard .markdown {
-  display: -webkit-box;
-  overflow: hidden;
-  line-height: 1.55;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 6;
-}
-.ballotCard footer {
-  display: flex;
-  gap: 1rem;
-  align-items: end;
-  justify-content: space-between;
-  margin-top: auto;
-}
-.ballotCard footer span {
-  color: var(--muted);
-  font-size: 0.75rem;
-}
-
 .adminGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2690,8 +2632,7 @@ kbd {
   .yearTimeline {
     gap: 2rem;
   }
-  .projectGrid,
-  .ballotGrid {
+  .projectGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .detailLayout {
@@ -2731,7 +2672,6 @@ kbd {
   }
   .yearTimeline,
   .projectGrid,
-  .ballotGrid,
   .adminGrid,
   .metricGrid {
     grid-template-columns: 1fr;

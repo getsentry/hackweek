@@ -172,7 +172,7 @@ describe('clickable project routes', () => {
         return json({
           year: {
             id: '2026',
-            votingEnabled: false,
+            votingEnabled: true,
             submissionsClosed,
             projectCount: 0,
             ideaCount: 0,
@@ -193,6 +193,7 @@ describe('clickable project routes', () => {
     );
     expect(await screen.findByRole('heading', {name: 'projects & ideas'})).toBeTruthy();
     expect(screen.queryByRole('link', {name: 'watch reel'})).toBeNull();
+    expect(screen.queryByRole('link', {name: 'vote'})).toBeNull();
     member.unmount();
 
     const admin = renderRoute(
@@ -565,6 +566,7 @@ describe('clickable project routes', () => {
             canDelete: false,
             canClaim: true,
             canManageMedia: false,
+            canVote: false,
           },
         },
       }),
@@ -591,6 +593,7 @@ describe('clickable project routes', () => {
         canDelete: true,
         canClaim: false,
         canManageMedia: true,
+        canVote: false,
       },
     };
     fetchMock.mockImplementation(async (input, init) => {
@@ -667,5 +670,11 @@ const projectFixture: ProjectDetail = {
   ],
   mediaCount: 0,
   media: [],
-  permissions: {canEdit: true, canDelete: true, canClaim: false, canManageMedia: true},
+  permissions: {
+    canEdit: true,
+    canDelete: true,
+    canClaim: false,
+    canManageMedia: true,
+    canVote: false,
+  },
 };

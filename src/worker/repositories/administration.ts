@@ -4,10 +4,10 @@ import type {
   AwardCategorySummary,
   AwardSummary,
   AwardWriteRequest,
+  BallotSelection,
+  BallotStatusResponse,
   ScreeningOrderItem,
   VoteSummary,
-  VotingProject,
-  VotingResponse,
 } from '../../shared/administration';
 import {ServiceError} from '../services/errors';
 import {getYear} from './projects';
@@ -18,91 +18,43 @@ interface CategoryRow {
   year_id: string;
   name: string;
 }
-interface NominationRow {
-  project_id: string;
-  award_category_id: string;
-  position: 1 | 2;
-}
-interface ProjectRow {
-  id: string;
-  name: string;
-  summary: string | null;
-  group_name: string | null;
-  member_names: string | null;
-  eligible: number;
-}
-
 export async function getVoting(
   db: D1Database,
   yearId: string,
   userId: string,
-): Promise<VotingResponse> {
+): Promise<BallotStatusResponse> {
   const year = await getYear(db, yearId);
-  const [categoryResult, projectResult, nominationResult, voteResult] = await Promise.all(
-    [
-      db
-        .prepare(
-          `SELECT id, year_id, name FROM award_categories
-       WHERE year_id = ? ORDER BY name COLLATE NOCASE, id`,
-        )
-        .bind(yearId)
-        .all<CategoryRow>(),
-      db
-        .prepare(
-          `SELECT p.id, p.name, p.summary, g.name group_name,
-        GROUP_CONCAT(u.display_name, ' · ') member_names,
-        CASE WHEN p.creator_id = ? OR EXISTS (
-          SELECT 1 FROM project_members own
-          WHERE own.project_id = p.id AND own.user_id = ?
-        ) THEN 0 ELSE 1 END eligible
-       FROM projects p
-       LEFT JOIN groups g ON g.id = p.group_id
-       LEFT JOIN project_members pm ON pm.project_id = p.id
-       LEFT JOIN users u ON u.id = pm.user_id
-       WHERE p.year_id = ? AND p.kind = 'project' AND p.status = 'active'
-       GROUP BY p.id ORDER BY p.name COLLATE NOCASE, p.id`,
-        )
-        .bind(userId, userId, yearId)
-        .all<ProjectRow>(),
-      db
-        .prepare(
-          `SELECT n.project_id, n.award_category_id, n.position
-       FROM project_nominations n
-       JOIN projects p ON p.id = n.project_id
-       WHERE p.year_id = ? ORDER BY n.project_id, n.position`,
-        )
-        .bind(yearId)
-        .all<NominationRow>(),
-      db
-        .prepare(
-          `SELECT id, year_id, project_id, award_category_id
-       FROM votes WHERE year_id = ? AND creator_id = ? ORDER BY award_category_id`,
-        )
-        .bind(yearId, userId)
-        .all<{
-          id: string;
-          year_id: string;
-          project_id: string;
-          award_category_id: string;
-        }>(),
-    ],
-  );
-  const nominations = nominationsByProject(nominationResult.results);
+  const [categoryResult, voteResult] = await Promise.all([
+    db
+      .prepare(
+        `SELECT id, year_id, name FROM award_categories
+         WHERE year_id = ? ORDER BY name COLLATE NOCASE, id`,
+      )
+      .bind(yearId)
+      .all<CategoryRow>(),
+    db
+      .prepare(
+        `SELECT v.id, v.year_id, v.project_id, v.award_category_id,
+          p.name project_name
+         FROM votes v
+         JOIN projects p ON p.id = v.project_id
+           AND p.kind = 'project' AND p.status = 'active'
+         WHERE v.year_id = ? AND v.creator_id = ?
+         ORDER BY v.award_category_id`,
+      )
+      .bind(yearId, userId)
+      .all<{
+        id: string;
+        year_id: string;
+        project_id: string;
+        award_category_id: string;
+        project_name: string;
+      }>(),
+  ]);
   return {
     year: {id: year.id, votingEnabled: year.votingEnabled},
     categories: categoryResult.results.map(mapCategory),
-    projects: projectResult.results.map(
-      (row): VotingProject => ({
-        id: row.id,
-        name: row.name,
-        summary: row.summary ?? '',
-        groupName: row.group_name,
-        memberNames: row.member_names ? row.member_names.split(' · ') : [],
-        nominations: nominations.get(row.id) ?? [],
-        eligible: Boolean(row.eligible),
-      }),
-    ),
-    votes: voteResult.results.map(mapVote),
+    votes: voteResult.results.map(mapBallotSelection),
   };
 }
 
@@ -522,30 +474,22 @@ async function getAward(db: D1Database, id: string): Promise<AwardSummary> {
   return mapAward(row);
 }
 
-function nominationsByProject(rows: NominationRow[]) {
-  const result = new Map<string, {categoryId: string; position: 1 | 2}[]>();
-  for (const row of rows) {
-    const list = result.get(row.project_id) ?? [];
-    list.push({categoryId: row.award_category_id, position: row.position});
-    result.set(row.project_id, list);
-  }
-  return result;
-}
-
 function mapCategory(row: CategoryRow): AwardCategorySummary {
   return {id: row.id, yearId: row.year_id, name: row.name};
 }
 
-function mapVote(row: {
+function mapBallotSelection(row: {
   id: string;
   year_id: string;
   project_id: string;
   award_category_id: string;
-}): VoteSummary {
+  project_name: string;
+}): BallotSelection {
   return {
     id: row.id,
     yearId: row.year_id,
     projectId: row.project_id,
+    projectName: row.project_name,
     categoryId: row.award_category_id,
   };
 }

@@ -249,6 +249,7 @@ export async function getProject(
       canClaim:
         !year.submissionsClosed && row.kind === 'idea' && projectMembers.length === 0,
       canManageMedia: canWrite && row.kind === 'project',
+      canVote: row.kind === 'project' && !isCreator && !isMember,
     },
   };
 }

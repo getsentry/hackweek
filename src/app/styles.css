@@ -652,6 +652,30 @@ main {
   align-items: center;
   justify-content: flex-end;
 }
+.projectPagination {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+.projectPagination p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.projectPagination > div {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+.projectPagination button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 .projectViewToggle {
   display: inline-flex;
   gap: 2px;
@@ -2766,6 +2790,14 @@ kbd {
     width: 100%;
   }
   .projectControlActions {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .projectPagination {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .projectPagination > div {
     width: 100%;
     justify-content: space-between;
   }

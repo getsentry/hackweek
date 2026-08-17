@@ -35,6 +35,8 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
   const [group, setGroup] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
+  const [cursor, setCursor] = useState<string | undefined>();
+  const [cursorHistory, setCursorHistory] = useState<Array<string | undefined>>([]);
   const [view, setView] = useState<ProjectsView>(getProjectsView);
   const year = useYear(yearId);
   const projects = useProjects(
@@ -42,8 +44,20 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
     kind,
     kind === 'project' ? group || undefined : undefined,
     search || undefined,
+    cursor,
   );
   const error = year.error ?? projects.error;
+  const pageProjects = projects.data?.projects ?? [];
+  const nextCursor = projects.data?.nextCursor ?? null;
+  const pageOffset = cursor ? Number(cursor) : 0;
+  const pageStart = pageOffset + 1;
+  const pageEnd = pageOffset + pageProjects.length;
+  const showPagination = Boolean(cursor || nextCursor);
+
+  const resetPagination = () => {
+    setCursor(undefined);
+    setCursorHistory([]);
+  };
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -51,6 +65,10 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
     }, SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(timeout);
   }, [searchInput]);
+
+  useEffect(() => {
+    resetPagination();
+  }, [yearId, search]);
 
   return (
     <QueryState loading={year.isLoading || projects.isLoading} error={error}>
@@ -136,13 +154,19 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
             <div className="segmented">
               <button
                 className={kind === 'project' ? 'active' : ''}
-                onClick={() => setKind('project')}
+                onClick={() => {
+                  setKind('project');
+                  resetPagination();
+                }}
               >
                 Projects <span>{year.data.year.projectCount}</span>
               </button>
               <button
                 className={kind === 'idea' ? 'active' : ''}
-                onClick={() => setKind('idea')}
+                onClick={() => {
+                  setKind('idea');
+                  resetPagination();
+                }}
               >
                 Ideas <span>{year.data.year.ideaCount}</span>
               </button>
@@ -153,7 +177,10 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                   <span>Group</span>
                   <select
                     value={group}
-                    onChange={(event) => setGroup(event.target.value)}
+                    onChange={(event) => {
+                      setGroup(event.target.value);
+                      resetPagination();
+                    }}
                   >
                     <option value="">All groups</option>
                     {year.data.groups.map((item) => (
@@ -199,7 +226,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
               </div>
             </section>
           )}
-          {!projects.data?.projects.length ? (
+          {!pageProjects.length ? (
             <section className="emptyState">
               <span>∅</span>
               <h2>No {kind === 'idea' ? 'ideas' : 'projects'} found</h2>
@@ -210,14 +237,50 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
               </p>
             </section>
           ) : (
-            <section
-              className={view === 'grid' ? 'projectGrid' : 'projectList'}
-              aria-label={`${kind} list`}
-            >
-              {projects.data.projects.map((project) => (
-                <ProjectCard project={project} view={view} key={project.id} />
-              ))}
-            </section>
+            <>
+              <section
+                className={view === 'grid' ? 'projectGrid' : 'projectList'}
+                aria-label={`${kind} list`}
+              >
+                {pageProjects.map((project) => (
+                  <ProjectCard project={project} view={view} key={project.id} />
+                ))}
+              </section>
+              {showPagination && (
+                <nav className="projectPagination" aria-label="Project pages">
+                  <p>
+                    showing {pageStart}–{pageEnd}
+                    {nextCursor ? '+' : ''}
+                  </p>
+                  <div>
+                    <button
+                      type="button"
+                      className="textAction"
+                      disabled={cursorHistory.length === 0 || projects.isFetching}
+                      onClick={() => {
+                        const previous = cursorHistory[cursorHistory.length - 1];
+                        setCursorHistory((history) => history.slice(0, -1));
+                        setCursor(previous);
+                      }}
+                    >
+                      previous
+                    </button>
+                    <button
+                      type="button"
+                      className="textAction"
+                      disabled={!nextCursor || projects.isFetching}
+                      onClick={() => {
+                        if (!nextCursor) return;
+                        setCursorHistory((history) => [...history, cursor]);
+                        setCursor(nextCursor);
+                      }}
+                    >
+                      next
+                    </button>
+                  </div>
+                </nav>
+              )}
+            </>
           )}
         </main>
       )}

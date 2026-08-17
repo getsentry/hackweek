@@ -38,15 +38,35 @@ export function useProjects(
   group?: string,
   search?: string,
 ) {
-  const query = new URLSearchParams({year: yearId, limit: '50'});
-  if (kind) query.set('kind', kind);
-  if (group) query.set('group', group);
-  if (search) query.set('q', search);
   return useQuery({
     queryKey: ['projects', yearId, kind, group, search],
-    queryFn: () => apiRequest<ProjectsResponse>(`/projects?${query}`),
+    queryFn: () => fetchAllProjects(yearId, kind, group, search),
     placeholderData: keepPreviousData,
   });
+}
+
+async function fetchAllProjects(
+  yearId: string,
+  kind?: 'project' | 'idea',
+  group?: string,
+  search?: string,
+): Promise<ProjectsResponse> {
+  const projects: ProjectsResponse['projects'] = [];
+  let cursor: string | undefined;
+
+  do {
+    const query = new URLSearchParams({year: yearId, limit: '50'});
+    if (kind) query.set('kind', kind);
+    if (group) query.set('group', group);
+    if (search) query.set('q', search);
+    if (cursor) query.set('cursor', cursor);
+
+    const page = await apiRequest<ProjectsResponse>(`/projects?${query}`);
+    projects.push(...page.projects);
+    cursor = page.nextCursor ?? undefined;
+  } while (cursor);
+
+  return {projects, nextCursor: null};
 }
 
 export function useProject(projectId: string) {

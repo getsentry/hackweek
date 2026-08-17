@@ -93,7 +93,7 @@ projectVideoRoutes.get('/:projectId/video', async (c) => {
     const response: ProjectVideoResponse = {
       video: await getProjectVideo(c.env.DB, c.req.param('projectId')),
     };
-    return c.json(response);
+    return c.json(response, 200, {'Cache-Control': 'private, no-store'});
   } catch (error) {
     return respondError(c, error);
   }

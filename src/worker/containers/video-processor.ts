@@ -4,6 +4,9 @@ import {
   type OutboundHandlerContext,
 } from '@cloudflare/containers';
 
+import {isJsonNumber, isJsonObject, isJsonString} from '../../shared/json';
+import {isVideoProcessingStage} from '../../shared/videos';
+import {reportVideoProcessingProgress} from '../services/videos';
 import type {VideoProcessingParams} from '../video-processing';
 
 interface ProcessorContainerEnv {
@@ -35,6 +38,29 @@ const videoR2Handler: OutboundHandler<
   }
 
   const pathname = new URL(request.url).pathname;
+  if (request.method === 'POST' && pathname === '/progress') {
+    const input = await request.json();
+    if (
+      !isJsonObject(input) ||
+      !isJsonString(input.stage) ||
+      !isVideoProcessingStage(input.stage) ||
+      (input.progress !== null &&
+        (!isJsonNumber(input.progress) ||
+          !Number.isInteger(input.progress) ||
+          input.progress < 0 ||
+          input.progress > 100))
+    ) {
+      return new Response('Processing progress is invalid', {status: 400});
+    }
+    const updated = await reportVideoProcessingProgress(
+      env.DB,
+      scope.videoId,
+      scope.attempt,
+      input.stage,
+      input.progress,
+    );
+    return new Response(null, {status: updated ? 204 : 409});
+  }
   if (request.method === 'GET' && pathname === '/source') {
     const object = await env.VIDEOS.get(storage.original_r2_key);
     if (!object) return new Response('Immutable original is missing', {status: 404});

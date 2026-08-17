@@ -5,7 +5,7 @@ import {createServer} from 'node:http';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {spawn} from 'node:child_process';
-import {Readable} from 'node:stream';
+import {Readable, Transform} from 'node:stream';
 import {pipeline} from 'node:stream/promises';
 
 const TARGET_LUFS = -16;
@@ -18,7 +18,8 @@ const SCALE_FILTER =
 
 class ProcessorError extends Error {}
 
-export async function processFile(inputPath, outputPath) {
+export async function processFile(inputPath, outputPath, report) {
+  report('inspecting', null);
   const source = await probe(inputPath);
   const sourceVideo = source.streams.find((stream) => stream.codec_type === 'video');
   if (!sourceVideo || !positive(sourceVideo.width) || !positive(sourceVideo.height)) {
@@ -35,19 +36,48 @@ export async function processFile(inputPath, outputPath) {
   }
 
   const hasAudio = source.streams.some((stream) => stream.codec_type === 'audio');
-  const firstPass = hasAudio ? await analyzeLoudness(inputPath) : null;
+  let firstPass = null;
+  if (hasAudio) {
+    report('analyzing_audio', 0);
+    firstPass = await analyzeLoudness(inputPath, durationSeconds, (progress) =>
+      report('analyzing_audio', progress),
+    );
+  }
   const normalizeAudio = firstPass !== null && firstPass.inputI > -70;
-  await transcode(inputPath, outputPath, firstPass, normalizeAudio);
+  report('transcoding', 0);
+  await transcode(
+    inputPath,
+    outputPath,
+    firstPass,
+    normalizeAudio,
+    durationSeconds,
+    (progress) => report('transcoding', progress),
+  );
 
+  report('checking_output', null);
   let canonical = await validateCanonicalOutput(outputPath, sourceVideo);
-  let measured = await analyzeLoudness(outputPath);
+  report('checking_output', 0);
+  let measured = await analyzeLoudness(outputPath, canonical.outputDuration, (progress) =>
+    report('checking_output', progress),
+  );
   let loudnessLufs = measured?.inputI ?? null;
   if (normalizeAudio && measured && outsideLoudnessTolerance(loudnessLufs)) {
     const correctedPath = `${outputPath}.loudness.mp4`;
-    await correctLoudness(outputPath, correctedPath, measured);
+    report('correcting_loudness', 0);
+    await correctLoudness(
+      outputPath,
+      correctedPath,
+      measured,
+      canonical.outputDuration,
+      (progress) => report('correcting_loudness', progress),
+    );
     await rename(correctedPath, outputPath);
+    report('checking_output', null);
     canonical = await validateCanonicalOutput(outputPath, sourceVideo);
-    measured = await analyzeLoudness(outputPath);
+    report('checking_output', 0);
+    measured = await analyzeLoudness(outputPath, canonical.outputDuration, (progress) =>
+      report('checking_output', progress),
+    );
     loudnessLufs = measured?.inputI ?? null;
   }
   if (normalizeAudio && outsideLoudnessTolerance(loudnessLufs)) {
@@ -56,6 +86,9 @@ export async function processFile(inputPath, outputPath) {
     );
   }
 
+  report('finalizing', null);
+  const digest = await sha256(outputPath);
+  report('finalizing', 100);
   return {
     durationSeconds: canonical.outputDuration,
     width: canonical.video.width,
@@ -68,11 +101,18 @@ export async function processFile(inputPath, outputPath) {
     loudnessToleranceLu: LOUDNESS_TOLERANCE_LU,
     audioMode: normalizeAudio ? 'normalized' : 'generated-silence',
     fastStart: canonical.fastStart,
-    sha256: await sha256(outputPath),
+    sha256: digest,
   };
 }
 
-async function transcode(inputPath, outputPath, firstPass, normalizeAudio) {
+async function transcode(
+  inputPath,
+  outputPath,
+  firstPass,
+  normalizeAudio,
+  durationSeconds,
+  onProgress,
+) {
   const args = ['-hide_banner', '-nostdin', '-y', '-i', inputPath];
   if (!normalizeAudio) {
     args.push('-f', 'lavfi', '-i', 'anullsrc=channel_layout=stereo:sample_rate=48000');
@@ -114,41 +154,51 @@ async function transcode(inputPath, outputPath, firstPass, normalizeAudio) {
     '-shortest',
     outputPath,
   );
-  await run('ffmpeg', args);
+  await runFfmpeg(args, durationSeconds, onProgress);
 }
 
-async function correctLoudness(inputPath, outputPath, measured) {
-  await run('ffmpeg', [
-    '-hide_banner',
-    '-nostdin',
-    '-y',
-    '-i',
-    inputPath,
-    '-map',
-    '0:v:0',
-    '-map',
-    '0:a:0',
-    '-c:v',
-    'copy',
-    '-af',
-    loudnormFilter(measured),
-    '-c:a',
-    'aac',
-    '-b:a',
-    '192k',
-    '-ar',
-    '48000',
-    '-ac',
-    '2',
-    '-map_metadata',
-    '-1',
-    '-sn',
-    '-dn',
-    '-movflags',
-    '+faststart',
-    '-shortest',
-    outputPath,
-  ]);
+async function correctLoudness(
+  inputPath,
+  outputPath,
+  measured,
+  durationSeconds,
+  onProgress,
+) {
+  await runFfmpeg(
+    [
+      '-hide_banner',
+      '-nostdin',
+      '-y',
+      '-i',
+      inputPath,
+      '-map',
+      '0:v:0',
+      '-map',
+      '0:a:0',
+      '-c:v',
+      'copy',
+      '-af',
+      loudnormFilter(measured),
+      '-c:a',
+      'aac',
+      '-b:a',
+      '192k',
+      '-ar',
+      '48000',
+      '-ac',
+      '2',
+      '-map_metadata',
+      '-1',
+      '-sn',
+      '-dn',
+      '-movflags',
+      '+faststart',
+      '-shortest',
+      outputPath,
+    ],
+    durationSeconds,
+    onProgress,
+  );
 }
 
 function loudnormFilter(measured) {
@@ -208,21 +258,25 @@ function outsideLoudnessTolerance(loudnessLufs) {
   );
 }
 
-async function analyzeLoudness(file) {
-  const output = await run('ffmpeg', [
-    '-hide_banner',
-    '-nostdin',
-    '-i',
-    file,
-    '-map',
-    '0:a:0',
-    '-af',
-    `loudnorm=I=${TARGET_LUFS}:LRA=11:TP=-1.5:print_format=json`,
-    '-f',
-    'null',
-    '-',
-  ]);
-  const blocks = [...output.matchAll(/\{[\s\S]*?"input_i"[\s\S]*?\}/g)];
+async function analyzeLoudness(file, durationSeconds, onProgress) {
+  const output = await runFfmpeg(
+    [
+      '-hide_banner',
+      '-nostdin',
+      '-i',
+      file,
+      '-map',
+      '0:a:0',
+      '-af',
+      `loudnorm=I=${TARGET_LUFS}:LRA=11:TP=-1.5:print_format=json`,
+      '-f',
+      'null',
+      '-',
+    ],
+    durationSeconds,
+    onProgress,
+  );
+  const blocks = [...output.stderr.matchAll(/\{[\s\S]*?"input_i"[\s\S]*?\}/g)];
   const json = blocks.at(-1)?.[0];
   if (!json) throw new ProcessorError('FFmpeg loudness analysis did not return data');
   const value = JSON.parse(json);
@@ -247,7 +301,7 @@ async function probe(file) {
     file,
   ]);
   try {
-    const parsed = JSON.parse(output);
+    const parsed = JSON.parse(output.stdout);
     if (!Array.isArray(parsed.streams)) throw new Error('streams missing');
     return parsed;
   } catch {
@@ -292,21 +346,50 @@ function sha256(file) {
   });
 }
 
-function run(command, args) {
+async function runFfmpeg(args, durationSeconds, onProgress) {
+  const output = await run(
+    'ffmpeg',
+    ['-progress', 'pipe:1', '-stats_period', '2', '-nostats', ...args],
+    (line) => {
+      const match = /^out_time_us=(\d+)$/.exec(line);
+      if (!match) return;
+      const elapsedSeconds = Number(match[1]) / 1_000_000;
+      onProgress(
+        Math.min(100, Math.max(0, Math.round((elapsedSeconds / durationSeconds) * 100))),
+      );
+    },
+  );
+  onProgress(100);
+  return output;
+}
+
+function run(command, args, onStdoutLine = null) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {stdio: ['ignore', 'pipe', 'pipe']});
     let stdout = '';
     let stderr = '';
+    let pendingLine = '';
     child.stdout.setEncoding('utf8');
     child.stderr.setEncoding('utf8');
-    child.stdout.on('data', (chunk) => (stdout += chunk));
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk;
+      if (!onStdoutLine) return;
+      pendingLine += chunk;
+      for (;;) {
+        const newline = pendingLine.indexOf('\n');
+        if (newline < 0) break;
+        onStdoutLine(pendingLine.slice(0, newline).trim());
+        pendingLine = pendingLine.slice(newline + 1);
+      }
+    });
     child.stderr.on('data', (chunk) => {
       stderr += chunk;
       if (stderr.length > 2_000_000) stderr = stderr.slice(-1_000_000);
     });
     child.once('error', reject);
     child.once('close', (code) => {
-      if (code === 0) resolve(stdout || stderr);
+      if (onStdoutLine && pendingLine.trim()) onStdoutLine(pendingLine.trim());
+      if (code === 0) resolve({stdout, stderr});
       else
         reject(new ProcessorError(`${command} exited ${code}: ${stderr.slice(-2000)}`));
     });
@@ -315,6 +398,7 @@ function run(command, args) {
 
 async function processRequest(payload) {
   const {videoId, attempt} = validatePayload(payload);
+  const reporter = createProgressReporter(videoId, attempt);
   const directory = await mkdtemp(path.join(tmpdir(), 'hackweek-video-'));
   const input = path.join(directory, 'original');
   const output = path.join(directory, 'canonical.mp4');
@@ -325,12 +409,19 @@ async function processRequest(payload) {
     if (!source.ok || !source.body) {
       throw new ProcessorError(`Scoped original download failed with ${source.status}`);
     }
+    const sourceSize = contentLength(source.headers.get('content-length'));
+    reporter.update('downloading', sourceSize === null ? null : 0);
     await pipeline(
       Readable.fromWeb(source.body),
+      byteProgress(sourceSize, (progress) => reporter.update('downloading', progress)),
       createWriteStream(input, {flags: 'wx'}),
     );
-    const result = await processFile(input, output);
+    const result = await processFile(input, output, reporter.update);
     const outputSize = (await stat(output)).size;
+    reporter.update('uploading', 0);
+    const uploadBody = createReadStream(output).pipe(
+      byteProgress(outputSize, (progress) => reporter.update('uploading', progress)),
+    );
     const uploaded = await fetch(`${R2_ORIGIN}/output`, {
       method: 'PUT',
       headers: {
@@ -340,16 +431,90 @@ async function processRequest(payload) {
         'x-video-attempt': String(attempt),
         'x-content-sha256': result.sha256,
       },
-      body: Readable.toWeb(createReadStream(output)),
+      body: Readable.toWeb(uploadBody),
       duplex: 'half',
     });
     if (!uploaded.ok) {
       throw new ProcessorError(`Scoped derivative upload failed with ${uploaded.status}`);
     }
+    reporter.update('uploading', 100);
     return result;
   } finally {
+    await reporter.flush();
     await rm(directory, {recursive: true, force: true});
   }
+}
+
+function createProgressReporter(videoId, attempt) {
+  let stage = null;
+  let progress = null;
+  let lastUpdate = 0;
+  let tail = Promise.resolve();
+
+  function update(nextStage, nextProgress) {
+    const now = Date.now();
+    const stageChanged = nextStage !== stage;
+    const completed = nextProgress === 100 && progress !== 100;
+    if (
+      !stageChanged &&
+      !completed &&
+      (nextProgress === progress || now - lastUpdate < 2_000)
+    ) {
+      return;
+    }
+    stage = nextStage;
+    progress = nextProgress;
+    lastUpdate = now;
+    tail = tail.then(async () => {
+      try {
+        const response = await fetch(`${R2_ORIGIN}/progress`, {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+            'x-video-id': videoId,
+            'x-video-attempt': String(attempt),
+          },
+          body: JSON.stringify({stage: nextStage, progress: nextProgress}),
+        });
+        if (!response.ok) {
+          throw new Error(`progress endpoint returned ${response.status}`);
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(
+          JSON.stringify({
+            component: 'video-processor',
+            event: 'progress_update_failed',
+            videoId,
+            attempt,
+            stage: nextStage,
+            message,
+          }),
+        );
+      }
+    });
+  }
+
+  return {update, flush: () => tail};
+}
+
+function byteProgress(totalBytes, onProgress) {
+  let transferred = 0;
+  return new Transform({
+    transform(chunk, _encoding, callback) {
+      transferred += chunk.byteLength;
+      if (totalBytes !== null) {
+        onProgress(Math.min(100, Math.round((transferred / totalBytes) * 100)));
+      }
+      callback(null, chunk);
+    },
+  });
+}
+
+function contentLength(value) {
+  if (!value || !/^\d+$/.test(value)) return null;
+  const length = Number(value);
+  return Number.isSafeInteger(length) && length > 0 ? length : null;
 }
 
 function validatePayload(value) {
@@ -412,7 +577,7 @@ if (process.argv[1] === new URL(import.meta.url).pathname) {
   if (process.argv[2] === 'process-file') {
     const [, , , input, output] = process.argv;
     if (!input || !output) throw new Error('Usage: process-file <input> <output>');
-    console.log(JSON.stringify(await processFile(input, output)));
+    console.log(JSON.stringify(await processFile(input, output, () => undefined)));
   } else if (process.argv.length === 2) {
     server.listen(PORT, '0.0.0.0', () =>
       console.log(`video processor listening on ${PORT}`),

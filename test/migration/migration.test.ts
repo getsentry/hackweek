@@ -79,6 +79,11 @@ describe('Firebase migration transformation', () => {
       );
       expect(expand).not.toMatch(/ALTER TABLE project_videos|DROP TABLE stream_events/);
       database.exec(expand);
+      const progressMigration = await readFile(
+        path.resolve('migrations/0008_video_processing_progress.sql'),
+        'utf8',
+      );
+      database.exec(progressMigration);
 
       expect(
         database
@@ -144,10 +149,14 @@ describe('Firebase migration transformation', () => {
         );
         INSERT INTO video_processing_attempts (video_id, attempt, status)
         VALUES ('r2-video', 1, 'queued');
+        UPDATE video_processing_attempts
+        SET progress_stage = 'transcoding', progress_percent = 63
+        WHERE video_id = 'r2-video' AND attempt = 1;
       `);
       expect(
         database
-          .prepare(`SELECT vs.status, vs.original_r2_key, vpa.status attempt_status
+          .prepare(`SELECT vs.status, vs.original_r2_key, vpa.status attempt_status,
+              vpa.progress_stage, vpa.progress_percent
             FROM video_submissions vs
             JOIN video_processing_attempts vpa ON vpa.video_id = vs.id
             WHERE vs.id = 'r2-video' AND vpa.attempt = 1`)
@@ -156,7 +165,13 @@ describe('Firebase migration transformation', () => {
         status: 'queued',
         original_r2_key: 'r2/original.mp4',
         attempt_status: 'queued',
+        progress_stage: 'transcoding',
+        progress_percent: 63,
       });
+      expect(() =>
+        database.exec(`UPDATE video_processing_attempts
+          SET progress_percent = 101 WHERE video_id = 'r2-video' AND attempt = 1`),
+      ).toThrow(/CHECK constraint failed/);
       expect(() =>
         database.exec(`INSERT INTO video_submissions (
           id, project_id, original_name, size_bytes, original_r2_key

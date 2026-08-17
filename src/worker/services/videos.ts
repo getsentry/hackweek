@@ -3,6 +3,7 @@ import type {
   PlaybackResponse,
   PlaylistItem,
   ProjectVideo,
+  VideoProcessingStage,
   VideoUploadPart,
   VideoUploadSession,
 } from '../../shared/videos';
@@ -34,6 +35,8 @@ interface VideoRow {
   loudness_lufs: number | null;
   gain_db: number | null;
   error_message: string | null;
+  processing_stage: VideoProcessingStage | null;
+  processing_progress: number | null;
   created_at: string;
 }
 
@@ -646,6 +649,7 @@ export async function claimVideoProcessingAttempt(
       .prepare(
         `UPDATE video_processing_attempts
          SET status = 'running', output_r2_key = ?, started_at = CURRENT_TIMESTAMP,
+           progress_stage = 'waiting_for_processor', progress_percent = NULL,
            updated_at = CURRENT_TIMESTAMP
          WHERE video_id = ? AND attempt = ? AND status = 'queued'
            AND (SELECT COUNT(*) FROM video_processing_attempts WHERE status = 'running') < ?
@@ -676,6 +680,29 @@ export async function claimVideoProcessingAttempt(
     return {status: 'capacity'};
   }
   return {status: 'stale'};
+}
+
+export async function reportVideoProcessingProgress(
+  db: D1Database,
+  videoId: string,
+  attempt: number,
+  stage: VideoProcessingStage,
+  progress: number | null,
+) {
+  const result = await db
+    .prepare(
+      `UPDATE video_processing_attempts
+       SET progress_stage = ?, progress_percent = ?, updated_at = CURRENT_TIMESTAMP
+       WHERE video_id = ? AND attempt = ? AND status = 'running'
+         AND EXISTS (
+           SELECT 1 FROM video_submissions
+           WHERE id = ? AND processing_attempt = ? AND status = 'processing'
+             AND retired_at IS NULL
+         )`,
+    )
+    .bind(stage, progress, videoId, attempt, videoId, attempt)
+    .run();
+  return result.meta.changes === 1;
 }
 
 export async function publishVideoProcessingAttempt(
@@ -981,6 +1008,8 @@ function mapVideo(row: VideoRow): ProjectVideo {
     errorMessage: row.error_message,
     failureStage: row.status === 'failed' ? 'processing' : null,
     processingAttempt: row.processing_attempt,
+    processingStage: row.status === 'processing' ? row.processing_stage : null,
+    processingProgress: row.status === 'processing' ? row.processing_progress : null,
     createdAt: row.created_at,
   };
 }
@@ -988,7 +1017,14 @@ function mapVideo(row: VideoRow): ProjectVideo {
 function videoSelect() {
   return `SELECT id, project_id, original_name, content_type, size_bytes, status,
     processing_attempt, processed_r2_key, duration_seconds, loudness_lufs, gain_db,
-    error_message, created_at FROM video_submissions`;
+    error_message,
+    (SELECT progress_stage FROM video_processing_attempts
+      WHERE video_id = video_submissions.id
+        AND attempt = video_submissions.processing_attempt) processing_stage,
+    (SELECT progress_percent FROM video_processing_attempts
+      WHERE video_id = video_submissions.id
+        AND attempt = video_submissions.processing_attempt) processing_progress,
+    created_at FROM video_submissions`;
 }
 
 async function requireReadyVideo(db: D1Database, videoId: string) {

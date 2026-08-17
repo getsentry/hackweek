@@ -108,6 +108,30 @@ describe('clickable project routes', () => {
     );
   });
 
+  it('shows voting open as the current-year action while voting is enabled', async () => {
+    fetchMock.mockResolvedValue(
+      json({
+        years: [
+          {
+            id: '2026',
+            votingEnabled: true,
+            submissionsClosed: false,
+            projectCount: 4,
+            ideaCount: 2,
+            groupCount: 1,
+            participantCount: 8,
+          },
+        ],
+      }),
+    );
+
+    renderRoute(<YearsPage />, '/years');
+
+    const hero = await screen.findByRole('region', {name: 'Hackweek 2026'});
+    expect(within(hero).getByRole('link', {name: /voting open/})).toBeTruthy();
+    expect(within(hero).queryByRole('link', {name: /submissions open/})).toBeNull();
+  });
+
   it('promotes the latest year to the hero and renders earlier years as archives', async () => {
     fetchMock.mockResolvedValue(
       json({
@@ -332,6 +356,44 @@ describe('clickable project routes', () => {
     ).toBeTruthy();
     const progress = screen.getByRole('progressbar', {name: 'ballot progress'});
     expect(progress.getAttribute('value')).toBe('0');
+  });
+
+  it('marks personal vote counts in both project views', async () => {
+    mockProjectsOverview({
+      categories: [
+        {id: 'delight', yearId: '2026', name: 'Delight'},
+        {id: 'impact', yearId: '2026', name: 'Impact'},
+      ],
+      votes: [
+        {
+          id: 'vote-delight',
+          yearId: '2026',
+          projectId: 'project',
+          projectName: 'A small machine',
+          projectActive: true,
+          categoryId: 'delight',
+        },
+        {
+          id: 'vote-impact',
+          yearId: '2026',
+          projectId: 'project',
+          projectName: 'A small machine',
+          projectActive: true,
+          categoryId: 'impact',
+        },
+      ],
+      projects: [projectFixture],
+    });
+
+    renderRoute(<ProjectsPage />, '/years/2026/projects', '/years/:yearId/projects');
+
+    const gridBadge = await screen.findByLabelText('2 of your picks: Delight, Impact');
+    expect(gridBadge.textContent).toBe('your picks · 2');
+    expect(gridBadge.closest('.projectCard')).toBeTruthy();
+
+    await userEvent.click(screen.getByRole('button', {name: 'list view'}));
+    const listBadge = screen.getByLabelText('2 of your picks: Delight, Impact');
+    expect(listBadge.closest('.projectRow')).toBeTruthy();
   });
 
   it('keeps closed-year browsing and ballot read failures local', async () => {

@@ -150,7 +150,7 @@ describe('voting and administration journeys', () => {
 
     await userEvent.click(
       within(voting).getByRole('button', {
-        name: /vote for a small machine in delight/i,
+        name: /vote for delight/i,
       }),
     );
 
@@ -178,30 +178,20 @@ describe('voting and administration journeys', () => {
     if (!(delightRow instanceof HTMLElement)) throw new Error();
     expect(within(delightRow).getByText('your vote')).toBeTruthy();
 
-    await userEvent.click(
-      within(voting).getByRole('button', {name: /move craft vote here/i}),
-    );
+    await userEvent.click(within(voting).getByRole('button', {name: 'move vote here'}));
     expect(within(voting).getByText(/move your Craft vote from/).textContent).toContain(
       'Quiet hours',
     );
-    await userEvent.click(
-      within(voting).getByRole('button', {name: /cancel move for craft/i}),
-    );
+    await userEvent.click(within(voting).getByRole('button', {name: 'cancel'}));
     expect(
       fetchMock.mock.calls.some(
         ([input, init]) => input === '/api/votes/vote-craft' && init?.method === 'PUT',
       ),
     ).toBe(false);
-    expect(
-      within(voting).queryByRole('button', {name: /confirm move for craft/i}),
-    ).toBeNull();
+    expect(within(voting).queryByRole('button', {name: 'confirm move'})).toBeNull();
 
-    await userEvent.click(
-      within(voting).getByRole('button', {name: /move craft vote here/i}),
-    );
-    await userEvent.click(
-      within(voting).getByRole('button', {name: /confirm move for craft/i}),
-    );
+    await userEvent.click(within(voting).getByRole('button', {name: 'move vote here'}));
+    await userEvent.click(within(voting).getByRole('button', {name: 'confirm move'}));
 
     await waitFor(() => {
       const request = fetchMock.mock.calls.find(
@@ -243,7 +233,7 @@ describe('voting and administration journeys', () => {
     const voting = await screen.findByRole('region', {name: 'vote for this project'});
     await userEvent.click(
       within(voting).getByRole('button', {
-        name: /vote for a small machine in delight/i,
+        name: /vote for delight/i,
       }),
     );
 
@@ -283,7 +273,7 @@ describe('voting and administration journeys', () => {
       'This vote changed elsewhere',
     );
     expect(
-      await within(voting).findByRole('button', {name: /move delight vote here/i}),
+      await within(voting).findByRole('button', {name: 'move vote here'}),
     ).toBeTruthy();
     expect(screen.queryByRole('heading', {name: 'Something went wrong'})).toBeNull();
   });

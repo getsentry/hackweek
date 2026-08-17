@@ -132,8 +132,8 @@ export function ProjectVoting({
                     {pending
                       ? 'casting your vote…'
                       : selection
-                        ? `move ${category.name} vote here`
-                        : `vote for ${project.name} in ${category.name}`}
+                        ? 'move vote here'
+                        : `vote for ${category.name}`}
                   </button>
                 )}
 
@@ -151,24 +151,22 @@ export function ProjectVoting({
                     <div>
                       <button
                         type="button"
-                        className="textAction"
+                        className="textAction projectVotingCancel"
                         disabled={vote.isPending}
                         onClick={() => {
                           setConfirmingCategoryId(null);
                           vote.reset();
                         }}
                       >
-                        cancel move for {category.name}
+                        cancel
                       </button>
                       <button
                         type="button"
-                        className="primaryAction"
+                        className="primaryAction projectVotingMoveAction"
                         disabled={vote.isPending}
                         onClick={() => submit(category, selection)}
                       >
-                        {pending
-                          ? 'moving your vote…'
-                          : `confirm move for ${category.name}`}
+                        {pending ? 'moving your vote…' : 'confirm move'}
                       </button>
                     </div>
                   </div>

@@ -11,9 +11,11 @@ interface ProjectListMember {
 export function ProjectCard({
   project,
   view = 'grid',
+  voteCategories = [],
 }: {
   project: ProjectSummary;
   view?: 'grid' | 'list';
+  voteCategories?: string[];
 }) {
   const projectLink = `/years/${project.yearId}/projects/${project.id}`;
 
@@ -26,6 +28,7 @@ export function ProjectCard({
         groupName={project.group?.name ?? 'ungrouped'}
         members={project.members}
         needsHelp={project.needsHelp}
+        voteCategories={voteCategories}
       />
     );
   }
@@ -39,6 +42,7 @@ export function ProjectCard({
       <Markdown compact>{project.summary}</Markdown>
       <footer>
         <MemberStack members={project.members} />
+        <ProjectVoteBadge categories={voteCategories} />
       </footer>
     </article>
   );
@@ -55,6 +59,7 @@ export function ProjectListItem({
   members,
   needsHelp = false,
   emptyMemberLabel = 'up for grabs',
+  voteCategories = [],
 }: {
   name: string;
   href?: string;
@@ -66,6 +71,7 @@ export function ProjectListItem({
   members: ProjectListMember[];
   needsHelp?: boolean;
   emptyMemberLabel?: string;
+  voteCategories?: string[];
 }) {
   return (
     <article className={`projectRow projectRow--${kind}`}>
@@ -86,10 +92,25 @@ export function ProjectListItem({
       <div className="projectRowTags">
         <span className="tag tag--group">{groupName}</span>
         {detail && <span className="tag">{detail}</span>}
+        <ProjectVoteBadge categories={voteCategories} />
         {needsHelp && <strong className="tag tag--help">looking for help</strong>}
       </div>
       <MemberStack members={members} emptyLabel={emptyMemberLabel} />
     </article>
+  );
+}
+
+function ProjectVoteBadge({categories}: {categories: string[]}) {
+  if (!categories.length) return null;
+  const count = categories.length;
+  return (
+    <strong
+      className="projectVoteBadge"
+      aria-label={`${count} of your ${count === 1 ? 'pick' : 'picks'}: ${categories.join(', ')}`}
+      title={categories.join(', ')}
+    >
+      your picks · {count}
+    </strong>
   );
 }
 

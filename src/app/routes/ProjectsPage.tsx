@@ -47,6 +47,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
     search || undefined,
   );
   const error = year.error ?? projects.error;
+  const voteCategoriesByProject = selectedCategoriesByProject(ballot.data);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -221,7 +222,12 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
               aria-label={`${kind} list`}
             >
               {projects.data.projects.map((project) => (
-                <ProjectCard project={project} view={view} key={project.id} />
+                <ProjectCard
+                  project={project}
+                  view={view}
+                  voteCategories={voteCategoriesByProject.get(project.id)}
+                  key={project.id}
+                />
               ))}
             </section>
           )}
@@ -229,6 +235,22 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
       )}
     </QueryState>
   );
+}
+
+function selectedCategoriesByProject(ballot?: BallotStatusResponse) {
+  const result = new Map<string, string[]>();
+  if (!ballot) return result;
+  const categoryNames = new Map(
+    ballot.categories.map((category) => [category.id, category.name]),
+  );
+  for (const vote of ballot.votes) {
+    const categoryName = categoryNames.get(vote.categoryId);
+    if (!categoryName || !vote.projectActive) continue;
+    const categories = result.get(vote.projectId) ?? [];
+    categories.push(categoryName);
+    result.set(vote.projectId, categories);
+  }
+  return result;
 }
 
 function BallotOverview({

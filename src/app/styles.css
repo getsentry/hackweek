@@ -928,6 +928,24 @@ main {
   font-size: 0.65rem;
   white-space: nowrap;
 }
+.projectVoteBadge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 0.3rem 0.55rem;
+  color: #305500;
+  font-size: 0.66rem;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  border: 1px solid #b8db78;
+  border-radius: 999px;
+  background: #f0ffd7;
+}
+.projectRow .projectVoteBadge {
+  padding: 0.27rem 0.5rem;
+  font-size: 0.65rem;
+}
 .projectRow .memberStack > span {
   width: 1.65rem;
   height: 1.65rem;
@@ -1380,6 +1398,26 @@ main {
   min-height: 2.35rem;
   padding: 0.55rem 0.75rem;
   font-size: 0.75rem;
+}
+.projectVotingConfirm .projectVotingCancel {
+  color: var(--muted);
+  border-color: #bdb4c8;
+  background: #fff;
+}
+.projectVotingConfirm .projectVotingCancel:hover:not(:disabled) {
+  color: var(--ink);
+  border-color: var(--ink);
+  background: var(--soft);
+}
+.projectVotingConfirm .projectVotingMoveAction {
+  color: var(--ink);
+  border-color: var(--green);
+  background: var(--green);
+}
+.projectVotingConfirm .projectVotingMoveAction:hover:not(:disabled) {
+  color: #fff;
+  border-color: var(--dark-blurple);
+  background: var(--dark-blurple);
 }
 .projectVotingFeedback {
   padding: 0.85rem 1rem;

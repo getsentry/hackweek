@@ -13,7 +13,7 @@ import type {
   SessionUser,
   SessionViewMode,
 } from '../shared/api';
-import {apiRequest, jsonRequest} from './queries/api';
+import {apiRequest, AUTH_REQUIRED_EVENT, jsonRequest} from './queries/api';
 
 type SessionState =
   | {status: 'loading'; user: null; reason: null}
@@ -30,12 +30,18 @@ type SessionState =
 const SessionContext = createContext<SessionState | null>(null);
 
 export function SessionProvider({children}: {children: ReactNode}) {
-  const authError = new URLSearchParams(window.location.search).get('auth_error');
+  const [authError] = useState(() =>
+    new URLSearchParams(window.location.search).get('auth_error'),
+  );
   const [session, setSession] = useState<SessionState>({
     status: 'loading',
     user: null,
     reason: null,
   });
+  const showSignIn = useCallback((reason: string | null) => {
+    window.history.replaceState(null, '', '/');
+    setSession({status: 'unauthenticated', user: null, reason});
+  }, []);
   const setViewMode = useCallback(async (mode: SessionViewMode) => {
     const result = await apiRequest<SessionResponse>(
       '/session/view-mode',
@@ -48,6 +54,12 @@ export function SessionProvider({children}: {children: ReactNode}) {
       setViewMode,
     });
   }, []);
+
+  useEffect(() => {
+    const handleAuthRequired = () => showSignIn(null);
+    window.addEventListener(AUTH_REQUIRED_EVENT, handleAuthRequired);
+    return () => window.removeEventListener(AUTH_REQUIRED_EVENT, handleAuthRequired);
+  }, [showSignIn]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -66,7 +78,7 @@ export function SessionProvider({children}: {children: ReactNode}) {
 
         const result: ApiErrorResponse = await response.json();
         if (response.status === 401) {
-          setSession({status: 'unauthenticated', user: null, reason: authError});
+          showSignIn(authError);
         } else if (response.status === 403 || result.error.code === 'AUTH_FORBIDDEN') {
           setSession({status: 'forbidden', user: null, reason: authError});
         } else {
@@ -79,7 +91,7 @@ export function SessionProvider({children}: {children: ReactNode}) {
         }
       });
     return () => controller.abort();
-  }, [authError, setViewMode]);
+  }, [authError, setViewMode, showSignIn]);
 
   return <SessionContext.Provider value={session}>{children}</SessionContext.Provider>;
 }

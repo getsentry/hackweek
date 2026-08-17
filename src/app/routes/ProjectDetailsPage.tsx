@@ -22,7 +22,8 @@ export function ProjectDetailsPage() {
   }>();
   const [, navigate] = useLocation();
   const project = useProject(projectId);
-  const ballot = useBallotStatus(yearId, project.data?.project.kind === 'project');
+  const ballotYearId = project.data?.project.yearId ?? yearId;
+  const ballot = useBallotStatus(ballotYearId, project.data?.project.kind === 'project');
   const withdraw = useDeleteProject();
   const upload = useUploadMedia(projectId);
   const removeMedia = useDeleteMedia(projectId);
@@ -147,6 +148,33 @@ export function ProjectDetailsPage() {
               </ul>
             </aside>
           </div>
+          {project.data.project.kind === 'project' && ballot.isLoading && (
+            <section
+              className="projectVoting projectVoting--notice"
+              aria-labelledby="project-voting-loading-title"
+              aria-busy="true"
+            >
+              <p className="kicker">award ballot</p>
+              <h2 id="project-voting-loading-title">loading voting status…</h2>
+            </section>
+          )}
+          {project.data.project.kind === 'project' && ballot.error && (
+            <section
+              className="projectVoting projectVoting--notice"
+              aria-labelledby="project-voting-error-title"
+            >
+              <p className="kicker">award ballot</p>
+              <h2 id="project-voting-error-title">voting status unavailable</h2>
+              <p role="alert">{ballot.error.message}</p>
+              <button
+                type="button"
+                className="textAction"
+                onClick={() => void ballot.refetch()}
+              >
+                try again
+              </button>
+            </section>
+          )}
           {project.data.project.kind === 'project' && ballot.data?.year.votingEnabled && (
             <ProjectVoting
               ballot={ballot.data}

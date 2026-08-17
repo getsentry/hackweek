@@ -35,10 +35,11 @@ export async function getVoting(
     db
       .prepare(
         `SELECT v.id, v.year_id, v.project_id, v.award_category_id,
-          p.name project_name
+          p.name project_name,
+          p.year_id = v.year_id AND p.kind = 'project' AND p.status = 'active'
+            project_active
          FROM votes v
          JOIN projects p ON p.id = v.project_id
-           AND p.kind = 'project' AND p.status = 'active'
          WHERE v.year_id = ? AND v.creator_id = ?
          ORDER BY v.award_category_id`,
       )
@@ -49,6 +50,7 @@ export async function getVoting(
         project_id: string;
         award_category_id: string;
         project_name: string;
+        project_active: number;
       }>(),
   ]);
   return {
@@ -484,12 +486,14 @@ function mapBallotSelection(row: {
   project_id: string;
   award_category_id: string;
   project_name: string;
+  project_active: number;
 }): BallotSelection {
   return {
     id: row.id,
     yearId: row.year_id,
     projectId: row.project_id,
     projectName: row.project_name,
+    projectActive: Boolean(row.project_active),
     categoryId: row.award_category_id,
   };
 }

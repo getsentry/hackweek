@@ -704,6 +704,22 @@ main {
 .ballotSelections a:hover {
   color: var(--green);
 }
+.ballotSelectionInactive {
+  text-align: right;
+}
+.ballotSelectionInactive strong,
+.ballotSelectionInactive small {
+  display: block;
+}
+.ballotSelectionInactive strong {
+  color: #fff;
+  font-size: 0.88rem;
+}
+.ballotSelectionInactive small {
+  margin-top: 0.2rem;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 0.68rem;
+}
 .ballotSelections > p {
   max-width: 30rem;
   margin-bottom: 0;
@@ -1206,6 +1222,23 @@ main {
   height: 0.35rem;
   content: '';
   background: var(--pink);
+}
+.projectVoting--notice {
+  display: grid;
+  gap: 0.75rem;
+}
+.projectVoting--notice h2,
+.projectVoting--notice p {
+  margin: 0;
+}
+.projectVoting--notice h2 {
+  font-size: clamp(1.5rem, 3vw, 2rem);
+}
+.projectVoting--notice > p:not(.kicker) {
+  color: var(--danger);
+}
+.projectVoting--notice .textAction {
+  justify-self: start;
 }
 .projectVoting > header {
   display: grid;
@@ -3041,13 +3074,15 @@ kbd {
     flex-direction: column;
   }
   .ballotOverview {
+    grid-template-columns: 1fr;
     gap: 1.75rem;
   }
   .ballotSelections li {
     grid-template-columns: 1fr;
     gap: 0.25rem;
   }
-  .ballotSelections a {
+  .ballotSelections a,
+  .ballotSelectionInactive {
     text-align: left;
   }
   .projectSearch > div {

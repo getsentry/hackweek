@@ -32,7 +32,7 @@ export function useVoteMutation(yearId: string) {
         voteId ? `/votes/${encodeURIComponent(voteId)}` : '/votes',
         jsonRequest(voteId ? 'PUT' : 'POST', input),
       ),
-    onSuccess: () => cache.invalidateQueries({queryKey: ballotStatusQueryKey(yearId)}),
+    onSettled: () => cache.invalidateQueries({queryKey: ballotStatusQueryKey(yearId)}),
   });
 }
 

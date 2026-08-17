@@ -107,6 +107,7 @@ export function ProjectVoting({
                   ) : selection ? (
                     <p>
                       currently on <strong>{selection.projectName}</strong>
+                      {!selection.projectActive && ' (project withdrawn)'}
                     </p>
                   ) : (
                     <p>no project selected yet</p>

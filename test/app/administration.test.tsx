@@ -88,6 +88,7 @@ describe('voting and administration journeys', () => {
           yearId: '2026',
           projectId: 'project',
           projectName: 'A small machine',
+          projectActive: true,
           categoryId: 'impact',
         },
         {
@@ -95,6 +96,7 @@ describe('voting and administration journeys', () => {
           yearId: '2026',
           projectId: 'other-project',
           projectName: 'Quiet hours',
+          projectActive: true,
           categoryId: 'craft',
         },
       ],
@@ -111,6 +113,7 @@ describe('voting and administration journeys', () => {
           yearId: '2026',
           projectId: 'project',
           projectName: 'A small machine',
+          projectActive: true,
           categoryId: 'delight',
         };
         ballot = {...ballot, votes: [...ballot.votes, selection]};
@@ -122,6 +125,7 @@ describe('voting and administration journeys', () => {
           yearId: '2026',
           projectId: 'project',
           projectName: 'A small machine',
+          projectActive: true,
           categoryId: 'craft',
         };
         ballot = {
@@ -218,12 +222,12 @@ describe('voting and administration journeys', () => {
     ).toBeTruthy();
   });
 
-  it('reports a pending first vote and keeps API errors local', async () => {
+  it('reports a pending first vote, keeps errors local, and reconciles conflicts', async () => {
     let resolveVote!: (response: Response) => void;
     const pendingVote = new Promise<Response>((resolve) => {
       resolveVote = resolve;
     });
-    const ballot: BallotStatusResponse = {
+    let ballot: BallotStatusResponse = {
       year: {id: '2026', votingEnabled: true},
       categories: [{id: 'delight', yearId: '2026', name: 'Delight'}],
       votes: [],
@@ -254,6 +258,19 @@ describe('voting and administration journeys', () => {
     expect(pending.disabled).toBe(true);
 
     await act(async () => {
+      ballot = {
+        ...ballot,
+        votes: [
+          {
+            id: 'vote-delight',
+            yearId: '2026',
+            projectId: 'other-project',
+            projectName: 'Quiet hours',
+            projectActive: true,
+            categoryId: 'delight',
+          },
+        ],
+      };
       resolveVote(
         json(
           {error: {code: 'VOTE_CONFLICT', message: 'This vote changed elsewhere'}},
@@ -265,6 +282,9 @@ describe('voting and administration journeys', () => {
     expect((await within(voting).findByRole('alert')).textContent).toContain(
       'This vote changed elsewhere',
     );
+    expect(
+      await within(voting).findByRole('button', {name: /move delight vote here/i}),
+    ).toBeTruthy();
     expect(screen.queryByRole('heading', {name: 'Something went wrong'})).toBeNull();
   });
 

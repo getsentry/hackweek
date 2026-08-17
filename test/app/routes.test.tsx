@@ -217,7 +217,7 @@ describe('clickable project routes', () => {
     expect(await screen.findByRole('link', {name: 'watch reel'})).toBeTruthy();
   });
 
-  it('shows open-voting progress and links each selected project', async () => {
+  it('shows progress, links active picks, and identifies withdrawn picks', async () => {
     mockProjectsOverview({
       categories: [
         {id: 'delight', yearId: '2026', name: 'Delight'},
@@ -230,6 +230,7 @@ describe('clickable project routes', () => {
           yearId: '2026',
           projectId: 'signal-forge',
           projectName: 'Signal forge',
+          projectActive: true,
           categoryId: 'delight',
         },
         {
@@ -237,6 +238,7 @@ describe('clickable project routes', () => {
           yearId: '2026',
           projectId: 'quiet-hours',
           projectName: 'Quiet hours',
+          projectActive: false,
           categoryId: 'impact',
         },
       ],
@@ -261,12 +263,12 @@ describe('clickable project routes', () => {
         .getByRole('link', {name: /Signal forge/})
         .getAttribute('href'),
     ).toBe('/years/2026/projects/signal-forge');
+    expect(within(ballot).queryByRole('link', {name: /Quiet hours/})).toBeNull();
+    expect(within(ballot).getByText('Quiet hours')).toBeTruthy();
     expect(
-      within(ballot)
-        .getByRole('link', {name: /Quiet hours/})
-        .getAttribute('href'),
-    ).toBe('/years/2026/projects/quiet-hours');
-    expect(within(ballot).getAllByRole('link')).toHaveLength(2);
+      within(ballot).getByText('project withdrawn — choose another project'),
+    ).toBeTruthy();
+    expect(within(ballot).getAllByRole('link')).toHaveLength(1);
   });
 
   it('encourages a first vote and celebrates a completed ballot', async () => {
@@ -298,6 +300,7 @@ describe('clickable project routes', () => {
           yearId: '2026',
           projectId: 'signal-forge',
           projectName: 'Signal forge',
+          projectActive: true,
           categoryId: 'delight',
         },
       ],
@@ -618,6 +621,114 @@ describe('clickable project routes', () => {
     expect(screen.getByRole('heading', {name: 'attachments'})).toBeTruthy();
   });
 
+  it('uses the loaded project year for ballot state', async () => {
+    mockProjectDetails({
+      detail: {
+        ...projectFixture,
+        permissions: {...projectFixture.permissions, canVote: true},
+      },
+      ballot: {
+        year: {id: '2026', votingEnabled: true},
+        categories: [{id: 'delight', yearId: '2026', name: 'Delight'}],
+        votes: [],
+      },
+    });
+
+    renderRoute(
+      <ProjectDetailsPage />,
+      '/years/2025/projects/project',
+      '/years/:yearId/projects/:projectId',
+    );
+
+    expect(
+      await screen.findByRole('region', {name: 'vote for this project'}),
+    ).toBeTruthy();
+    expect(fetchMock).toHaveBeenCalledWith('/api/votes?year=2026', undefined);
+    expect(fetchMock).not.toHaveBeenCalledWith('/api/votes?year=2025', undefined);
+  });
+
+  it('shows local ballot loading and retry states on project details', async () => {
+    let resolveBallot!: (response: Response) => void;
+    const pendingBallot = new Promise<Response>((resolve) => {
+      resolveBallot = resolve;
+    });
+    fetchMock.mockImplementation(async (input) => {
+      const url = requestUrl(input);
+      if (url.includes('/api/votes?')) return pendingBallot;
+      if (url.endsWith('/video')) return json({video: null});
+      return json({
+        project: {
+          ...projectFixture,
+          permissions: {...projectFixture.permissions, canVote: true},
+        },
+      });
+    });
+
+    const loading = renderRoute(
+      <ProjectDetailsPage />,
+      '/years/2026/projects/project',
+      '/years/:yearId/projects/:projectId',
+    );
+
+    expect(
+      await screen.findByRole('region', {name: 'loading voting status…'}),
+    ).toBeTruthy();
+    resolveBallot(
+      json({
+        year: {id: '2026', votingEnabled: false},
+        categories: [],
+        votes: [],
+      }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole('region', {name: 'loading voting status…'})).toBeNull(),
+    );
+    loading.unmount();
+
+    fetchMock.mockReset();
+    let ballotReads = 0;
+    fetchMock.mockImplementation(async (input) => {
+      const url = requestUrl(input);
+      if (url.includes('/api/votes?')) {
+        ballotReads += 1;
+        if (ballotReads === 1) {
+          return json(
+            {error: {code: 'BALLOT_UNAVAILABLE', message: 'Ballot unavailable'}},
+            503,
+          );
+        }
+        return json({
+          year: {id: '2026', votingEnabled: true},
+          categories: [{id: 'delight', yearId: '2026', name: 'Delight'}],
+          votes: [],
+        });
+      }
+      if (url.endsWith('/video')) return json({video: null});
+      return json({
+        project: {
+          ...projectFixture,
+          permissions: {...projectFixture.permissions, canVote: true},
+        },
+      });
+    });
+
+    renderRoute(
+      <ProjectDetailsPage />,
+      '/years/2026/projects/project',
+      '/years/:yearId/projects/:projectId',
+    );
+
+    const error = await screen.findByRole('region', {
+      name: 'voting status unavailable',
+    });
+    expect(within(error).getByRole('alert').textContent).toContain('Ballot unavailable');
+    await userEvent.click(within(error).getByRole('button', {name: 'try again'}));
+    expect(
+      await screen.findByRole('region', {name: 'vote for this project'}),
+    ).toBeTruthy();
+    expect(ballotReads).toBe(2);
+  });
+
   it('explains unavailable own-project voting and hides controls when closed', async () => {
     mockProjectDetails({
       detail: projectFixture,
@@ -919,6 +1030,7 @@ function mockProjectsOverview({
     yearId: string;
     projectId: string;
     projectName: string;
+    projectActive: boolean;
     categoryId: string;
   }>;
   projects?: ProjectDetail[];

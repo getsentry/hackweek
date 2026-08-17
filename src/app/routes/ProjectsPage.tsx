@@ -314,9 +314,16 @@ function BallotOverview({
             {selections.map(({category, vote}) => (
               <li key={category.id}>
                 <span>{category.name}</span>
-                <Link href={`/years/${yearId}/projects/${vote.projectId}`}>
-                  {vote.projectName} <span aria-hidden="true">→</span>
-                </Link>
+                {vote.projectActive ? (
+                  <Link href={`/years/${yearId}/projects/${vote.projectId}`}>
+                    {vote.projectName} <span aria-hidden="true">→</span>
+                  </Link>
+                ) : (
+                  <span className="ballotSelectionInactive">
+                    <strong>{vote.projectName}</strong>
+                    <small>project withdrawn — choose another project</small>
+                  </span>
+                )}
               </li>
             ))}
           </ul>

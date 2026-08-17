@@ -101,6 +101,7 @@ describe('voting invariants', () => {
           yearId,
           projectId,
           projectName: 'Renamed signal',
+          projectActive: true,
           categoryId,
         },
       ],
@@ -110,6 +111,54 @@ describe('voting invariants', () => {
       categories: [{id: categoryId, yearId, name: 'Delight'}],
       votes: [],
     });
+  });
+
+  it('keeps a withdrawn project selection visible and movable', async () => {
+    const replacementProjectId = `${projectId}-replacement`;
+    await env.DB.prepare(
+      `INSERT INTO projects (id, source_id, year_id, creator_id, name)
+       VALUES (?, ?, ?, ?, ?)`,
+    )
+      .bind(
+        replacementProjectId,
+        replacementProjectId,
+        yearId,
+        creatorId,
+        'Replacement signal',
+      )
+      .run();
+    const created = await api('/votes', voterToken, {method: 'POST', body: voteBody()});
+    await env.DB.prepare("UPDATE projects SET status = 'withdrawn' WHERE id = ?")
+      .bind(projectId)
+      .run();
+
+    const withdrawnStatus = await api(`/votes?year=${yearId}`, voterToken);
+    expect(withdrawnStatus.body.votes).toEqual([
+      expect.objectContaining({
+        id: created.body.vote.id,
+        projectId,
+        projectName: 'Signal',
+        projectActive: false,
+        categoryId,
+      }),
+    ]);
+
+    const moved = await api(`/votes/${created.body.vote.id}`, voterToken, {
+      method: 'PUT',
+      body: {...voteBody(), projectId: replacementProjectId},
+    });
+    expect(moved.body.vote.projectId).toBe(replacementProjectId);
+
+    const movedStatus = await api(`/votes?year=${yearId}`, voterToken);
+    expect(movedStatus.body.votes).toEqual([
+      expect.objectContaining({
+        id: created.body.vote.id,
+        projectId: replacementProjectId,
+        projectName: 'Replacement signal',
+        projectActive: true,
+        categoryId,
+      }),
+    ]);
   });
 
   it('rejects disabled, self-project, cross-year, and invalid reference votes', async () => {

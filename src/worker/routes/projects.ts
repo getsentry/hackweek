@@ -30,7 +30,7 @@ projectsRoutes.get('/', async (c) => {
       throw new ServiceError('VALIDATION_FAILED', 'Kind query is invalid', 400);
     }
     const kind = kindQuery === 'project' || kindQuery === 'idea' ? kindQuery : undefined;
-    const limit = boundedInteger(c.req.query('limit'), 24, 1, 50, 'Limit');
+    const limit = boundedInteger(c.req.query('limit'), 24, 1, 250, 'Limit');
     const offset = boundedInteger(c.req.query('cursor'), 0, 0, 100_000, 'Cursor');
     const search = boundedSearch(c.req.query('q'));
     const response: ProjectsResponse = await listProjects(c.env.DB, {

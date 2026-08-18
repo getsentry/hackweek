@@ -562,6 +562,82 @@ describe('clickable project routes', () => {
     ).toBe('true');
   });
 
+  it('requests a 250-item page and paginates with next/previous controls', async () => {
+    fetchMock.mockImplementation(async (input) => {
+      const url = input instanceof Request ? input.url : input.toString();
+      if (url.includes('/api/years/2026')) {
+        return json({
+          year: {
+            id: '2026',
+            votingEnabled: false,
+            submissionsClosed: false,
+            projectCount: 251,
+            ideaCount: 0,
+            groupCount: 0,
+            participantCount: 251,
+          },
+          groups: [],
+          awards: [],
+        });
+      }
+
+      const requestUrl = new URL(url, 'https://hackweek.test');
+      expect(requestUrl.searchParams.get('limit')).toBe('250');
+      const cursor = requestUrl.searchParams.get('cursor');
+      if (cursor === '250') {
+        return json({
+          projects: [{...projectFixture, id: 'project-251', name: 'Project 251'}],
+          nextCursor: null,
+        });
+      }
+
+      return json({
+        projects: Array.from({length: 250}, (_, index) => ({
+          ...projectFixture,
+          id: `project-${index + 1}`,
+          name: `Project ${index + 1}`,
+        })),
+        nextCursor: '250',
+      });
+    });
+
+    renderRoute(<ProjectsPage />, '/years/2026/projects', '/years/:yearId/projects');
+
+    expect(await screen.findByRole('heading', {name: 'Project 1'})).toBeTruthy();
+    expect(screen.getByRole('region', {name: 'project list'}).children).toHaveLength(250);
+    expect(screen.getByText('showing 1–250+')).toBeTruthy();
+    expect(screen.getByRole('button', {name: 'previous'}).hasAttribute('disabled')).toBe(
+      true,
+    );
+
+    await userEvent.click(screen.getByRole('button', {name: 'next'}));
+
+    expect(await screen.findByRole('heading', {name: 'Project 251'})).toBeTruthy();
+    expect(screen.getByText('showing 251–251')).toBeTruthy();
+    expect(screen.getByRole('button', {name: 'next'}).hasAttribute('disabled')).toBe(
+      true,
+    );
+
+    await userEvent.click(screen.getByRole('button', {name: 'previous'}));
+
+    expect(await screen.findByRole('heading', {name: 'Project 1'})).toBeTruthy();
+    expect(screen.getByRole('button', {name: 'previous'}).hasAttribute('disabled')).toBe(
+      true,
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /\/api\/projects\?(?=.*year=2026)(?=.*limit=250)(?!.*cursor=)/,
+      ),
+      undefined,
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /\/api\/projects\?(?=.*year=2026)(?=.*limit=250)(?=.*cursor=250)/,
+      ),
+      undefined,
+    );
+  });
+
   it('live-updates server search without replacing the current list', async () => {
     let resolveSearch!: (response: Response) => void;
     const pendingSearch = new Promise<Response>((resolve) => {

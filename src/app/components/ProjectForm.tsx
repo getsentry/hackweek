@@ -21,21 +21,20 @@ export function ProjectForm({
   onSubmit: (value: ProjectWriteRequest) => void;
 }) {
   const options = useProjectOptions(yearId);
-  const [name, setName] = useState(project?.name ?? '');
-  const [summary, setSummary] = useState(project?.summary ?? '');
-  const [repository, setRepository] = useState(project?.repository ?? '');
-  const [kind, setKind] = useState<ProjectWriteRequest['kind']>(
-    claim ? 'project' : (project?.kind ?? 'project'),
-  );
-  const [groupId, setGroupId] = useState(project?.group?.id ?? '');
-  const [memberIds, setMemberIds] = useState(project?.members.map(({id}) => id) ?? []);
+  const initial = initialValues(project, claim);
+  const [name, setName] = useState(initial.name);
+  const [summary, setSummary] = useState(initial.summary);
+  const [repository, setRepository] = useState(initial.repository);
+  const [kind, setKind] = useState<ProjectWriteRequest['kind']>(initial.kind);
+  const [groupId, setGroupId] = useState(initial.groupId);
+  const [memberIds, setMemberIds] = useState(initial.memberIds);
   const [memberQuery, setMemberQuery] = useState('');
   const [memberResultsOpen, setMemberResultsOpen] = useState(false);
   const [highlightedMember, setHighlightedMember] = useState(-1);
   const memberListboxId = useId();
   const memberSearchId = useId();
-  const [needsHelp, setNeedsHelp] = useState(project?.needsHelp ?? false);
-  const [helpDetails, setHelpDetails] = useState(project?.helpDetails ?? '');
+  const [needsHelp, setNeedsHelp] = useState(initial.needsHelp);
+  const [helpDetails, setHelpDetails] = useState(initial.helpDetails);
 
   useEffect(() => {
     if (!project || claim) return;
@@ -68,6 +67,16 @@ export function ProjectForm({
         .slice(0, 8)
     : [];
   const showMemberResults = memberResultsOpen && Boolean(normalizedMemberQuery);
+  const dirty =
+    name !== initial.name ||
+    summary !== initial.summary ||
+    repository !== initial.repository ||
+    kind !== initial.kind ||
+    groupId !== initial.groupId ||
+    needsHelp !== initial.needsHelp ||
+    helpDetails !== initial.helpDetails ||
+    memberIds.length !== initial.memberIds.length ||
+    memberIds.some((id) => !initial.memberIds.includes(id));
 
   function addMember(id: string) {
     setMemberIds((members) => (members.includes(id) ? members : [...members, id]));
@@ -102,6 +111,11 @@ export function ProjectForm({
         index <= 0 ? matchingMembers.length - 1 : index - 1,
       );
     }
+  }
+
+  function cancel() {
+    if (dirty && !window.confirm('Discard your unsaved changes to this project?')) return;
+    onCancel();
   }
 
   function submit(event: FormEvent) {
@@ -327,7 +341,7 @@ export function ProjectForm({
         </p>
       )}
       <div className="formActions">
-        <button type="button" className="textAction" onClick={onCancel}>
+        <button type="button" className="textAction" onClick={cancel}>
           Never mind
         </button>
         <button type="submit" className="primaryAction" disabled={saving}>
@@ -342,4 +356,20 @@ export function ProjectForm({
       </div>
     </form>
   );
+}
+
+function initialValues(project: ProjectDetail | undefined, claim: boolean) {
+  const kind: ProjectWriteRequest['kind'] = claim
+    ? 'project'
+    : (project?.kind ?? 'project');
+  return {
+    name: project?.name ?? '',
+    summary: project?.summary ?? '',
+    repository: project?.repository ?? '',
+    kind,
+    groupId: project?.group?.id ?? '',
+    memberIds: project?.members.map(({id}) => id) ?? [],
+    needsHelp: project?.needsHelp ?? false,
+    helpDetails: project?.helpDetails ?? '',
+  };
 }

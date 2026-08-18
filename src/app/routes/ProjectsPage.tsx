@@ -1,4 +1,4 @@
-import {useEffect, useState} from 'react';
+import {useEffect, useRef, useState} from 'react';
 import {Link, useParams} from 'wouter';
 
 import type {BallotStatusResponse} from '../../shared/administration';
@@ -37,7 +37,11 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
   const [group, setGroup] = useState('');
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
+  const [cursor, setCursor] = useState<string | undefined>();
+  const [cursorHistory, setCursorHistory] = useState<Array<string | undefined>>([]);
   const [view, setView] = useState<ProjectsView>(getProjectsView);
+  const resultStart = useRef<HTMLElement | null>(null);
+  const paginationRequestPending = useRef(false);
   const year = useYear(yearId);
   const ballot = useBallotStatus(yearId, year.data?.year.votingEnabled ?? false);
   const projects = useProjects(
@@ -45,9 +49,27 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
     kind,
     kind === 'project' ? group || undefined : undefined,
     search || undefined,
+    cursor,
   );
   const error = year.error ?? projects.error;
   const voteCategoriesByProject = selectedCategoriesByProject(ballot.data);
+  const pageProjects = projects.data?.projects ?? [];
+  const nextCursor = projects.data?.nextCursor ?? null;
+  const pageOffset = cursor ? Number(cursor) : 0;
+  const pageStart = pageOffset + 1;
+  const pageEnd = pageOffset + pageProjects.length;
+  const showPagination = Boolean(cursor || nextCursor);
+  const pageStatus = projects.isPlaceholderData
+    ? 'loading page…'
+    : pageProjects.length
+      ? `showing ${pageStart}–${pageEnd}${nextCursor ? '+' : ''}`
+      : `no ${kind === 'idea' ? 'ideas' : 'projects'} found on this page`;
+
+  const resetPagination = () => {
+    paginationRequestPending.current = false;
+    setCursor(undefined);
+    setCursorHistory([]);
+  };
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -55,6 +77,22 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
     }, SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(timeout);
   }, [searchInput]);
+
+  useEffect(() => {
+    resetPagination();
+  }, [yearId, search]);
+
+  useEffect(() => {
+    if (
+      !paginationRequestPending.current ||
+      projects.isFetching ||
+      projects.isPlaceholderData
+    ) {
+      return;
+    }
+    paginationRequestPending.current = false;
+    resultStart.current?.focus();
+  }, [cursor, projects.isFetching, projects.isPlaceholderData]);
 
   return (
     <QueryState loading={year.isLoading || projects.isLoading} error={error}>
@@ -118,13 +156,17 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                 value={searchInput}
                 maxLength={100}
                 placeholder="Search titles and descriptions"
-                onChange={(event) => setSearchInput(event.target.value)}
+                onChange={(event) => {
+                  paginationRequestPending.current = false;
+                  setSearchInput(event.target.value);
+                }}
               />
               {search && (
                 <button
                   type="button"
                   className="textAction"
                   onClick={() => {
+                    resetPagination();
                     setSearchInput('');
                     setSearch('');
                   }}
@@ -133,7 +175,10 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                 </button>
               )}
               {projects.isFetching && (
-                <span className="projectSearchStatus" role="status">
+                <span
+                  className="projectSearchStatus"
+                  role={showPagination ? undefined : 'status'}
+                >
                   updating…
                 </span>
               )}
@@ -143,13 +188,19 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
             <div className="segmented">
               <button
                 className={kind === 'project' ? 'active' : ''}
-                onClick={() => setKind('project')}
+                onClick={() => {
+                  setKind('project');
+                  resetPagination();
+                }}
               >
                 Projects <span>{year.data.year.projectCount}</span>
               </button>
               <button
                 className={kind === 'idea' ? 'active' : ''}
-                onClick={() => setKind('idea')}
+                onClick={() => {
+                  setKind('idea');
+                  resetPagination();
+                }}
               >
                 Ideas <span>{year.data.year.ideaCount}</span>
               </button>
@@ -160,7 +211,10 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                   <span>Group</span>
                   <select
                     value={group}
-                    onChange={(event) => setGroup(event.target.value)}
+                    onChange={(event) => {
+                      setGroup(event.target.value);
+                      resetPagination();
+                    }}
                   >
                     <option value="">All groups</option>
                     {year.data.groups.map((item) => (
@@ -206,8 +260,13 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
               </div>
             </section>
           )}
-          {!projects.data?.projects.length ? (
-            <section className="emptyState">
+          {!pageProjects.length ? (
+            <section
+              className="emptyState"
+              aria-label={`${kind} results`}
+              ref={resultStart}
+              tabIndex={-1}
+            >
               <span>∅</span>
               <h2>No {kind === 'idea' ? 'ideas' : 'projects'} found</h2>
               <p>
@@ -220,8 +279,10 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
             <section
               className={view === 'grid' ? 'projectGrid' : 'projectList'}
               aria-label={`${kind} list`}
+              ref={resultStart}
+              tabIndex={-1}
             >
-              {projects.data.projects.map((project) => (
+              {pageProjects.map((project) => (
                 <ProjectCard
                   project={project}
                   view={view}
@@ -230,6 +291,39 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                 />
               ))}
             </section>
+          )}
+          {showPagination && (
+            <nav className="projectPagination" aria-label="Project pages">
+              <p role="status">{pageStatus}</p>
+              <div>
+                <button
+                  type="button"
+                  className="textAction"
+                  disabled={cursorHistory.length === 0 || projects.isFetching}
+                  onClick={() => {
+                    const previous = cursorHistory[cursorHistory.length - 1];
+                    paginationRequestPending.current = true;
+                    setCursorHistory((history) => history.slice(0, -1));
+                    setCursor(previous);
+                  }}
+                >
+                  previous
+                </button>
+                <button
+                  type="button"
+                  className="textAction"
+                  disabled={!nextCursor || projects.isFetching}
+                  onClick={() => {
+                    if (!nextCursor) return;
+                    paginationRequestPending.current = true;
+                    setCursorHistory((history) => [...history, cursor]);
+                    setCursor(nextCursor);
+                  }}
+                >
+                  next
+                </button>
+              </div>
+            </nav>
           )}
         </main>
       )}

@@ -272,15 +272,17 @@ describe('clickable project routes', () => {
 
     const ballot = await screen.findByRole('region', {name: 'your ballot'});
     const counts = within(ballot).getByLabelText('Ballot counts');
-    expect(counts.textContent).toContain('2 votes cast');
-    expect(counts.textContent).toContain('1 vote remaining');
+    expect(counts.textContent).toContain('1 vote cast');
+    expect(counts.textContent).toContain('2 votes remaining');
     expect(
-      within(ballot).getByText('keep exploring — 1 vote left to cast.'),
+      within(ballot).getByText(
+        '1 withdrawn pick needs a new project — 2 votes left to cast.',
+      ),
     ).toBeTruthy();
     const progress = within(ballot).getByRole('progressbar', {
       name: 'ballot progress',
     });
-    expect(progress.getAttribute('value')).toBe('2');
+    expect(progress.getAttribute('value')).toBe('1');
     expect(progress.getAttribute('max')).toBe('3');
     expect(
       within(ballot)
@@ -788,6 +790,62 @@ describe('clickable project routes', () => {
     expect(
       await screen.findByRole('region', {name: 'vote for this project'}),
     ).toBeTruthy();
+    expect(ballotReads).toBe(2);
+  });
+
+  it('replaces stale voting controls when a ballot refresh fails', async () => {
+    let ballotReads = 0;
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = requestUrl(input);
+      if (url.includes('/api/votes?')) {
+        ballotReads += 1;
+        if (ballotReads === 1) {
+          return json({
+            year: {id: '2026', votingEnabled: true},
+            categories: [{id: 'delight', yearId: '2026', name: 'Delight'}],
+            votes: [],
+          });
+        }
+        return json(
+          {error: {code: 'BALLOT_UNAVAILABLE', message: 'Ballot unavailable'}},
+          503,
+        );
+      }
+      if (url === '/api/votes' && init?.method === 'POST') {
+        return json(
+          {
+            vote: {
+              id: 'vote-delight',
+              yearId: '2026',
+              projectId: 'project',
+              categoryId: 'delight',
+            },
+          },
+          201,
+        );
+      }
+      if (url.endsWith('/video')) return json({video: null});
+      return json({
+        project: {
+          ...projectFixture,
+          permissions: {...projectFixture.permissions, canVote: true},
+        },
+      });
+    });
+
+    renderRoute(
+      <ProjectDetailsPage />,
+      '/years/2026/projects/project',
+      '/years/:yearId/projects/:projectId',
+    );
+
+    const voting = await screen.findByRole('region', {name: 'vote for this project'});
+    await userEvent.click(within(voting).getByRole('button', {name: 'vote for Delight'}));
+
+    expect(
+      await screen.findByRole('region', {name: 'voting status unavailable'}),
+    ).toBeTruthy();
+    expect(screen.queryByRole('region', {name: 'vote for this project'})).toBeNull();
     expect(ballotReads).toBe(2);
   });
 

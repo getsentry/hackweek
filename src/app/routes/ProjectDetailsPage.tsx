@@ -175,17 +175,19 @@ export function ProjectDetailsPage() {
               </button>
             </section>
           )}
-          {project.data.project.kind === 'project' && ballot.data?.year.votingEnabled && (
-            <ProjectVoting
-              ballot={ballot.data}
-              project={{
-                id: project.data.project.id,
-                name: project.data.project.name,
-                yearId: project.data.project.yearId,
-                canVote: project.data.project.permissions.canVote,
-              }}
-            />
-          )}
+          {project.data.project.kind === 'project' &&
+            !ballot.error &&
+            ballot.data?.year.votingEnabled && (
+              <ProjectVoting
+                ballot={ballot.data}
+                project={{
+                  id: project.data.project.id,
+                  name: project.data.project.name,
+                  yearId: project.data.project.yearId,
+                  canVote: project.data.project.permissions.canVote,
+                }}
+              />
+            )}
           {project.data.project.kind === 'project' && (
             <ProjectVideoPanel
               projectId={projectId}

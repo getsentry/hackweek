@@ -295,7 +295,8 @@ function BallotOverview({
     return vote ? [{category, vote}] : [];
   });
   const categoryCount = data.categories.length;
-  const castCount = data.votes.length;
+  const castCount = data.votes.filter((vote) => vote.projectActive).length;
+  const inactiveCount = selections.filter(({vote}) => !vote.projectActive).length;
   const remainingCount = Math.max(categoryCount - castCount, 0);
   const complete = categoryCount > 0 && remainingCount === 0;
   let message = 'open a project to cast your first vote.';
@@ -303,6 +304,8 @@ function BallotOverview({
     message = 'award categories are still being set up. check back soon.';
   } else if (complete) {
     message = 'ballot complete — every category has your pick.';
+  } else if (inactiveCount > 0) {
+    message = `${inactiveCount} withdrawn ${inactiveCount === 1 ? 'pick needs' : 'picks need'} a new project — ${remainingCount} ${remainingCount === 1 ? 'vote' : 'votes'} left to cast.`;
   } else if (castCount > 0) {
     message = `keep exploring — ${remainingCount} ${remainingCount === 1 ? 'vote' : 'votes'} left to cast.`;
   }

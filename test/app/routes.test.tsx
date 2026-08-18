@@ -562,6 +562,289 @@ describe('clickable project routes', () => {
     ).toBe('true');
   });
 
+  it('requests a 250-item page and focuses and announces loaded pages', async () => {
+    let resolveSecondPage!: (response: Response) => void;
+    const pendingSecondPage = new Promise<Response>((resolve) => {
+      resolveSecondPage = resolve;
+    });
+    fetchMock.mockImplementation(async (input) => {
+      const url = input instanceof Request ? input.url : input.toString();
+      if (url.includes('/api/years/2026')) {
+        return json({
+          year: {
+            id: '2026',
+            votingEnabled: false,
+            submissionsClosed: false,
+            projectCount: 251,
+            ideaCount: 0,
+            groupCount: 0,
+            participantCount: 251,
+          },
+          groups: [],
+          awards: [],
+        });
+      }
+
+      const requestUrl = new URL(url, 'https://hackweek.test');
+      expect(requestUrl.searchParams.get('limit')).toBe('250');
+      const cursor = requestUrl.searchParams.get('cursor');
+      if (cursor === '250') return pendingSecondPage;
+
+      return json({
+        projects: Array.from({length: 250}, (_, index) => ({
+          ...projectFixture,
+          id: `project-${index + 1}`,
+          name: `Project ${index + 1}`,
+        })),
+        nextCursor: '250',
+      });
+    });
+
+    renderRoute(<ProjectsPage />, '/years/2026/projects', '/years/:yearId/projects');
+
+    expect(await screen.findByRole('heading', {name: 'Project 1'})).toBeTruthy();
+    expect(screen.getByRole('region', {name: 'project list'}).children).toHaveLength(250);
+    expect(screen.getByText('showing 1–250+')).toBeTruthy();
+    expect(screen.getByRole('button', {name: 'previous'}).hasAttribute('disabled')).toBe(
+      true,
+    );
+
+    const next = screen.getByRole('button', {name: 'next'});
+    await userEvent.click(next);
+
+    const pagination = screen.getByRole('navigation', {name: 'Project pages'});
+    expect(within(pagination).getByRole('status').textContent).toBe('loading page…');
+    expect(screen.getByRole('heading', {name: 'Project 1'})).toBeTruthy();
+    expect(document.activeElement).toBe(next);
+
+    resolveSecondPage(
+      json({
+        projects: [{...projectFixture, id: 'project-251', name: 'Project 251'}],
+        nextCursor: null,
+      }),
+    );
+
+    expect(await screen.findByRole('heading', {name: 'Project 251'})).toBeTruthy();
+    expect(within(pagination).getByRole('status').textContent).toBe('showing 251–251');
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole('region', {name: 'project list'}),
+      ),
+    );
+    expect(screen.queryByRole('heading', {name: 'Project 1'})).toBeNull();
+    expect(screen.getByRole('button', {name: 'next'}).hasAttribute('disabled')).toBe(
+      true,
+    );
+
+    await userEvent.click(screen.getByRole('button', {name: 'previous'}));
+
+    expect(await screen.findByRole('heading', {name: 'Project 1'})).toBeTruthy();
+    expect(within(pagination).getByRole('status').textContent).toBe('showing 1–250+');
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole('region', {name: 'project list'}),
+      ),
+    );
+    expect(screen.getByRole('button', {name: 'previous'}).hasAttribute('disabled')).toBe(
+      true,
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /\/api\/projects\?(?=.*year=2026)(?=.*limit=250)(?!.*cursor=)/,
+      ),
+      undefined,
+    );
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /\/api\/projects\?(?=.*year=2026)(?=.*limit=250)(?=.*cursor=250)/,
+      ),
+      undefined,
+    );
+  });
+
+  it('preserves filter focus when it supersedes a pending page fetch', async () => {
+    let resolveSecondPage!: (response: Response) => void;
+    let resolveIdeas!: (response: Response) => void;
+    const pendingSecondPage = new Promise<Response>((resolve) => {
+      resolveSecondPage = resolve;
+    });
+    const pendingIdeas = new Promise<Response>((resolve) => {
+      resolveIdeas = resolve;
+    });
+    fetchMock.mockImplementation(async (input) => {
+      const url = input instanceof Request ? input.url : input.toString();
+      if (url.includes('/api/years/2026')) {
+        return json({
+          year: {
+            id: '2026',
+            votingEnabled: false,
+            submissionsClosed: false,
+            projectCount: 251,
+            ideaCount: 1,
+            groupCount: 0,
+            participantCount: 252,
+          },
+          groups: [],
+          awards: [],
+        });
+      }
+
+      const requestUrl = new URL(url, 'https://hackweek.test');
+      if (requestUrl.searchParams.get('kind') === 'idea') return pendingIdeas;
+      if (requestUrl.searchParams.get('cursor') === '250') return pendingSecondPage;
+      return json({projects: [projectFixture], nextCursor: '250'});
+    });
+
+    renderRoute(<ProjectsPage />, '/years/2026/projects', '/years/:yearId/projects');
+
+    expect(await screen.findByRole('heading', {name: 'A small machine'})).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', {name: 'next'}));
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining('cursor=250'),
+        undefined,
+      ),
+    );
+
+    const ideas = screen.getByRole('button', {name: /Ideas/});
+    await userEvent.click(ideas);
+    expect(document.activeElement).toBe(ideas);
+
+    resolveIdeas(
+      json({
+        projects: [
+          {
+            ...projectFixture,
+            id: 'idea',
+            name: 'Open signal',
+            kind: 'idea',
+            group: null,
+            members: [],
+          },
+        ],
+        nextCursor: null,
+      }),
+    );
+
+    expect(await screen.findByRole('heading', {name: 'Open signal'})).toBeTruthy();
+    await waitFor(() => expect(document.activeElement).toBe(ideas));
+
+    resolveSecondPage(
+      json({
+        projects: [{...projectFixture, id: 'project-251', name: 'Project 251'}],
+        nextCursor: null,
+      }),
+    );
+  });
+
+  it('keeps search focus when typing supersedes a pending page fetch', async () => {
+    let resolveSecondPage!: (response: Response) => void;
+    const pendingSecondPage = new Promise<Response>((resolve) => {
+      resolveSecondPage = resolve;
+    });
+    fetchMock.mockImplementation(async (input) => {
+      const url = input instanceof Request ? input.url : input.toString();
+      if (url.includes('/api/years/2026')) {
+        return json({
+          year: {
+            id: '2026',
+            votingEnabled: false,
+            submissionsClosed: false,
+            projectCount: 251,
+            ideaCount: 0,
+            groupCount: 0,
+            participantCount: 251,
+          },
+          groups: [],
+          awards: [],
+        });
+      }
+
+      const requestUrl = new URL(url, 'https://hackweek.test');
+      if (requestUrl.searchParams.get('cursor') === '250') return pendingSecondPage;
+      return json({projects: [projectFixture], nextCursor: '250'});
+    });
+
+    renderRoute(<ProjectsPage />, '/years/2026/projects', '/years/:yearId/projects');
+
+    expect(await screen.findByRole('heading', {name: 'A small machine'})).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', {name: 'next'}));
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining('cursor=250'),
+        undefined,
+      ),
+    );
+
+    const searchInput = screen.getByRole('searchbox', {
+      name: 'Search projects and ideas',
+    });
+    await userEvent.type(searchInput, 's');
+    expect(document.activeElement).toBe(searchInput);
+
+    resolveSecondPage(
+      json({
+        projects: [{...projectFixture, id: 'project-251', name: 'Project 251'}],
+        nextCursor: null,
+      }),
+    );
+
+    expect(await screen.findByRole('heading', {name: 'Project 251'})).toBeTruthy();
+    await waitFor(() => expect(document.activeElement).toBe(searchInput));
+  });
+
+  it('keeps Previous available and announces an empty later page', async () => {
+    fetchMock.mockImplementation(async (input) => {
+      const url = input instanceof Request ? input.url : input.toString();
+      if (url.includes('/api/years/2026')) {
+        return json({
+          year: {
+            id: '2026',
+            votingEnabled: false,
+            submissionsClosed: false,
+            projectCount: 1,
+            ideaCount: 0,
+            groupCount: 0,
+            participantCount: 1,
+          },
+          groups: [],
+          awards: [],
+        });
+      }
+
+      const cursor = new URL(url, 'https://hackweek.test').searchParams.get('cursor');
+      if (cursor === '250') return json({projects: [], nextCursor: null});
+      return json({projects: [projectFixture], nextCursor: '250'});
+    });
+
+    renderRoute(<ProjectsPage />, '/years/2026/projects', '/years/:yearId/projects');
+
+    expect(await screen.findByRole('heading', {name: 'A small machine'})).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', {name: 'next'}));
+
+    expect(await screen.findByRole('heading', {name: 'No projects found'})).toBeTruthy();
+    const emptyResults = screen.getByRole('region', {name: 'project results'});
+    const pagination = screen.getByRole('navigation', {name: 'Project pages'});
+    expect(within(pagination).getByRole('status').textContent).toBe(
+      'no projects found on this page',
+    );
+    const previous = within(pagination).getByRole('button', {name: 'previous'});
+    expect(previous.hasAttribute('disabled')).toBe(false);
+    await waitFor(() => expect(document.activeElement).toBe(emptyResults));
+
+    await userEvent.click(previous);
+
+    expect(await screen.findByRole('heading', {name: 'A small machine'})).toBeTruthy();
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole('region', {name: 'project list'}),
+      ),
+    );
+    expect(screen.getByRole('button', {name: 'previous'}).hasAttribute('disabled')).toBe(
+      true,
+    );
+  });
+
   it('live-updates server search without replacing the current list', async () => {
     let resolveSearch!: (response: Response) => void;
     const pendingSearch = new Promise<Response>((resolve) => {

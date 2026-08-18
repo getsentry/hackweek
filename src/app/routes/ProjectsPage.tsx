@@ -66,6 +66,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
       : `no ${kind === 'idea' ? 'ideas' : 'projects'} found on this page`;
 
   const resetPagination = () => {
+    paginationRequestPending.current = false;
     setCursor(undefined);
     setCursorHistory([]);
   };

@@ -662,6 +662,81 @@ describe('clickable project routes', () => {
     );
   });
 
+  it('preserves filter focus when it supersedes a pending page fetch', async () => {
+    let resolveSecondPage!: (response: Response) => void;
+    let resolveIdeas!: (response: Response) => void;
+    const pendingSecondPage = new Promise<Response>((resolve) => {
+      resolveSecondPage = resolve;
+    });
+    const pendingIdeas = new Promise<Response>((resolve) => {
+      resolveIdeas = resolve;
+    });
+    fetchMock.mockImplementation(async (input) => {
+      const url = input instanceof Request ? input.url : input.toString();
+      if (url.includes('/api/years/2026')) {
+        return json({
+          year: {
+            id: '2026',
+            votingEnabled: false,
+            submissionsClosed: false,
+            projectCount: 251,
+            ideaCount: 1,
+            groupCount: 0,
+            participantCount: 252,
+          },
+          groups: [],
+          awards: [],
+        });
+      }
+
+      const requestUrl = new URL(url, 'https://hackweek.test');
+      if (requestUrl.searchParams.get('kind') === 'idea') return pendingIdeas;
+      if (requestUrl.searchParams.get('cursor') === '250') return pendingSecondPage;
+      return json({projects: [projectFixture], nextCursor: '250'});
+    });
+
+    renderRoute(<ProjectsPage />, '/years/2026/projects', '/years/:yearId/projects');
+
+    expect(await screen.findByRole('heading', {name: 'A small machine'})).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', {name: 'next'}));
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining('cursor=250'),
+        undefined,
+      ),
+    );
+
+    const ideas = screen.getByRole('button', {name: /Ideas/});
+    await userEvent.click(ideas);
+    expect(document.activeElement).toBe(ideas);
+
+    resolveIdeas(
+      json({
+        projects: [
+          {
+            ...projectFixture,
+            id: 'idea',
+            name: 'Open signal',
+            kind: 'idea',
+            group: null,
+            members: [],
+          },
+        ],
+        nextCursor: null,
+      }),
+    );
+
+    expect(await screen.findByRole('heading', {name: 'Open signal'})).toBeTruthy();
+    await waitFor(() => expect(document.activeElement).toBe(ideas));
+
+    resolveSecondPage(
+      json({
+        projects: [{...projectFixture, id: 'project-251', name: 'Project 251'}],
+        nextCursor: null,
+      }),
+    );
+  });
+
   it('keeps Previous available and announces an empty later page', async () => {
     fetchMock.mockImplementation(async (input) => {
       const url = input instanceof Request ? input.url : input.toString();

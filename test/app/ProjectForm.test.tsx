@@ -12,8 +12,13 @@ import type {
 
 const fetchMock = vi.fn<typeof fetch>();
 vi.stubGlobal('fetch', fetchMock);
+const confirmMock = vi.fn<typeof window.confirm>();
+vi.stubGlobal('confirm', confirmMock);
 
-afterEach(() => fetchMock.mockReset());
+afterEach(() => {
+  fetchMock.mockReset();
+  confirmMock.mockReset();
+});
 
 describe('ProjectForm team picker', () => {
   it('filters members by partial name and email', async () => {
@@ -127,12 +132,67 @@ describe('ProjectForm team picker', () => {
   });
 });
 
+describe('ProjectForm cancel confirmation', () => {
+  it('cancels without confirmation when nothing has been edited', async () => {
+    const onCancel = vi.fn();
+    renderProjectForm({project: projectFixture, onCancel});
+
+    await userEvent.click(await screen.findByRole('button', {name: 'Never mind'}));
+
+    expect(confirmMock).not.toHaveBeenCalled();
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the edited form when the discard confirmation is declined', async () => {
+    const onCancel = vi.fn();
+    confirmMock.mockReturnValue(false);
+    renderProjectForm({project: projectFixture, onCancel});
+
+    await userEvent.type(await screen.findByLabelText('Name'), '!');
+    await userEvent.click(screen.getByRole('button', {name: 'Never mind'}));
+
+    expect(confirmMock).toHaveBeenCalledTimes(1);
+    expect(onCancel).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Name')).toHaveProperty(
+      'value',
+      `${projectFixture.name}!`,
+    );
+  });
+
+  it('cancels an edited form when the discard confirmation is accepted', async () => {
+    const onCancel = vi.fn();
+    confirmMock.mockReturnValue(true);
+    renderProjectForm({project: projectFixture, onCancel});
+
+    await userEvent.type(await screen.findByLabelText('Name'), '!');
+    await userEvent.click(screen.getByRole('button', {name: 'Never mind'}));
+
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('confirms before discarding a team change on an otherwise untouched form', async () => {
+    const onCancel = vi.fn();
+    confirmMock.mockReturnValue(false);
+    renderProjectForm({project: projectFixture, onCancel});
+
+    await userEvent.click(
+      await screen.findByRole('button', {name: 'Remove Alice Example from team'}),
+    );
+    await userEvent.click(screen.getByRole('button', {name: 'Never mind'}));
+
+    expect(confirmMock).toHaveBeenCalledTimes(1);
+    expect(onCancel).not.toHaveBeenCalled();
+  });
+});
+
 function renderProjectForm({
   project,
+  onCancel = () => {},
   onSubmit = () => {},
   users = [alice, bob],
 }: {
   project?: ProjectDetail;
+  onCancel?: () => void;
   onSubmit?: (value: ProjectWriteRequest) => void;
   users?: ProjectMember[];
 } = {}) {
@@ -150,7 +210,7 @@ function renderProjectForm({
         project={project}
         saving={false}
         error={null}
-        onCancel={() => {}}
+        onCancel={onCancel}
         onSubmit={onSubmit}
       />
     </QueryClientProvider>,

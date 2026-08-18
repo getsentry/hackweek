@@ -156,13 +156,17 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                 value={searchInput}
                 maxLength={100}
                 placeholder="Search titles and descriptions"
-                onChange={(event) => setSearchInput(event.target.value)}
+                onChange={(event) => {
+                  paginationRequestPending.current = false;
+                  setSearchInput(event.target.value);
+                }}
               />
               {search && (
                 <button
                   type="button"
                   className="textAction"
                   onClick={() => {
+                    resetPagination();
                     setSearchInput('');
                     setSearch('');
                   }}
@@ -171,7 +175,10 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                 </button>
               )}
               {projects.isFetching && (
-                <span className="projectSearchStatus" role="status">
+                <span
+                  className="projectSearchStatus"
+                  role={showPagination ? undefined : 'status'}
+                >
                   updating…
                 </span>
               )}

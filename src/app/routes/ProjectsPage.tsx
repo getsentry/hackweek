@@ -1,4 +1,4 @@
-import {useEffect, useState} from 'react';
+import {useEffect, useRef, useState} from 'react';
 import {Link, useParams} from 'wouter';
 
 import type {BallotStatusResponse} from '../../shared/administration';
@@ -40,6 +40,8 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
   const [cursor, setCursor] = useState<string | undefined>();
   const [cursorHistory, setCursorHistory] = useState<Array<string | undefined>>([]);
   const [view, setView] = useState<ProjectsView>(getProjectsView);
+  const resultStart = useRef<HTMLElement | null>(null);
+  const paginationRequestPending = useRef(false);
   const year = useYear(yearId);
   const ballot = useBallotStatus(yearId, year.data?.year.votingEnabled ?? false);
   const projects = useProjects(
@@ -57,6 +59,11 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
   const pageStart = pageOffset + 1;
   const pageEnd = pageOffset + pageProjects.length;
   const showPagination = Boolean(cursor || nextCursor);
+  const pageStatus = projects.isPlaceholderData
+    ? 'loading page…'
+    : pageProjects.length
+      ? `showing ${pageStart}–${pageEnd}${nextCursor ? '+' : ''}`
+      : `no ${kind === 'idea' ? 'ideas' : 'projects'} found on this page`;
 
   const resetPagination = () => {
     setCursor(undefined);
@@ -73,6 +80,18 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
   useEffect(() => {
     resetPagination();
   }, [yearId, search]);
+
+  useEffect(() => {
+    if (
+      !paginationRequestPending.current ||
+      projects.isFetching ||
+      projects.isPlaceholderData
+    ) {
+      return;
+    }
+    paginationRequestPending.current = false;
+    resultStart.current?.focus();
+  }, [cursor, projects.isFetching, projects.isPlaceholderData]);
 
   return (
     <QueryState loading={year.isLoading || projects.isLoading} error={error}>
@@ -234,7 +253,12 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
             </section>
           )}
           {!pageProjects.length ? (
-            <section className="emptyState">
+            <section
+              className="emptyState"
+              aria-label={`${kind} results`}
+              ref={resultStart}
+              tabIndex={-1}
+            >
               <span>∅</span>
               <h2>No {kind === 'idea' ? 'ideas' : 'projects'} found</h2>
               <p>
@@ -244,55 +268,54 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
               </p>
             </section>
           ) : (
-            <>
-              <section
-                className={view === 'grid' ? 'projectGrid' : 'projectList'}
-                aria-label={`${kind} list`}
-              >
-                {pageProjects.map((project) => (
-                  <ProjectCard
-                    project={project}
-                    view={view}
-                    voteCategories={voteCategoriesByProject.get(project.id)}
-                    key={project.id}
-                  />
-                ))}
-              </section>
-              {showPagination && (
-                <nav className="projectPagination" aria-label="Project pages">
-                  <p>
-                    showing {pageStart}–{pageEnd}
-                    {nextCursor ? '+' : ''}
-                  </p>
-                  <div>
-                    <button
-                      type="button"
-                      className="textAction"
-                      disabled={cursorHistory.length === 0 || projects.isFetching}
-                      onClick={() => {
-                        const previous = cursorHistory[cursorHistory.length - 1];
-                        setCursorHistory((history) => history.slice(0, -1));
-                        setCursor(previous);
-                      }}
-                    >
-                      previous
-                    </button>
-                    <button
-                      type="button"
-                      className="textAction"
-                      disabled={!nextCursor || projects.isFetching}
-                      onClick={() => {
-                        if (!nextCursor) return;
-                        setCursorHistory((history) => [...history, cursor]);
-                        setCursor(nextCursor);
-                      }}
-                    >
-                      next
-                    </button>
-                  </div>
-                </nav>
-              )}
-            </>
+            <section
+              className={view === 'grid' ? 'projectGrid' : 'projectList'}
+              aria-label={`${kind} list`}
+              ref={resultStart}
+              tabIndex={-1}
+            >
+              {pageProjects.map((project) => (
+                <ProjectCard
+                  project={project}
+                  view={view}
+                  voteCategories={voteCategoriesByProject.get(project.id)}
+                  key={project.id}
+                />
+              ))}
+            </section>
+          )}
+          {showPagination && (
+            <nav className="projectPagination" aria-label="Project pages">
+              <p role="status">{pageStatus}</p>
+              <div>
+                <button
+                  type="button"
+                  className="textAction"
+                  disabled={cursorHistory.length === 0 || projects.isFetching}
+                  onClick={() => {
+                    const previous = cursorHistory[cursorHistory.length - 1];
+                    paginationRequestPending.current = true;
+                    setCursorHistory((history) => history.slice(0, -1));
+                    setCursor(previous);
+                  }}
+                >
+                  previous
+                </button>
+                <button
+                  type="button"
+                  className="textAction"
+                  disabled={!nextCursor || projects.isFetching}
+                  onClick={() => {
+                    if (!nextCursor) return;
+                    paginationRequestPending.current = true;
+                    setCursorHistory((history) => [...history, cursor]);
+                    setCursor(nextCursor);
+                  }}
+                >
+                  next
+                </button>
+              </div>
+            </nav>
           )}
         </main>
       )}

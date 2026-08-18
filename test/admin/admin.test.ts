@@ -98,40 +98,27 @@ describe('year and award administration', () => {
     expect(stored).toEqual({voting_enabled: 1, submissions_closed: 0});
   });
 
-  it('enforces two distinct same-year nominations in validation and D1', async () => {
-    const first = await createCategory('First');
-    const second = await createCategory('Second');
-    const third = await createCategory('Third');
-    const saved = await api(`/admin/projects/${projectId}/nominations`, adminToken, {
+  it('does not expose project nomination administration', async () => {
+    const category = await createCategory('Unused nomination');
+    const response = await SELF.fetch(`${base}/admin/projects/${projectId}/nominations`, {
       method: 'PUT',
-      body: {categoryIds: [first.id, second.id]},
+      headers: {
+        Cookie: adminToken,
+        Origin: 'https://hackweek.test',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({categoryIds: [category.id]}),
     });
-    const duplicate = await api(`/admin/projects/${projectId}/nominations`, adminToken, {
-      method: 'PUT',
-      body: {categoryIds: [first.id, first.id]},
-    });
-    const tooMany = await api(`/admin/projects/${projectId}/nominations`, adminToken, {
-      method: 'PUT',
-      body: {categoryIds: [first.id, second.id, third.id]},
-    });
-    const otherYear = `${yearId}-other`;
-    await env.DB.prepare('INSERT INTO years (id) VALUES (?)').bind(otherYear).run();
-    const crossId = `cross-category-${sequence}`;
-    await env.DB.prepare(
-      `INSERT INTO award_categories (id, source_id, year_id, name, creator_id)
-       VALUES (?, ?, ?, ?, ?)`,
+    const state = await api(`/admin/years/${yearId}`, adminToken);
+    const nomination = await env.DB.prepare(
+      'SELECT project_id FROM project_nominations WHERE project_id = ?',
     )
-      .bind(crossId, crossId, otherYear, 'Cross', adminId)
-      .run();
-    const cross = await api(`/admin/projects/${projectId}/nominations`, adminToken, {
-      method: 'PUT',
-      body: {categoryIds: [crossId]},
-    });
+      .bind(projectId)
+      .first();
 
-    expect(saved.body.nominations).toHaveLength(2);
-    expect(duplicate.status).toBe(400);
-    expect(tooMany.status).toBe(400);
-    expect(cross.body.error.message).toMatch(/nomination/);
+    expect(response.headers.get('Content-Type')).toContain('text/html');
+    expect(nomination).toBeNull();
+    expect(state.body.projects[0]).not.toHaveProperty('nominations');
   });
 
   it('creates one same-year award per category and rejects invalid references', async () => {

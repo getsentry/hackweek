@@ -4,10 +4,10 @@ import type {
   AwardCategorySummary,
   AwardSummary,
   AwardWriteRequest,
+  BallotSelection,
+  BallotStatusResponse,
   ScreeningOrderItem,
   VoteSummary,
-  VotingProject,
-  VotingResponse,
 } from '../../shared/administration';
 import {ServiceError} from '../services/errors';
 import {getYear} from './projects';
@@ -18,91 +18,45 @@ interface CategoryRow {
   year_id: string;
   name: string;
 }
-interface NominationRow {
-  project_id: string;
-  award_category_id: string;
-  position: 1 | 2;
-}
-interface ProjectRow {
-  id: string;
-  name: string;
-  summary: string | null;
-  group_name: string | null;
-  member_names: string | null;
-  eligible: number;
-}
-
 export async function getVoting(
   db: D1Database,
   yearId: string,
   userId: string,
-): Promise<VotingResponse> {
+): Promise<BallotStatusResponse> {
   const year = await getYear(db, yearId);
-  const [categoryResult, projectResult, nominationResult, voteResult] = await Promise.all(
-    [
-      db
-        .prepare(
-          `SELECT id, year_id, name FROM award_categories
-       WHERE year_id = ? ORDER BY name COLLATE NOCASE, id`,
-        )
-        .bind(yearId)
-        .all<CategoryRow>(),
-      db
-        .prepare(
-          `SELECT p.id, p.name, p.summary, g.name group_name,
-        GROUP_CONCAT(u.display_name, ' · ') member_names,
-        CASE WHEN p.creator_id = ? OR EXISTS (
-          SELECT 1 FROM project_members own
-          WHERE own.project_id = p.id AND own.user_id = ?
-        ) THEN 0 ELSE 1 END eligible
-       FROM projects p
-       LEFT JOIN groups g ON g.id = p.group_id
-       LEFT JOIN project_members pm ON pm.project_id = p.id
-       LEFT JOIN users u ON u.id = pm.user_id
-       WHERE p.year_id = ? AND p.kind = 'project' AND p.status = 'active'
-       GROUP BY p.id ORDER BY p.name COLLATE NOCASE, p.id`,
-        )
-        .bind(userId, userId, yearId)
-        .all<ProjectRow>(),
-      db
-        .prepare(
-          `SELECT n.project_id, n.award_category_id, n.position
-       FROM project_nominations n
-       JOIN projects p ON p.id = n.project_id
-       WHERE p.year_id = ? ORDER BY n.project_id, n.position`,
-        )
-        .bind(yearId)
-        .all<NominationRow>(),
-      db
-        .prepare(
-          `SELECT id, year_id, project_id, award_category_id
-       FROM votes WHERE year_id = ? AND creator_id = ? ORDER BY award_category_id`,
-        )
-        .bind(yearId, userId)
-        .all<{
-          id: string;
-          year_id: string;
-          project_id: string;
-          award_category_id: string;
-        }>(),
-    ],
-  );
-  const nominations = nominationsByProject(nominationResult.results);
+  const [categoryResult, voteResult] = await Promise.all([
+    db
+      .prepare(
+        `SELECT id, year_id, name FROM award_categories
+         WHERE year_id = ? ORDER BY name COLLATE NOCASE, id`,
+      )
+      .bind(yearId)
+      .all<CategoryRow>(),
+    db
+      .prepare(
+        `SELECT v.id, v.year_id, v.project_id, v.award_category_id,
+          p.name project_name,
+          p.year_id = v.year_id AND p.kind = 'project' AND p.status = 'active'
+            project_active
+         FROM votes v
+         JOIN projects p ON p.id = v.project_id
+         WHERE v.year_id = ? AND v.creator_id = ?
+         ORDER BY v.award_category_id`,
+      )
+      .bind(yearId, userId)
+      .all<{
+        id: string;
+        year_id: string;
+        project_id: string;
+        award_category_id: string;
+        project_name: string;
+        project_active: number;
+      }>(),
+  ]);
   return {
     year: {id: year.id, votingEnabled: year.votingEnabled},
     categories: categoryResult.results.map(mapCategory),
-    projects: projectResult.results.map(
-      (row): VotingProject => ({
-        id: row.id,
-        name: row.name,
-        summary: row.summary ?? '',
-        groupName: row.group_name,
-        memberNames: row.member_names ? row.member_names.split(' · ') : [],
-        nominations: nominations.get(row.id) ?? [],
-        eligible: Boolean(row.eligible),
-      }),
-    ),
-    votes: voteResult.results.map(mapVote),
+    votes: voteResult.results.map(mapBallotSelection),
   };
 }
 
@@ -206,63 +160,53 @@ export async function getAdminYear(
   yearId: string,
 ): Promise<AdminYearResponse> {
   const year = await getYear(db, yearId);
-  const [categoryResult, awardResult, projectResult, nominationResult, orderResult] =
-    await Promise.all([
-      db
-        .prepare(
-          'SELECT id, year_id, name FROM award_categories WHERE year_id = ? ORDER BY name COLLATE NOCASE, id',
-        )
-        .bind(yearId)
-        .all<CategoryRow>(),
-      db
-        .prepare(
-          `SELECT a.id, a.year_id, a.project_id, p.name project_name,
+  const [categoryResult, awardResult, projectResult, orderResult] = await Promise.all([
+    db
+      .prepare(
+        'SELECT id, year_id, name FROM award_categories WHERE year_id = ? ORDER BY name COLLATE NOCASE, id',
+      )
+      .bind(yearId)
+      .all<CategoryRow>(),
+    db
+      .prepare(
+        `SELECT a.id, a.year_id, a.project_id, p.name project_name,
         a.category_id, c.name category_name, a.name
        FROM awards a JOIN projects p ON p.id = a.project_id
        JOIN award_categories c ON c.id = a.category_id
        WHERE a.year_id = ? ORDER BY c.name COLLATE NOCASE, a.id`,
-        )
-        .bind(yearId)
-        .all<{
-          id: string;
-          year_id: string;
-          project_id: string;
-          project_name: string;
-          category_id: string;
-          category_name: string;
-          name: string;
-        }>(),
-      db
-        .prepare(
-          `SELECT p.id, p.name, pv.status video_status FROM projects p
+      )
+      .bind(yearId)
+      .all<{
+        id: string;
+        year_id: string;
+        project_id: string;
+        project_name: string;
+        category_id: string;
+        category_name: string;
+        name: string;
+      }>(),
+    db
+      .prepare(
+        `SELECT p.id, p.name, pv.status video_status FROM projects p
        LEFT JOIN video_submissions pv ON pv.project_id = p.id AND pv.retired_at IS NULL
        WHERE p.year_id = ? AND p.kind = 'project' AND p.status = 'active'
        ORDER BY p.name COLLATE NOCASE, p.id`,
-        )
-        .bind(yearId)
-        .all<{
-          id: string;
-          name: string;
-          video_status: import('../../shared/videos').VideoStatus | null;
-        }>(),
-      db
-        .prepare(
-          `SELECT n.project_id, n.award_category_id, n.position
-       FROM project_nominations n JOIN projects p ON p.id = n.project_id
-       WHERE p.year_id = ? ORDER BY n.project_id, n.position`,
-        )
-        .bind(yearId)
-        .all<NominationRow>(),
-      db
-        .prepare(
-          `SELECT o.project_id, p.name project_name, o.position
+      )
+      .bind(yearId)
+      .all<{
+        id: string;
+        name: string;
+        video_status: import('../../shared/videos').VideoStatus | null;
+      }>(),
+    db
+      .prepare(
+        `SELECT o.project_id, p.name project_name, o.position
        FROM screening_order o JOIN projects p ON p.id = o.project_id
        WHERE o.year_id = ? ORDER BY o.position`,
-        )
-        .bind(yearId)
-        .all<{project_id: string; project_name: string; position: number}>(),
-    ]);
-  const nominations = nominationsByProject(nominationResult.results);
+      )
+      .bind(yearId)
+      .all<{project_id: string; project_name: string; position: number}>(),
+  ]);
   return {
     year: {
       id: year.id,
@@ -276,7 +220,6 @@ export async function getAdminYear(
       id: project.id,
       name: project.name,
       videoStatus: project.video_status,
-      nominations: nominations.get(project.id) ?? [],
     })),
     screeningOrder: orderResult.results.map(
       (row): ScreeningOrderItem => ({
@@ -338,32 +281,6 @@ export async function deleteCategory(db: D1Database, id: string) {
     if (error instanceof ServiceError) throw error;
     throw administrationConstraint(error, 'Category is in use and cannot be deleted');
   }
-}
-
-export async function replaceNominations(
-  db: D1Database,
-  projectId: string,
-  categoryIds: string[],
-) {
-  try {
-    await db.batch([
-      db.prepare('DELETE FROM project_nominations WHERE project_id = ?').bind(projectId),
-      ...categoryIds.map((categoryId, index) =>
-        db
-          .prepare(
-            `INSERT INTO project_nominations (project_id, award_category_id, position)
-         VALUES (?, ?, ?)`,
-          )
-          .bind(projectId, categoryId, index + 1),
-      ),
-    ]);
-  } catch (error) {
-    throw administrationConstraint(error, 'Nominations could not be saved');
-  }
-  return categoryIds.map((categoryId, index) => ({
-    categoryId,
-    position: index === 0 ? 1 : 2,
-  }));
 }
 
 export async function createAward(
@@ -559,30 +476,24 @@ async function getAward(db: D1Database, id: string): Promise<AwardSummary> {
   return mapAward(row);
 }
 
-function nominationsByProject(rows: NominationRow[]) {
-  const result = new Map<string, {categoryId: string; position: 1 | 2}[]>();
-  for (const row of rows) {
-    const list = result.get(row.project_id) ?? [];
-    list.push({categoryId: row.award_category_id, position: row.position});
-    result.set(row.project_id, list);
-  }
-  return result;
-}
-
 function mapCategory(row: CategoryRow): AwardCategorySummary {
   return {id: row.id, yearId: row.year_id, name: row.name};
 }
 
-function mapVote(row: {
+function mapBallotSelection(row: {
   id: string;
   year_id: string;
   project_id: string;
   award_category_id: string;
-}): VoteSummary {
+  project_name: string;
+  project_active: number;
+}): BallotSelection {
   return {
     id: row.id,
     yearId: row.year_id,
     projectId: row.project_id,
+    projectName: row.project_name,
+    projectActive: Boolean(row.project_active),
     categoryId: row.award_category_id,
   };
 }
@@ -617,7 +528,6 @@ function administrationConstraint(cause: unknown, fallback: string) {
     'vote project must',
     'vote category must',
     'users cannot vote',
-    'nomination category and project',
     'award references must',
     'screening entry must',
     'FOREIGN KEY constraint failed',

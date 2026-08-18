@@ -7,7 +7,6 @@ import {AdminPage} from './routes/AdminPage';
 import {EditProjectPage, NewProjectPage} from './routes/ProjectEditorPage';
 import {ProjectDetailsPage} from './routes/ProjectDetailsPage';
 import {ProjectsPage} from './routes/ProjectsPage';
-import {VotingPage} from './routes/VotingPage';
 import {YearAdministrationPage} from './routes/YearAdministrationPage';
 import {ProjectVideoWatchPage, VideoWatchPage, WatchPage} from './routes/WatchPage';
 import {YearsPage} from './routes/YearsPage';
@@ -72,7 +71,6 @@ export function App() {
         <Route path="/admin/years/:yearId">
           {session.user.role === 'admin' ? <AdminPage /> : <Redirect to="/years" />}
         </Route>
-        <Route path="/years/:yearId/vote" component={VotingPage} />
         <Route path="/years/:yearId/watch/:videoId" component={VideoWatchPage} />
         <Route path="/years/:yearId/watch" component={WatchPage} />
         <Route path="/years/:yearId/projects/new" component={NewProjectPage} />

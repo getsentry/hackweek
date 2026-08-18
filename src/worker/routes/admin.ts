@@ -8,14 +8,12 @@ import {
   createYear,
   deleteCategory,
   getAdminYear,
-  replaceNominations,
   replaceScreeningOrder,
   updateCategory,
   updateYear,
 } from '../repositories/administration';
 import {
   parseNamed,
-  parseNominations,
   parseScreeningOrder,
   parseYear,
 } from '../services/administration-input';
@@ -75,18 +73,6 @@ adminRoutes.delete('/categories/:categoryId', async (c) =>
     await deleteCategory(c.env.DB, c.req.param('categoryId'));
     return c.body(null, 204);
   }),
-);
-
-adminRoutes.put('/projects/:projectId/nominations', async (c) =>
-  run(c, async () =>
-    c.json({
-      nominations: await replaceNominations(
-        c.env.DB,
-        c.req.param('projectId'),
-        parseNominations(await c.req.json()).categoryIds,
-      ),
-    }),
-  ),
 );
 
 adminRoutes.put('/years/:yearId/screening-order', async (c) =>

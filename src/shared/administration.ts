@@ -4,21 +4,6 @@ export interface AwardCategorySummary {
   name: string;
 }
 
-export interface NominationSummary {
-  categoryId: string;
-  position: 1 | 2;
-}
-
-export interface VotingProject {
-  id: string;
-  name: string;
-  summary: string;
-  groupName: string | null;
-  memberNames: string[];
-  nominations: NominationSummary[];
-  eligible: boolean;
-}
-
 export interface VoteSummary {
   id: string;
   yearId: string;
@@ -26,11 +11,15 @@ export interface VoteSummary {
   categoryId: string;
 }
 
-export interface VotingResponse {
+export interface BallotSelection extends VoteSummary {
+  projectName: string;
+  projectActive: boolean;
+}
+
+export interface BallotStatusResponse {
   year: {id: string; votingEnabled: boolean};
   categories: AwardCategorySummary[];
-  projects: VotingProject[];
-  votes: VoteSummary[];
+  votes: BallotSelection[];
 }
 
 export interface VoteWriteRequest {
@@ -52,7 +41,6 @@ export interface AwardSummary {
 export interface AdminProjectSummary {
   id: string;
   name: string;
-  nominations: NominationSummary[];
   videoStatus: import('./videos').VideoStatus | null;
 }
 
@@ -88,10 +76,6 @@ export interface AwardWriteRequest {
   name: string;
   projectId: string;
   categoryId: string;
-}
-
-export interface NominationsWriteRequest {
-  categoryIds: string[];
 }
 
 export interface ScreeningOrderWriteRequest {

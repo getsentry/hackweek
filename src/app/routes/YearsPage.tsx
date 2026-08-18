@@ -67,8 +67,7 @@ export function YearsPage() {
                     className="currentYearAction"
                     href={`/years/${currentYear.id}/projects`}
                   >
-                    {currentYear.submissionsClosed ? 'view archive' : 'submissions open'}{' '}
-                    →
+                    {yearActionLabel(currentYear)} →
                   </Link>
                 </div>
               </div>
@@ -99,10 +98,7 @@ export function YearsPage() {
                               {year.ideaCount > 0 ? ` · ${year.ideaCount} ideas` : ''}
                             </span>
                           </div>
-                          <em>
-                            {year.submissionsClosed ? 'view archive' : 'submissions open'}{' '}
-                            →
-                          </em>
+                          <em>{yearActionLabel(year)} →</em>
                         </div>
                       </Link>
                     </li>
@@ -117,6 +113,11 @@ export function YearsPage() {
       </main>
     </QueryState>
   );
+}
+
+function yearActionLabel(year: {votingEnabled: boolean; submissionsClosed: boolean}) {
+  if (year.votingEnabled) return 'voting open';
+  return year.submissionsClosed ? 'view archive' : 'submissions open';
 }
 
 function YearBanner({yearId}: {yearId: string}) {

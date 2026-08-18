@@ -56,6 +56,7 @@ export interface ProjectDetail extends ProjectSummary {
     canDelete: boolean;
     canClaim: boolean;
     canManageMedia: boolean;
+    canVote: boolean;
   };
 }
 

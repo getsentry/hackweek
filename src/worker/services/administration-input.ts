@@ -1,7 +1,6 @@
 import type {
   AwardWriteRequest,
   NamedWriteRequest,
-  NominationsWriteRequest,
   ScreeningOrderWriteRequest,
   VoteWriteRequest,
   YearWriteRequest,
@@ -49,18 +48,6 @@ export function parseAward(value: JsonInput): AwardWriteRequest {
     projectId: identifier(body.projectId, 'Project'),
     categoryId: identifier(body.categoryId, 'Category'),
   };
-}
-
-export function parseNominations(value: JsonInput): NominationsWriteRequest {
-  const body = record(value);
-  if (!Array.isArray(body.categoryIds) || body.categoryIds.length > 2) {
-    invalid('A project can have at most two nominations');
-  }
-  const categoryIds = body.categoryIds.map((value) => identifier(value, 'Category'));
-  if (new Set(categoryIds).size !== categoryIds.length) {
-    invalid('Nomination categories must be distinct');
-  }
-  return {categoryIds};
 }
 
 export function parseScreeningOrder(value: JsonInput): ScreeningOrderWriteRequest {

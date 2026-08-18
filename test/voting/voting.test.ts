@@ -76,37 +76,89 @@ beforeEach(async () => {
 });
 
 describe('voting invariants', () => {
-  it('returns categories, nominated projects, and only the current user votes', async () => {
-    await env.DB.prepare(
-      `INSERT INTO project_nominations (project_id, award_category_id, position)
-       VALUES (?, ?, 1)`,
-    )
-      .bind(projectId, categoryId)
-      .run();
+  it('returns compact current-user ballot status without requiring nominations', async () => {
     const created = await api('/votes', voterToken, {method: 'POST', body: voteBody()});
     expect(created.status).toBe(201);
+    await env.DB.prepare('UPDATE projects SET name = ? WHERE id = ?')
+      .bind('Renamed signal', projectId)
+      .run();
 
     const voting = await api(`/votes?year=${yearId}`, voterToken);
     const otherUser = await api(`/votes?year=${yearId}`, memberToken);
+    const nominations = await env.DB.prepare(
+      'SELECT COUNT(*) count FROM project_nominations WHERE project_id = ?',
+    )
+      .bind(projectId)
+      .first<{count: number}>();
 
-    expect(voting.body).toMatchObject({
+    expect(nominations?.count).toBe(0);
+    expect(voting.body).toEqual({
       year: {id: yearId, votingEnabled: true},
-      categories: [{id: categoryId, name: 'Delight'}],
-      projects: expect.arrayContaining([
-        expect.objectContaining({
-          id: projectId,
-          nominations: [{categoryId, position: 1}],
-          eligible: true,
-        }),
-      ]),
-      votes: [expect.objectContaining({projectId, categoryId})],
+      categories: [{id: categoryId, yearId, name: 'Delight'}],
+      votes: [
+        {
+          id: created.body.vote.id,
+          yearId,
+          projectId,
+          projectName: 'Renamed signal',
+          projectActive: true,
+          categoryId,
+        },
+      ],
     });
-    expect(otherUser.body.votes).toEqual([]);
-    expect(
-      otherUser.body.projects.find(
-        (project: {id: string}) => project.id === ownProjectId,
-      ),
-    ).toMatchObject({eligible: false});
+    expect(otherUser.body).toEqual({
+      year: {id: yearId, votingEnabled: true},
+      categories: [{id: categoryId, yearId, name: 'Delight'}],
+      votes: [],
+    });
+  });
+
+  it('keeps a withdrawn project selection visible and movable', async () => {
+    const replacementProjectId = `${projectId}-replacement`;
+    await env.DB.prepare(
+      `INSERT INTO projects (id, source_id, year_id, creator_id, name)
+       VALUES (?, ?, ?, ?, ?)`,
+    )
+      .bind(
+        replacementProjectId,
+        replacementProjectId,
+        yearId,
+        creatorId,
+        'Replacement signal',
+      )
+      .run();
+    const created = await api('/votes', voterToken, {method: 'POST', body: voteBody()});
+    await env.DB.prepare("UPDATE projects SET status = 'withdrawn' WHERE id = ?")
+      .bind(projectId)
+      .run();
+
+    const withdrawnStatus = await api(`/votes?year=${yearId}`, voterToken);
+    expect(withdrawnStatus.body.votes).toEqual([
+      expect.objectContaining({
+        id: created.body.vote.id,
+        projectId,
+        projectName: 'Signal',
+        projectActive: false,
+        categoryId,
+      }),
+    ]);
+
+    const moved = await api(`/votes/${created.body.vote.id}`, voterToken, {
+      method: 'PUT',
+      body: {...voteBody(), projectId: replacementProjectId},
+    });
+    expect(moved.body.vote.projectId).toBe(replacementProjectId);
+
+    const movedStatus = await api(`/votes?year=${yearId}`, voterToken);
+    expect(movedStatus.body.votes).toEqual([
+      expect.objectContaining({
+        id: created.body.vote.id,
+        projectId: replacementProjectId,
+        projectName: 'Replacement signal',
+        projectActive: true,
+        categoryId,
+      }),
+    ]);
   });
 
   it('rejects disabled, self-project, cross-year, and invalid reference votes', async () => {
@@ -167,6 +219,7 @@ describe('voting invariants', () => {
       ),
     ]);
 
+    const status = await api(`/votes?year=${otherYearId}`, voterToken);
     const cast = await api('/votes', voterToken, {
       method: 'POST',
       body: {
@@ -187,6 +240,7 @@ describe('voting invariants', () => {
       method: 'DELETE',
     });
 
+    expect(status.body.year).toEqual({id: otherYearId, votingEnabled: false});
     for (const response of [cast, replaced, deleted]) {
       expect(response).toMatchObject({
         status: 400,

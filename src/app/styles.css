@@ -720,6 +720,9 @@ main {
   color: rgba(255, 255, 255, 0.62);
   font-size: 0.68rem;
 }
+.ballotSelectionInactive--ineligible small {
+  color: #ffd68f;
+}
 .ballotSelections > p {
   max-width: 30rem;
   margin-bottom: 0;
@@ -1360,6 +1363,25 @@ main {
   border-left-color: #bdb4c8;
   background: rgba(247, 245, 250, 0.9);
 }
+.projectVotingCategory--excluded {
+  border-left-color: #82778d;
+  background:
+    repeating-linear-gradient(
+      -45deg,
+      rgba(92, 81, 103, 0.025) 0,
+      rgba(92, 81, 103, 0.025) 0.45rem,
+      transparent 0.45rem,
+      transparent 0.9rem
+    ),
+    rgba(244, 241, 247, 0.96);
+}
+.projectVotingCategory--replacement {
+  border-left-color: var(--danger);
+  background: #fff4f5;
+}
+.projectVotingCategory--excluded .projectVotingCategoryCopy h3 {
+  color: #5f5667;
+}
 .projectVotingNumber {
   align-self: start;
   padding-top: 0.15rem;
@@ -1381,6 +1403,30 @@ main {
 }
 .projectVotingCategoryCopy p strong {
   color: var(--ink);
+}
+.projectVotingCategoryCopy p > span {
+  display: block;
+  margin-top: 0.2rem;
+}
+.projectVotingExcluded,
+.projectVotingReplacement {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+.projectVotingExcluded {
+  color: #5f5667 !important;
+}
+.projectVotingExcluded::before {
+  content: '×';
+  font-size: 0.9rem;
+}
+.projectVotingReplacement {
+  color: var(--danger) !important;
+}
+.projectVotingReplacement::before {
+  content: '!';
+  font-size: 0.75rem;
 }
 .projectVotingSelected {
   display: inline-flex;

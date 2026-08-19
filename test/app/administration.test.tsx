@@ -216,6 +216,87 @@ describe('voting and administration journeys', () => {
     ).toBeTruthy();
   });
 
+  it('keeps every category visible but only offers restricted project nominations', () => {
+    const ballot: BallotStatusResponse = {
+      year: {id: '2026', votingEnabled: true},
+      categories: [
+        {id: 'delight', yearId: '2026', name: 'Delight'},
+        {id: 'impact', yearId: '2026', name: 'Impact'},
+        {id: 'craft', yearId: '2026', name: 'Craft'},
+      ],
+      votes: [
+        {
+          id: 'vote-delight',
+          yearId: '2026',
+          projectId: 'legacy-project',
+          projectName: 'Legacy project',
+          projectActive: true,
+          nominationEligible: false,
+          categoryId: 'delight',
+        },
+        {
+          id: 'vote-impact',
+          yearId: '2026',
+          projectId: 'project',
+          projectName: 'A small machine',
+          projectActive: true,
+          nominationEligible: false,
+          categoryId: 'impact',
+        },
+        {
+          id: 'vote-craft',
+          yearId: '2026',
+          projectId: 'other-project',
+          projectName: 'Quiet hours',
+          projectActive: true,
+          nominationEligible: true,
+          categoryId: 'craft',
+        },
+      ],
+    };
+
+    renderRoute(
+      <ProjectVoting
+        ballot={ballot}
+        project={{
+          id: 'project',
+          name: 'A small machine',
+          yearId: '2026',
+          canVote: true,
+          nominationCategoryIds: ['delight'],
+        }}
+      />,
+      '/',
+      '/',
+    );
+
+    const voting = screen.getByRole('region', {name: 'vote for this project'});
+    expect(within(voting).getAllByRole('listitem')).toHaveLength(3);
+    expect(within(voting).getByRole('button', {name: 'replace vote here'})).toBeTruthy();
+    expect(
+      within(voting).getByText('no longer eligible — replace this pick'),
+    ).toBeTruthy();
+
+    const impact = within(voting).getByRole('heading', {name: 'Impact'}).closest('li');
+    const craft = within(voting).getByRole('heading', {name: 'Craft'}).closest('li');
+    expect(impact).toBeTruthy();
+    expect(craft).toBeTruthy();
+    if (!(impact instanceof HTMLElement) || !(craft instanceof HTMLElement))
+      throw new Error();
+    expect(impact.getAttribute('aria-disabled')).toBe('true');
+    expect(craft.getAttribute('aria-disabled')).toBe('true');
+    expect(within(impact).getByText('your current pick needs replacement')).toBeTruthy();
+    expect(
+      within(impact).getByText('the project team did not enter this award category.'),
+    ).toBeTruthy();
+    expect(within(impact).queryByRole('button')).toBeNull();
+    expect(within(craft).getByText('not entered for this project')).toBeTruthy();
+    expect(
+      within(craft).getByText('the project team chose other award categories.'),
+    ).toBeTruthy();
+    expect(within(craft).queryByRole('button')).toBeNull();
+  });
+
   it('reports a pending first vote, keeps errors local, and reconciles conflicts', async () => {
     let resolveVote!: (response: Response) => void;
     const pendingVote = new Promise<Response>((resolve) => {
@@ -333,6 +414,7 @@ function VotingHarness() {
         name: 'A small machine',
         yearId: '2026',
         canVote: true,
+        nominationCategoryIds: [],
       }}
     />
   );

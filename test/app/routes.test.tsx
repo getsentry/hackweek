@@ -255,6 +255,7 @@ describe('clickable project routes', () => {
           projectId: 'signal-forge',
           projectName: 'Signal forge',
           projectActive: true,
+          nominationEligible: true,
           categoryId: 'delight',
         },
         {
@@ -263,6 +264,7 @@ describe('clickable project routes', () => {
           projectId: 'quiet-hours',
           projectName: 'Quiet hours',
           projectActive: false,
+          nominationEligible: true,
           categoryId: 'impact',
         },
       ],
@@ -297,6 +299,74 @@ describe('clickable project routes', () => {
     expect(within(ballot).getAllByRole('link')).toHaveLength(1);
   });
 
+  it('requires replacement of active ineligible picks and omits their badges', async () => {
+    mockProjectsOverview({
+      categories: [
+        {id: 'delight', yearId: '2026', name: 'Delight'},
+        {id: 'impact', yearId: '2026', name: 'Impact'},
+      ],
+      votes: [
+        {
+          id: 'vote-delight',
+          yearId: '2026',
+          projectId: 'signal-forge',
+          projectName: 'Signal forge',
+          projectActive: true,
+          nominationEligible: true,
+          categoryId: 'delight',
+        },
+        {
+          id: 'vote-impact',
+          yearId: '2026',
+          projectId: 'stale-pick',
+          projectName: 'Stale pick',
+          projectActive: true,
+          nominationEligible: false,
+          categoryId: 'impact',
+        },
+      ],
+      projects: [
+        {...projectFixture, id: 'signal-forge', name: 'Signal forge'},
+        {...projectFixture, id: 'stale-pick', name: 'Stale pick'},
+      ],
+    });
+
+    renderRoute(<ProjectsPage />, '/years/2026/projects', '/years/:yearId/projects');
+
+    const ballot = await screen.findByRole('region', {name: 'your ballot'});
+    expect(within(ballot).getByLabelText('Ballot counts').textContent).toContain(
+      '1 vote cast',
+    );
+    expect(
+      within(ballot).getByText(
+        '1 ineligible pick needs a new project — 1 vote left to cast.',
+      ),
+    ).toBeTruthy();
+    expect(
+      within(ballot).getByText(
+        'project team did not enter this award — choose another project',
+      ),
+    ).toBeTruthy();
+    expect(
+      within(ballot)
+        .getByRole('progressbar', {name: 'ballot progress'})
+        .getAttribute('value'),
+    ).toBe('1');
+
+    const validProject = screen
+      .getByRole('heading', {name: 'Signal forge'})
+      .closest('.projectCard');
+    const staleProject = screen
+      .getByRole('heading', {name: 'Stale pick'})
+      .closest('.projectCard');
+    expect(validProject).toBeTruthy();
+    expect(staleProject).toBeTruthy();
+    if (!(validProject instanceof HTMLElement) || !(staleProject instanceof HTMLElement))
+      throw new Error();
+    expect(within(validProject).getByLabelText('1 of your pick: Delight')).toBeTruthy();
+    expect(within(staleProject).queryByText(/your picks/)).toBeNull();
+  });
+
   it('encourages a first vote and celebrates a completed ballot', async () => {
     mockProjectsOverview({
       categories: [{id: 'delight', yearId: '2026', name: 'Delight'}],
@@ -327,6 +397,7 @@ describe('clickable project routes', () => {
           projectId: 'signal-forge',
           projectName: 'Signal forge',
           projectActive: true,
+          nominationEligible: true,
           categoryId: 'delight',
         },
       ],
@@ -373,6 +444,7 @@ describe('clickable project routes', () => {
           projectId: 'project',
           projectName: 'A small machine',
           projectActive: true,
+          nominationEligible: true,
           categoryId: 'delight',
         },
         {
@@ -381,6 +453,7 @@ describe('clickable project routes', () => {
           projectId: 'project',
           projectName: 'A small machine',
           projectActive: true,
+          nominationEligible: true,
           categoryId: 'impact',
         },
       ],
@@ -968,6 +1041,37 @@ describe('clickable project routes', () => {
     expect(screen.getByRole('heading', {name: 'attachments'})).toBeTruthy();
   });
 
+  it('keeps restricted award rows visible and unavailable on project details', async () => {
+    mockProjectDetails({
+      detail: {
+        ...projectFixture,
+        nominationCategoryIds: ['delight'],
+        permissions: {...projectFixture.permissions, canVote: true},
+      },
+      ballot: {
+        year: {id: '2026', votingEnabled: true},
+        categories: [
+          {id: 'delight', yearId: '2026', name: 'Delight'},
+          {id: 'impact', yearId: '2026', name: 'Impact'},
+          {id: 'craft', yearId: '2026', name: 'Craft'},
+        ],
+        votes: [],
+      },
+    });
+
+    renderRoute(
+      <ProjectDetailsPage />,
+      '/years/2026/projects/project',
+      '/years/:yearId/projects/:projectId',
+    );
+
+    const voting = await screen.findByRole('region', {name: 'vote for this project'});
+    expect(within(voting).getAllByRole('listitem')).toHaveLength(3);
+    expect(within(voting).getByRole('button', {name: 'vote for Delight'})).toBeTruthy();
+    expect(within(voting).getAllByText('not entered for this project')).toHaveLength(2);
+    expect(within(voting).getAllByRole('button')).toHaveLength(1);
+  });
+
   it('uses the loaded project year for ballot state', async () => {
     mockProjectDetails({
       detail: {
@@ -1428,14 +1532,7 @@ function mockProjectsOverview({
 }: {
   votingEnabled?: boolean;
   categories?: Array<{id: string; yearId: string; name: string}>;
-  votes?: Array<{
-    id: string;
-    yearId: string;
-    projectId: string;
-    projectName: string;
-    projectActive: boolean;
-    categoryId: string;
-  }>;
+  votes?: BallotStatusResponse['votes'];
   projects?: ProjectDetail[];
   ballotError?: boolean;
 }) {

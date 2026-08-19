@@ -3,7 +3,7 @@ import {useLocation, useParams} from 'wouter';
 
 import {ProjectForm} from '../components/ProjectForm';
 import {QueryState} from '../components/AppLayout';
-import {useProject, useSaveProject} from '../queries/projects';
+import {useProject, useSaveProject, useYear} from '../queries/projects';
 
 export function NewProjectPage() {
   const {yearId} = useParams<{yearId: string}>();
@@ -36,11 +36,15 @@ export function EditProjectPage() {
   }>();
   const [, navigate] = useLocation();
   const project = useProject(projectId);
+  const year = useYear(yearId);
   const claim = new URLSearchParams(window.location.search).has('claim');
   const save = useSaveProject(projectId, claim);
   return (
-    <QueryState loading={project.isLoading} error={project.error}>
-      {project.data && (
+    <QueryState
+      loading={project.isLoading || year.isLoading}
+      error={project.error ?? year.error}
+    >
+      {project.data && year.data && (
         <EditorShell
           title={claim ? 'claim this idea' : 'edit project'}
           detail={
@@ -55,6 +59,7 @@ export function EditProjectPage() {
             claim={claim}
             saving={save.isPending}
             error={save.error?.message ?? null}
+            nominationsReadOnly={!claim && year.data.year.votingEnabled}
             onCancel={() => navigate(`/years/${yearId}/projects/${projectId}`)}
             onSubmit={(input) =>
               save.mutate(input, {

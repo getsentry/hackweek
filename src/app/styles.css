@@ -1752,6 +1752,7 @@ main {
 .fullField,
 .kindPicker,
 .teamPicker,
+.awardTargeting,
 .checkField,
 .formActions,
 .formError {
@@ -1813,7 +1814,8 @@ main {
   outline: 3px solid rgba(117, 83, 255, 0.15);
 }
 .kindPicker,
-.teamPicker {
+.teamPicker,
+.awardTargeting {
   padding: 1.25rem;
   border: 1px solid var(--line);
   border-radius: 0.65rem;
@@ -1840,6 +1842,211 @@ main {
 .checkField strong,
 .checkField span {
   display: block;
+}
+.awardTargeting {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(1.2rem, 3vw, 1.75rem);
+  border-color: #d9d1ff;
+  background: linear-gradient(135deg, rgba(117, 83, 255, 0.06), transparent 42%), #fff;
+}
+.awardTargeting::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 0.3rem;
+  content: '';
+  background: var(--blurple);
+}
+.awardTargeting legend {
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 600;
+}
+.awardTargetingIntro {
+  margin: 0 0 1rem;
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+.awardTargetingLock {
+  padding: 0.8rem 1rem;
+  margin: 0 0 1rem;
+  color: #3e286c;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  border: 1px solid #d9d1ff;
+  border-radius: 0.5rem;
+  background: #f5f2ff;
+}
+.awardTargetingLock strong {
+  display: block;
+  color: var(--dark-blurple);
+}
+.awardModes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+.awardModeCard {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: center;
+  min-height: 7rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  background: var(--paper);
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease;
+}
+.awardTargeting:not(:disabled) .awardModeCard:not(.awardModeCard--unavailable):hover {
+  border-color: #b9aaff;
+  transform: translateY(-1px);
+}
+.awardModeCard--selected {
+  border-color: var(--blurple);
+  box-shadow: inset 0 0 0 1px var(--blurple);
+}
+.awardModeCard input {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+}
+.projectForm .awardModeCard > span {
+  display: block;
+  margin: 0;
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+}
+.projectForm .awardModeCard > .awardModeIcon {
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  color: var(--dark-blurple);
+  font-size: 0.82rem;
+  font-weight: 700;
+  border-radius: 50%;
+  background: var(--lavender);
+  place-items: center;
+}
+.awardModeCard--selected .awardModeIcon {
+  color: #fff;
+  background: var(--blurple);
+}
+.awardModeCard strong,
+.awardModeCard small {
+  display: block;
+}
+.awardModeCard strong {
+  color: var(--ink);
+  font-size: 0.85rem;
+}
+.awardModeCard small {
+  margin-top: 0.35rem;
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1.45;
+}
+.awardModeCard--unavailable,
+.awardTargeting:disabled .awardModeCard {
+  cursor: not-allowed;
+  transform: none;
+}
+.awardModeCard--unavailable {
+  background: var(--soft);
+}
+.awardCategoryPicker {
+  padding-top: 1.1rem;
+  margin-top: 1.1rem;
+  border-top: 1px solid var(--line);
+}
+.awardCategoryPickerHeader {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+.awardCategoryPickerHeader p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+.awardCategoryPickerHeader output {
+  flex: 0 0 auto;
+  padding: 0.35rem 0.55rem;
+  color: var(--dark-blurple);
+  font-size: 0.68rem;
+  font-weight: 600;
+  border-radius: 99px;
+  background: var(--lavender);
+}
+.awardCategoryChoices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+.awardCategoryChoice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.65rem;
+  align-items: center;
+  min-height: 3.4rem;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background: #fff;
+  cursor: pointer;
+}
+.awardTargeting:not(:disabled)
+  .awardCategoryChoice:not(.awardCategoryChoice--limited):hover {
+  border-color: #b9aaff;
+}
+.awardCategoryChoice--selected {
+  border-color: var(--blurple);
+  background: #f5f2ff;
+}
+.awardCategoryChoice--limited {
+  color: var(--muted);
+  background: var(--soft);
+  cursor: not-allowed;
+}
+.awardTargeting:disabled .awardCategoryChoice {
+  cursor: not-allowed;
+}
+.awardCategoryChoice input {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+}
+.projectForm .awardCategoryChoice > span {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.78rem;
+}
+.awardCategoryChoice--limited > span {
+  color: var(--muted);
+}
+.awardCategoryChoice small {
+  color: var(--muted);
+  font-size: 0.62rem;
+}
+.awardCategoryEmpty {
+  padding: 0.9rem;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.5;
+  border: 1px dashed var(--line);
+  border-radius: 0.5rem;
+  background: var(--soft);
 }
 .selectedTeam {
   display: flex;
@@ -3207,8 +3414,14 @@ kbd {
   .projectForm {
     grid-template-columns: 1fr;
   }
-  .kindPicker {
+  .kindPicker,
+  .awardModes,
+  .awardCategoryChoices {
     grid-template-columns: 1fr;
+  }
+  .awardCategoryPickerHeader {
+    align-items: flex-start;
+    flex-direction: column;
   }
   .formActions,
   .yearCreateForm,

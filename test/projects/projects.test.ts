@@ -279,6 +279,75 @@ describe('project and history APIs', () => {
     });
   });
 
+  it('rejects focused project creation and claims during voting without partial writes', async () => {
+    const idea = await createProject(memberToken, {
+      name: 'Live claim candidate',
+      kind: 'idea',
+      groupId: null,
+    });
+    await env.DB.prepare('UPDATE years SET voting_enabled = 1 WHERE id = ?')
+      .bind(yearId)
+      .run();
+
+    const focusedCreate = await api('/projects', memberToken, {
+      method: 'POST',
+      body: {
+        ...projectPayload(),
+        name: 'Blocked live project',
+        nominationCategoryIds: [categoryId],
+      },
+    });
+    const allCategoryCreate = await api('/projects', memberToken, {
+      method: 'POST',
+      body: {...projectPayload(), name: 'Allowed live project'},
+    });
+    const focusedClaim = await api(`/projects/${idea.id}/claim`, outsiderToken, {
+      method: 'POST',
+      body: {...projectPayload(), nominationCategoryIds: [categoryId]},
+    });
+    const storedAfterFailedClaim = await env.DB.prepare(
+      `SELECT p.kind,
+        (SELECT COUNT(*) FROM project_members pm WHERE pm.project_id = p.id) member_count,
+        (SELECT COUNT(*) FROM project_nominations pn WHERE pn.project_id = p.id) nomination_count
+       FROM projects p WHERE p.id = ?`,
+    )
+      .bind(idea.id)
+      .first<{kind: string; member_count: number; nomination_count: number}>();
+    const allCategoryClaim = await api(`/projects/${idea.id}/claim`, outsiderToken, {
+      method: 'POST',
+      body: projectPayload(),
+    });
+    const blockedProject = await env.DB.prepare('SELECT id FROM projects WHERE name = ?')
+      .bind('Blocked live project')
+      .first();
+
+    for (const response of [focusedCreate, focusedClaim]) {
+      expect(response).toMatchObject({
+        status: 409,
+        body: {
+          error: {
+            code: 'CONFLICT',
+            message: 'Award nominations cannot change after voting has opened',
+          },
+        },
+      });
+    }
+    expect(blockedProject).toBeNull();
+    expect(allCategoryCreate).toMatchObject({
+      status: 201,
+      body: {project: {nominationCategoryIds: []}},
+    });
+    expect(storedAfterFailedClaim).toEqual({
+      kind: 'idea',
+      member_count: 0,
+      nomination_count: 0,
+    });
+    expect(allCategoryClaim).toMatchObject({
+      status: 200,
+      body: {project: {kind: 'project', nominationCategoryIds: []}},
+    });
+  });
+
   it('exposes project voting permission for eligible viewers but not creators, members, or ideas', async () => {
     const project = await createProject(memberToken);
     const idea = await createProject(memberToken, {kind: 'idea', groupId: null});

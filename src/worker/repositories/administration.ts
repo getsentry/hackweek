@@ -287,6 +287,16 @@ export async function deleteCategory(db: D1Database, id: string) {
       throw new ServiceError('NOT_FOUND', 'Category not found', 404);
   } catch (error) {
     if (error instanceof ServiceError) throw error;
+    if (
+      error instanceof Error &&
+      error.message.includes('award nominations cannot change while voting is enabled')
+    ) {
+      throw new ServiceError(
+        'CONFLICT',
+        'Category cannot be deleted while voting is open because a project nominated it',
+        409,
+      );
+    }
     throw administrationConstraint(error, 'Category is in use and cannot be deleted');
   }
 }

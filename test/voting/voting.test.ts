@@ -149,6 +149,9 @@ describe('voting invariants', () => {
   });
 
   it('accepts nominated categories and atomically rejects excluded casts and moves', async () => {
+    await env.DB.prepare('UPDATE years SET voting_enabled = 0 WHERE id = ?')
+      .bind(yearId)
+      .run();
     await env.DB.batch([
       env.DB.prepare(
         `INSERT INTO project_nominations
@@ -159,6 +162,9 @@ describe('voting invariants', () => {
           (project_id, award_category_id, position) VALUES (?, ?, 2)`,
       ).bind(projectId, secondCategoryId),
     ]);
+    await env.DB.prepare('UPDATE years SET voting_enabled = 1 WHERE id = ?')
+      .bind(yearId)
+      .run();
 
     const firstEligible = await api('/votes', voterToken, {
       method: 'POST',
@@ -225,11 +231,17 @@ describe('voting invariants', () => {
 
   it('keeps a pre-existing active ineligible selection visible and movable', async () => {
     const created = await api('/votes', voterToken, {method: 'POST', body: voteBody()});
+    await env.DB.prepare('UPDATE years SET voting_enabled = 0 WHERE id = ?')
+      .bind(yearId)
+      .run();
     await env.DB.prepare(
       `INSERT INTO project_nominations
         (project_id, award_category_id, position) VALUES (?, ?, 1)`,
     )
       .bind(projectId, secondCategoryId)
+      .run();
+    await env.DB.prepare('UPDATE years SET voting_enabled = 1 WHERE id = ?')
+      .bind(yearId)
       .run();
 
     const ineligibleStatus = await api(`/votes?year=${yearId}`, voterToken);

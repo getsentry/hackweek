@@ -311,7 +311,7 @@ export async function createProject(
     ),
     ...nominationInsertStatements(db, id, input.nominationCategoryIds),
   ];
-  await db.batch(statements);
+  await batchProjectWrite(db, statements);
   return getProject(db, id, user);
 }
 
@@ -350,7 +350,7 @@ export async function updateProject(
   }
   const memberIds = input.kind === 'project' ? unique(input.memberIds) : [];
   await assertUsersExist(db, memberIds);
-  await db.batch([
+  await batchProjectWrite(db, [
     db
       .prepare(
         `UPDATE projects SET group_id = ?, name = ?, summary = ?, repository = ?,
@@ -429,7 +429,7 @@ export async function claimProject(
   const memberIds = unique([user.id, ...input.memberIds]);
   await assertUsersExist(db, memberIds);
   const claimMarker = new Date().toISOString();
-  const result = await db.batch([
+  const result = await batchProjectWrite(db, [
     db
       .prepare(
         `UPDATE projects SET kind = 'project', group_id = ?, name = ?, summary = ?,
@@ -760,6 +760,24 @@ async function nominationCategoryIds(db: D1Database, projectId: string) {
     .bind(projectId)
     .all<{award_category_id: string}>();
   return results.map(({award_category_id}) => award_category_id);
+}
+
+async function batchProjectWrite(db: D1Database, statements: D1PreparedStatement[]) {
+  try {
+    return await db.batch(statements);
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message.includes('award nominations cannot change while voting is enabled')
+    ) {
+      throw new ServiceError(
+        'CONFLICT',
+        'Award nominations cannot change after voting has opened',
+        409,
+      );
+    }
+    throw error;
+  }
 }
 
 function nominationInsertStatements(

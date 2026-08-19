@@ -76,6 +76,50 @@ describe('year and award administration', () => {
     expect(renamed.body.category.name).toBe('Most inventive');
   });
 
+  it('keeps a live nominated category intact when deletion would change eligibility', async () => {
+    const category = await createCategory('Only nomination');
+    await env.DB.prepare(
+      `INSERT INTO project_nominations
+        (project_id, award_category_id, position) VALUES (?, ?, 1)`,
+    )
+      .bind(projectId, category.id)
+      .run();
+    await env.DB.prepare('UPDATE years SET voting_enabled = 1 WHERE id = ?')
+      .bind(yearId)
+      .run();
+
+    const deleted = await api(`/admin/categories/${category.id}`, adminToken, {
+      method: 'DELETE',
+    });
+    const storedCategory = await env.DB.prepare(
+      'SELECT id FROM award_categories WHERE id = ?',
+    )
+      .bind(category.id)
+      .first<{id: string}>();
+    const storedNomination = await env.DB.prepare(
+      `SELECT project_id, award_category_id FROM project_nominations
+       WHERE project_id = ? AND award_category_id = ?`,
+    )
+      .bind(projectId, category.id)
+      .first<{project_id: string; award_category_id: string}>();
+
+    expect(deleted).toMatchObject({
+      status: 409,
+      body: {
+        error: {
+          code: 'CONFLICT',
+          message:
+            'Category cannot be deleted while voting is open because a project nominated it',
+        },
+      },
+    });
+    expect(storedCategory).toEqual({id: category.id});
+    expect(storedNomination).toEqual({
+      project_id: projectId,
+      award_category_id: category.id,
+    });
+  });
+
   it('stores archived year settings while returning their effective locked state', async () => {
     const archivedYearId = `admin-archive-${sequence}`;
     await env.DB.prepare('INSERT INTO years (id) VALUES (?)').bind(archivedYearId).run();

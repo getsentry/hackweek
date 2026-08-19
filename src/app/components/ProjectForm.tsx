@@ -128,6 +128,7 @@ export function ProjectForm({
       kind,
       groupId: kind === 'idea' ? null : groupId || null,
       memberIds: kind === 'idea' ? [] : memberIds,
+      nominationCategoryIds: kind === 'idea' ? [] : initial.nominationCategoryIds,
       needsHelp: kind === 'project' && needsHelp,
       helpDetails: kind === 'project' && needsHelp ? helpDetails || null : null,
     });
@@ -369,6 +370,7 @@ function initialValues(project: ProjectDetail | undefined, claim: boolean) {
     kind,
     groupId: project?.group?.id ?? '',
     memberIds: project?.members.map(({id}) => id) ?? [],
+    nominationCategoryIds: claim ? [] : (project?.nominationCategoryIds ?? []),
     needsHelp: project?.needsHelp ?? false,
     helpDetails: project?.helpDetails ?? '',
   };

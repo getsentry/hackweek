@@ -8,6 +8,7 @@ import type {GroupWriteRequest, ProjectWriteRequest} from '../../shared/projects
 import {ServiceError} from './errors';
 
 const MAX_MEMBERS = 50;
+const MAX_NOMINATIONS = 2;
 
 export function parseProjectWrite(value: JsonInput): ProjectWriteRequest {
   if (!isJsonObject(value)) {
@@ -36,9 +37,30 @@ export function parseProjectWrite(value: JsonInput): ProjectWriteRequest {
     invalid(`A project may have at most ${MAX_MEMBERS} members`);
   }
 
+  if (!Array.isArray(value.nominationCategoryIds)) {
+    invalid('Award nominations must be an array');
+  }
+  const nominationCategoryIds = value.nominationCategoryIds.map((id) =>
+    requiredText(id, 'Award category', 128),
+  );
+  if (new Set(nominationCategoryIds).size !== nominationCategoryIds.length) {
+    invalid('Award nominations must be distinct');
+  }
+  if (nominationCategoryIds.length > MAX_NOMINATIONS) {
+    invalid(`A project may nominate at most ${MAX_NOMINATIONS} award categories`);
+  }
+
   if (kind === 'idea') {
-    if (groupId || memberIds.length || needsHelp || helpDetails) {
-      invalid('Ideas cannot have a group, team, or help request until claimed');
+    if (
+      groupId ||
+      memberIds.length ||
+      nominationCategoryIds.length ||
+      needsHelp ||
+      helpDetails
+    ) {
+      invalid(
+        'Ideas cannot have a group, team, award nominations, or help request until claimed',
+      );
     }
   } else if (!groupId) {
     invalid('Projects must belong to a group');
@@ -52,6 +74,7 @@ export function parseProjectWrite(value: JsonInput): ProjectWriteRequest {
     kind,
     groupId: kind === 'idea' ? null : groupId,
     memberIds: kind === 'idea' ? [] : memberIds,
+    nominationCategoryIds: kind === 'idea' ? [] : nominationCategoryIds,
     needsHelp: kind === 'project' && needsHelp,
     helpDetails: kind === 'project' && needsHelp ? helpDetails : null,
   };

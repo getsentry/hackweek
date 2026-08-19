@@ -7,14 +7,22 @@ import {createSessionCookie} from '../auth/fixture';
 const base = 'https://hackweek.test/api';
 let suffix = 0;
 let yearId: string;
+let priorYearId: string;
 let groupId: string;
+let categoryId: string;
+let secondCategoryId: string;
+let priorYearCategoryId: string;
 let memberToken: string;
 let outsiderToken: string;
 
 beforeEach(async () => {
   suffix += 1;
   yearId = `project-year-${String(suffix).padStart(3, '0')}`;
+  priorYearId = `project-prior-year-${String(suffix).padStart(3, '0')}`;
   groupId = `group-${suffix}`;
+  categoryId = `category-${suffix}-delight`;
+  secondCategoryId = `category-${suffix}-craft`;
+  priorYearCategoryId = `category-${suffix}-prior`;
   memberToken = await createSessionCookie({
     sub: `project-member-${suffix}`,
     email: `project-member-${suffix}@sentry.io`,
@@ -30,11 +38,24 @@ beforeEach(async () => {
     .bind(`project-member-${suffix}`)
     .first<{id: string}>();
   await env.DB.batch([
+    env.DB.prepare('INSERT INTO years (id) VALUES (?)').bind(priorYearId),
     env.DB.prepare('INSERT INTO years (id) VALUES (?)').bind(yearId),
     env.DB.prepare(
       `INSERT INTO groups (id, source_id, year_id, name, creator_id)
        VALUES (?, ?, ?, ?, ?)`,
     ).bind(groupId, groupId, yearId, 'Orbital', user!.id),
+    env.DB.prepare(
+      `INSERT INTO award_categories (id, source_id, year_id, name, creator_id)
+       VALUES (?, ?, ?, ?, ?)`,
+    ).bind(categoryId, categoryId, yearId, 'Delight', user!.id),
+    env.DB.prepare(
+      `INSERT INTO award_categories (id, source_id, year_id, name, creator_id)
+       VALUES (?, ?, ?, ?, ?)`,
+    ).bind(secondCategoryId, secondCategoryId, yearId, 'Craft', user!.id),
+    env.DB.prepare(
+      `INSERT INTO award_categories (id, source_id, year_id, name, creator_id)
+       VALUES (?, ?, ?, ?, ?)`,
+    ).bind(priorYearCategoryId, priorYearCategoryId, priorYearId, 'Past award', user!.id),
   ]);
 });
 
@@ -72,6 +93,190 @@ describe('project and history APIs', () => {
       ...next.body.projects.map((item: {id: string}) => item.id),
     ]).toEqual(expect.arrayContaining([project.id, idea.id]));
     expect(page.body.projects[0].members).toBeInstanceOf(Array);
+  });
+
+  it('returns ordered year categories and persists ordered project nominations', async () => {
+    const options = await api(`/years/${yearId}/options`, memberToken);
+    const allCategories = await createProject(memberToken, {
+      name: 'All categories',
+    });
+    const focused = await createProject(memberToken, {
+      name: 'Focused project',
+      nominationCategoryIds: [categoryId],
+    });
+    const updated = await api(`/projects/${focused.id}`, memberToken, {
+      method: 'PUT',
+      body: {
+        ...projectPayload(),
+        name: 'Focused project',
+        nominationCategoryIds: [categoryId, secondCategoryId],
+      },
+    });
+    const detail = await api(`/projects/${allCategories.id}`, memberToken);
+    const page = await api(`/projects?year=${yearId}`, memberToken);
+    const stored = await env.DB.prepare(
+      `SELECT award_category_id, position FROM project_nominations
+       WHERE project_id = ? ORDER BY position`,
+    )
+      .bind(focused.id)
+      .all<{award_category_id: string; position: number}>();
+    const allCategoryNominationCount = await env.DB.prepare(
+      'SELECT COUNT(*) count FROM project_nominations WHERE project_id = ?',
+    )
+      .bind(allCategories.id)
+      .first<{count: number}>();
+
+    expect(options).toMatchObject({
+      status: 200,
+      body: {
+        categories: [
+          {id: secondCategoryId, yearId, name: 'Craft'},
+          {id: categoryId, yearId, name: 'Delight'},
+        ],
+      },
+    });
+    expect(detail.body.project.nominationCategoryIds).toEqual([]);
+    expect(allCategoryNominationCount?.count).toBe(0);
+    expect(updated.body.project.nominationCategoryIds).toEqual([
+      categoryId,
+      secondCategoryId,
+    ]);
+    expect(stored.results).toEqual([
+      {award_category_id: categoryId, position: 1},
+      {award_category_id: secondCategoryId, position: 2},
+    ]);
+    expect(
+      page.body.projects.find((project: {id: string}) => project.id === focused.id),
+    ).not.toHaveProperty('nominationCategoryIds');
+  });
+
+  it('rejects invalid nomination sets without changing stored project data', async () => {
+    const project = await createProject(memberToken, {
+      name: 'Stable project',
+      nominationCategoryIds: [categoryId],
+    });
+    const duplicate = await api(`/projects/${project.id}`, memberToken, {
+      method: 'PUT',
+      body: {
+        ...projectPayload(),
+        nominationCategoryIds: [categoryId, categoryId],
+      },
+    });
+    const oversized = await api(`/projects/${project.id}`, memberToken, {
+      method: 'PUT',
+      body: {
+        ...projectPayload(),
+        nominationCategoryIds: [categoryId, secondCategoryId, 'third'],
+      },
+    });
+    const missing = await api(`/projects/${project.id}`, memberToken, {
+      method: 'PUT',
+      body: {...projectPayload(), nominationCategoryIds: ['missing-category']},
+    });
+    const crossYear = await api(`/projects/${project.id}`, memberToken, {
+      method: 'PUT',
+      body: {
+        ...projectPayload(),
+        name: 'Must not be stored',
+        nominationCategoryIds: [priorYearCategoryId],
+      },
+    });
+    const malformed = await api('/projects', memberToken, {
+      method: 'POST',
+      body: {...projectPayload(), nominationCategoryIds: undefined},
+    });
+    const storedProject = await env.DB.prepare('SELECT name FROM projects WHERE id = ?')
+      .bind(project.id)
+      .first<{name: string}>();
+    const nominations = await env.DB.prepare(
+      'SELECT award_category_id FROM project_nominations WHERE project_id = ?',
+    )
+      .bind(project.id)
+      .all<{award_category_id: string}>();
+
+    for (const response of [duplicate, oversized, missing, crossYear, malformed]) {
+      expect(response.status).toBe(400);
+      expect(response.body.error.code).toBe('VALIDATION_FAILED');
+    }
+    expect(storedProject?.name).toBe('Stable project');
+    expect(nominations.results).toEqual([{award_category_id: categoryId}]);
+  });
+
+  it('keeps ideas nomination-free and lets claims establish nominations', async () => {
+    const idea = await createProject(memberToken, {
+      name: 'Claim me',
+      kind: 'idea',
+      groupId: null,
+    });
+    const rejectedIdea = await api('/projects', memberToken, {
+      method: 'POST',
+      body: {
+        ...projectPayload(),
+        kind: 'idea',
+        groupId: null,
+        nominationCategoryIds: [categoryId],
+      },
+    });
+    await session(outsiderToken);
+    const claimed = await api(`/projects/${idea.id}/claim`, outsiderToken, {
+      method: 'POST',
+      body: {
+        ...projectPayload(),
+        name: 'Claimed with focus',
+        nominationCategoryIds: [secondCategoryId, categoryId],
+      },
+    });
+
+    expect(rejectedIdea).toMatchObject({
+      status: 400,
+      body: {error: {code: 'VALIDATION_FAILED'}},
+    });
+    expect(claimed.status).toBe(200);
+    expect(claimed.body.project.nominationCategoryIds).toEqual([
+      secondCategoryId,
+      categoryId,
+    ]);
+  });
+
+  it('freezes nomination changes while voting permits unrelated edits', async () => {
+    const project = await createProject(memberToken, {
+      name: 'Voting project',
+      nominationCategoryIds: [categoryId],
+    });
+    await env.DB.prepare('UPDATE years SET voting_enabled = 1 WHERE id = ?')
+      .bind(yearId)
+      .run();
+
+    const unchanged = await api(`/projects/${project.id}`, memberToken, {
+      method: 'PUT',
+      body: {
+        ...projectPayload(),
+        name: 'Allowed rename',
+        nominationCategoryIds: [categoryId],
+      },
+    });
+    const changed = await api(`/projects/${project.id}`, memberToken, {
+      method: 'PUT',
+      body: {
+        ...projectPayload(),
+        name: 'Blocked rename',
+        nominationCategoryIds: [secondCategoryId],
+      },
+    });
+    const stored = await api(`/projects/${project.id}`, memberToken);
+
+    expect(unchanged).toMatchObject({
+      status: 200,
+      body: {project: {name: 'Allowed rename', nominationCategoryIds: [categoryId]}},
+    });
+    expect(changed).toMatchObject({
+      status: 409,
+      body: {error: {code: 'CONFLICT'}},
+    });
+    expect(stored.body.project).toMatchObject({
+      name: 'Allowed rename',
+      nominationCategoryIds: [categoryId],
+    });
   });
 
   it('exposes project voting permission for eligible viewers but not creators, members, or ideas', async () => {
@@ -376,6 +581,7 @@ function projectPayload(): ProjectWriteRequest {
     kind: 'project' as const,
     groupId,
     memberIds: [],
+    nominationCategoryIds: [],
     needsHelp: false,
     helpDetails: null,
   };

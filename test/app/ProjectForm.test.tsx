@@ -200,6 +200,7 @@ function renderProjectForm({
     json({
       groups: [{id: 'group', yearId: '2026', name: 'Orbital', projectCount: 1}],
       users,
+      categories: [],
     }),
   );
   const client = new QueryClient({defaultOptions: {queries: {retry: false}}});
@@ -258,6 +259,7 @@ const projectFixture: ProjectDetail = {
   members: [alice],
   mediaCount: 0,
   media: [],
+  nominationCategoryIds: [],
   permissions: {
     canEdit: true,
     canDelete: true,

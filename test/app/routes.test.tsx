@@ -1502,6 +1502,7 @@ const projectFixture: ProjectDetail = {
   ],
   mediaCount: 0,
   media: [],
+  nominationCategoryIds: [],
   permissions: {
     canEdit: true,
     canDelete: true,

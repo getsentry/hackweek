@@ -12,7 +12,13 @@ export function ProjectVoting({
   project,
 }: {
   ballot: BallotStatusResponse;
-  project: {id: string; name: string; yearId: string; canVote: boolean};
+  project: {
+    id: string;
+    name: string;
+    yearId: string;
+    canVote: boolean;
+    nominationCategoryIds: string[];
+  };
 }) {
   const vote = useVoteMutation(project.yearId);
   const [confirmingCategoryId, setConfirmingCategoryId] = useState<string | null>(null);
@@ -77,28 +83,53 @@ export function ProjectVoting({
             );
             const selectedHere = selection?.projectId === project.id;
             const selectedElsewhere = Boolean(selection && !selectedHere);
-            const confirming = selectedElsewhere && confirmingCategoryId === category.id;
+            const entered =
+              project.nominationCategoryIds.length === 0 ||
+              project.nominationCategoryIds.includes(category.id);
+            const confirming =
+              entered && selectedElsewhere && confirmingCategoryId === category.id;
             const pending =
               vote.isPending && vote.variables?.input.categoryId === category.id;
-            const state = !project.canVote
-              ? 'unavailable'
-              : selectedHere
-                ? 'selected'
-                : selectedElsewhere
-                  ? 'elsewhere'
-                  : 'open';
+            const state = !entered
+              ? selectedHere
+                ? 'replacement'
+                : 'excluded'
+              : !project.canVote
+                ? 'unavailable'
+                : selectedHere
+                  ? 'selected'
+                  : selectedElsewhere
+                    ? 'elsewhere'
+                    : 'open';
 
             return (
               <li
                 key={category.id}
                 className={`projectVotingCategory projectVotingCategory--${state}`}
+                aria-disabled={!entered || !project.canVote}
               >
                 <span className="projectVotingNumber" aria-hidden="true">
                   {String(index + 1).padStart(2, '0')}
                 </span>
                 <div className="projectVotingCategoryCopy">
                   <h3>{category.name}</h3>
-                  {!project.canVote ? (
+                  {!entered ? (
+                    selectedHere ? (
+                      <p>
+                        <strong className="projectVotingReplacement">
+                          your current pick needs replacement
+                        </strong>
+                        <span>the project team did not enter this award category.</span>
+                      </p>
+                    ) : (
+                      <p>
+                        <strong className="projectVotingExcluded">
+                          not entered for this project
+                        </strong>
+                        <span>the project team chose other award categories.</span>
+                      </p>
+                    )
+                  ) : !project.canVote ? (
                     <p>unavailable on your own project</p>
                   ) : selectedHere ? (
                     <p>
@@ -107,14 +138,18 @@ export function ProjectVoting({
                   ) : selection ? (
                     <p>
                       currently on <strong>{selection.projectName}</strong>
-                      {!selection.projectActive && ' (project withdrawn)'}
+                      {!selection.projectActive ? (
+                        <span>project withdrawn — replace this pick</span>
+                      ) : !selection.nominationEligible ? (
+                        <span>no longer eligible — replace this pick</span>
+                      ) : null}
                     </p>
                   ) : (
                     <p>no project selected yet</p>
                   )}
                 </div>
 
-                {project.canVote && !selectedHere && !confirming && (
+                {entered && project.canVote && !selectedHere && !confirming && (
                   <button
                     type="button"
                     className={selection ? 'textAction' : 'primaryAction'}
@@ -130,9 +165,13 @@ export function ProjectVoting({
                     }}
                   >
                     {pending
-                      ? 'casting your vote…'
+                      ? selection
+                        ? 'moving your vote…'
+                        : 'casting your vote…'
                       : selection
-                        ? 'move vote here'
+                        ? selection.projectActive && selection.nominationEligible
+                          ? 'move vote here'
+                          : 'replace vote here'
                         : `vote for ${category.name}`}
                   </button>
                 )}

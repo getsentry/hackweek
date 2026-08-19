@@ -37,7 +37,14 @@ export async function getVoting(
         `SELECT v.id, v.year_id, v.project_id, v.award_category_id,
           p.name project_name,
           p.year_id = v.year_id AND p.kind = 'project' AND p.status = 'active'
-            project_active
+            project_active,
+          NOT EXISTS (
+            SELECT 1 FROM project_nominations pn WHERE pn.project_id = p.id
+          ) OR EXISTS (
+            SELECT 1 FROM project_nominations pn
+            WHERE pn.project_id = p.id
+              AND pn.award_category_id = v.award_category_id
+          ) nomination_eligible
          FROM votes v
          JOIN projects p ON p.id = v.project_id
          WHERE v.year_id = ? AND v.creator_id = ?
@@ -51,6 +58,7 @@ export async function getVoting(
         award_category_id: string;
         project_name: string;
         project_active: number;
+        nomination_eligible: number;
       }>(),
   ]);
   return {
@@ -279,6 +287,16 @@ export async function deleteCategory(db: D1Database, id: string) {
       throw new ServiceError('NOT_FOUND', 'Category not found', 404);
   } catch (error) {
     if (error instanceof ServiceError) throw error;
+    if (
+      error instanceof Error &&
+      error.message.includes('award nominations cannot change while voting is enabled')
+    ) {
+      throw new ServiceError(
+        'CONFLICT',
+        'Category cannot be deleted while voting is open because a project nominated it',
+        409,
+      );
+    }
     throw administrationConstraint(error, 'Category is in use and cannot be deleted');
   }
 }
@@ -487,6 +505,7 @@ function mapBallotSelection(row: {
   award_category_id: string;
   project_name: string;
   project_active: number;
+  nomination_eligible: number;
 }): BallotSelection {
   return {
     id: row.id,
@@ -494,6 +513,7 @@ function mapBallotSelection(row: {
     projectId: row.project_id,
     projectName: row.project_name,
     projectActive: Boolean(row.project_active),
+    nominationEligible: Boolean(row.nomination_eligible),
     categoryId: row.award_category_id,
   };
 }
@@ -527,6 +547,7 @@ function administrationConstraint(cause: unknown, fallback: string) {
     'voting is not enabled',
     'vote project must',
     'vote category must',
+    'vote project is not eligible for this award category',
     'users cannot vote',
     'award references must',
     'screening entry must',

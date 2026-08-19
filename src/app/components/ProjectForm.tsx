@@ -9,6 +9,7 @@ export function ProjectForm({
   claim = false,
   saving,
   error,
+  nominationsReadOnly = false,
   onCancel,
   onSubmit,
 }: {
@@ -17,6 +18,7 @@ export function ProjectForm({
   claim?: boolean;
   saving: boolean;
   error: string | null;
+  nominationsReadOnly?: boolean;
   onCancel: () => void;
   onSubmit: (value: ProjectWriteRequest) => void;
 }) {
@@ -28,11 +30,18 @@ export function ProjectForm({
   const [kind, setKind] = useState<ProjectWriteRequest['kind']>(initial.kind);
   const [groupId, setGroupId] = useState(initial.groupId);
   const [memberIds, setMemberIds] = useState(initial.memberIds);
+  const [nominationMode, setNominationMode] = useState<'all' | 'focused'>(
+    initial.nominationCategoryIds.length ? 'focused' : 'all',
+  );
+  const [nominationCategoryIds, setNominationCategoryIds] = useState(
+    initial.nominationCategoryIds,
+  );
   const [memberQuery, setMemberQuery] = useState('');
   const [memberResultsOpen, setMemberResultsOpen] = useState(false);
   const [highlightedMember, setHighlightedMember] = useState(-1);
   const memberListboxId = useId();
   const memberSearchId = useId();
+  const awardTargetingDetailId = useId();
   const [needsHelp, setNeedsHelp] = useState(initial.needsHelp);
   const [helpDetails, setHelpDetails] = useState(initial.helpDetails);
 
@@ -44,11 +53,15 @@ export function ProjectForm({
     setKind(project.kind);
     setGroupId(project.group?.id ?? '');
     setMemberIds(project.members.map(({id}) => id));
+    setNominationMode(project.nominationCategoryIds.length ? 'focused' : 'all');
+    setNominationCategoryIds(project.nominationCategoryIds);
     setNeedsHelp(project.needsHelp);
     setHelpDetails(project.helpDetails ?? '');
   }, [claim, project]);
 
   const users = options.data?.users ?? [];
+  const categories = options.data?.categories ?? [];
+  const nominationsLocked = Boolean(project && !claim && nominationsReadOnly);
   const selectedMembers = memberIds.flatMap((id) => {
     const member =
       users.find((user) => user.id === id) ??
@@ -76,13 +89,28 @@ export function ProjectForm({
     needsHelp !== initial.needsHelp ||
     helpDetails !== initial.helpDetails ||
     memberIds.length !== initial.memberIds.length ||
-    memberIds.some((id) => !initial.memberIds.includes(id));
+    memberIds.some((id) => !initial.memberIds.includes(id)) ||
+    nominationMode !== (initial.nominationCategoryIds.length ? 'focused' : 'all') ||
+    nominationCategoryIds.length !== initial.nominationCategoryIds.length ||
+    nominationCategoryIds.some(
+      (id, index) => id !== initial.nominationCategoryIds[index],
+    );
 
   function addMember(id: string) {
     setMemberIds((members) => (members.includes(id) ? members : [...members, id]));
     setMemberQuery('');
     setMemberResultsOpen(false);
     setHighlightedMember(-1);
+  }
+
+  function toggleNomination(id: string) {
+    setNominationCategoryIds((selected) =>
+      selected.includes(id)
+        ? selected.filter((categoryId) => categoryId !== id)
+        : selected.length < 2
+          ? [...selected, id]
+          : selected,
+    );
   }
 
   function handleMemberSearchKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -128,12 +156,19 @@ export function ProjectForm({
       kind,
       groupId: kind === 'idea' ? null : groupId || null,
       memberIds: kind === 'idea' ? [] : memberIds,
+      nominationCategoryIds:
+        kind === 'idea' || nominationMode === 'all' ? [] : nominationCategoryIds,
       needsHelp: kind === 'project' && needsHelp,
       helpDetails: kind === 'project' && needsHelp ? helpDetails || null : null,
     });
   }
 
-  if (options.isLoading) return <p className="formNotice">Loading collaborators…</p>;
+  if (options.isLoading)
+    return (
+      <p className="formNotice" role="status">
+        Loading project options…
+      </p>
+    );
   if (options.error) return <p className="formError">{options.error.message}</p>;
 
   return (
@@ -312,6 +347,111 @@ export function ProjectForm({
                 ))}
             </div>
           </fieldset>
+          <div className="formIntro">
+            <span>03</span>
+            <p>choose how this project will show up on the awards ballot.</p>
+          </div>
+          <fieldset
+            className={`awardTargeting${nominationsLocked ? ' awardTargeting--locked' : ''}`}
+            disabled={nominationsLocked}
+            aria-describedby={awardTargetingDetailId}
+          >
+            <legend>Award targeting</legend>
+            <p className="awardTargetingIntro" id={awardTargetingDetailId}>
+              Keep every category open, or focus the project on one or two awards.
+            </p>
+            {nominationsLocked && (
+              <p className="awardTargetingLock" role="note">
+                <strong>Voting is open.</strong> Award targeting is locked so current
+                ballots stay valid. You can still edit the other project details.
+              </p>
+            )}
+            <div className="awardModes">
+              <label
+                className={`awardModeCard${nominationMode === 'all' ? ' awardModeCard--selected' : ''}`}
+              >
+                <input
+                  type="radio"
+                  name="nominationMode"
+                  value="all"
+                  checked={nominationMode === 'all'}
+                  onChange={() => {
+                    setNominationMode('all');
+                    setNominationCategoryIds([]);
+                  }}
+                />
+                <span className="awardModeIcon" aria-hidden="true">
+                  ∞
+                </span>
+                <span>
+                  <strong>All award categories</strong>
+                  <small>Voters can consider this project for every award.</small>
+                </span>
+              </label>
+              <label
+                className={`awardModeCard${nominationMode === 'focused' ? ' awardModeCard--selected' : ''}${!categories.length ? ' awardModeCard--unavailable' : ''}`}
+              >
+                <input
+                  type="radio"
+                  name="nominationMode"
+                  value="focused"
+                  checked={nominationMode === 'focused'}
+                  disabled={!categories.length || nominationsLocked}
+                  onChange={() => setNominationMode('focused')}
+                />
+                <span className="awardModeIcon" aria-hidden="true">
+                  1–2
+                </span>
+                <span>
+                  <strong>Focus on specific awards</strong>
+                  <small>
+                    {categories.length
+                      ? 'Choose one or two categories this project is aiming for.'
+                      : 'No award categories are available yet.'}
+                  </small>
+                </span>
+              </label>
+            </div>
+            {nominationMode === 'focused' && (
+              <div className="awardCategoryPicker">
+                <div className="awardCategoryPickerHeader">
+                  <p>Pick at least one category. A maximum of two can be selected.</p>
+                  <output aria-live="polite">
+                    {nominationCategoryIds.length} of 2 selected
+                  </output>
+                </div>
+                {categories.length ? (
+                  <div className="awardCategoryChoices">
+                    {categories.map((category, index) => {
+                      const selected = nominationCategoryIds.includes(category.id);
+                      const atLimit = nominationCategoryIds.length >= 2;
+                      return (
+                        <label
+                          className={`awardCategoryChoice${selected ? ' awardCategoryChoice--selected' : ''}${atLimit && !selected ? ' awardCategoryChoice--limited' : ''}`}
+                          key={category.id}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selected}
+                            required={index === 0 && nominationCategoryIds.length === 0}
+                            disabled={nominationsLocked || (atLimit && !selected)}
+                            onChange={() => toggleNomination(category.id)}
+                          />
+                          <span>{category.name}</span>
+                          {atLimit && !selected && <small>two selected</small>}
+                        </label>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="awardCategoryEmpty" role="status">
+                    Award categories have not been announced. Keep “all award categories”
+                    selected for now.
+                  </p>
+                )}
+              </div>
+            )}
+          </fieldset>
           <label className="checkField">
             <input
               type="checkbox"
@@ -369,6 +509,7 @@ function initialValues(project: ProjectDetail | undefined, claim: boolean) {
     kind,
     groupId: project?.group?.id ?? '',
     memberIds: project?.members.map(({id}) => id) ?? [],
+    nominationCategoryIds: claim ? [] : (project?.nominationCategoryIds ?? []),
     needsHelp: project?.needsHelp ?? false,
     helpDetails: project?.helpDetails ?? '',
   };

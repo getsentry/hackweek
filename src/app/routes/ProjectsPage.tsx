@@ -339,7 +339,7 @@ function selectedCategoriesByProject(ballot?: BallotStatusResponse) {
   );
   for (const vote of ballot.votes) {
     const categoryName = categoryNames.get(vote.categoryId);
-    if (!categoryName || !vote.projectActive) continue;
+    if (!categoryName || !vote.projectActive || !vote.nominationEligible) continue;
     const categories = result.get(vote.projectId) ?? [];
     categories.push(categoryName);
     result.set(vote.projectId, categories);
@@ -389,8 +389,13 @@ function BallotOverview({
     return vote ? [{category, vote}] : [];
   });
   const categoryCount = data.categories.length;
-  const castCount = data.votes.filter((vote) => vote.projectActive).length;
+  const castCount = selections.filter(
+    ({vote}) => vote.projectActive && vote.nominationEligible,
+  ).length;
   const inactiveCount = selections.filter(({vote}) => !vote.projectActive).length;
+  const ineligibleCount = selections.filter(
+    ({vote}) => vote.projectActive && !vote.nominationEligible,
+  ).length;
   const remainingCount = Math.max(categoryCount - castCount, 0);
   const complete = categoryCount > 0 && remainingCount === 0;
   let message = 'open a project to cast your first vote.';
@@ -398,8 +403,17 @@ function BallotOverview({
     message = 'award categories are still being set up. check back soon.';
   } else if (complete) {
     message = 'ballot complete — every category has your pick.';
-  } else if (inactiveCount > 0) {
-    message = `${inactiveCount} withdrawn ${inactiveCount === 1 ? 'pick needs' : 'picks need'} a new project — ${remainingCount} ${remainingCount === 1 ? 'vote' : 'votes'} left to cast.`;
+  } else if (inactiveCount > 0 || ineligibleCount > 0) {
+    const invalidPicks = [
+      inactiveCount > 0
+        ? `${inactiveCount} withdrawn ${inactiveCount === 1 ? 'pick' : 'picks'}`
+        : null,
+      ineligibleCount > 0
+        ? `${ineligibleCount} ineligible ${ineligibleCount === 1 ? 'pick' : 'picks'}`
+        : null,
+    ].filter((value): value is string => Boolean(value));
+    const invalidCount = inactiveCount + ineligibleCount;
+    message = `${invalidPicks.join(' and ')} ${invalidCount === 1 ? 'needs' : 'need'} a new project — ${remainingCount} ${remainingCount === 1 ? 'vote' : 'votes'} left to cast.`;
   } else if (castCount > 0) {
     message = `keep exploring — ${remainingCount} ${remainingCount === 1 ? 'vote' : 'votes'} left to cast.`;
   }
@@ -433,14 +447,20 @@ function BallotOverview({
             {selections.map(({category, vote}) => (
               <li key={category.id}>
                 <span>{category.name}</span>
-                {vote.projectActive ? (
+                {vote.projectActive && vote.nominationEligible ? (
                   <Link href={`/years/${yearId}/projects/${vote.projectId}`}>
                     {vote.projectName} <span aria-hidden="true">→</span>
                   </Link>
                 ) : (
-                  <span className="ballotSelectionInactive">
+                  <span
+                    className={`ballotSelectionInactive${vote.projectActive ? ' ballotSelectionInactive--ineligible' : ''}`}
+                  >
                     <strong>{vote.projectName}</strong>
-                    <small>project withdrawn — choose another project</small>
+                    <small>
+                      {vote.projectActive
+                        ? 'project team did not enter this award — choose another project'
+                        : 'project withdrawn — choose another project'}
+                    </small>
                   </span>
                 )}
               </li>

@@ -14,6 +14,7 @@ export interface VoteSummary {
 export interface BallotSelection extends VoteSummary {
   projectName: string;
   projectActive: boolean;
+  nominationEligible: boolean;
 }
 
 export interface BallotStatusResponse {

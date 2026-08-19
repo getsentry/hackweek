@@ -1,4 +1,4 @@
-import type {AwardSummary} from './administration';
+import type {AwardCategorySummary, AwardSummary} from './administration';
 import type {SessionUser} from './api';
 
 export type ProjectKind = 'project' | 'idea';
@@ -51,6 +51,7 @@ export interface ProjectSummary {
 
 export interface ProjectDetail extends ProjectSummary {
   media: MediaSummary[];
+  nominationCategoryIds: string[];
   permissions: {
     canEdit: boolean;
     canDelete: boolean;
@@ -82,6 +83,7 @@ export interface ProjectResponse {
 export interface ProjectOptionsResponse {
   users: ProjectMember[];
   groups: GroupSummary[];
+  categories: AwardCategorySummary[];
 }
 
 export interface ProjectWriteRequest {
@@ -92,6 +94,7 @@ export interface ProjectWriteRequest {
   kind: ProjectKind;
   groupId: string | null;
   memberIds: string[];
+  nominationCategoryIds: string[];
   needsHelp: boolean;
   helpDetails: string | null;
 }

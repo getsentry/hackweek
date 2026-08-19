@@ -961,6 +961,7 @@ function projectPayload(name: string): ProjectWriteRequest {
     kind: 'project',
     groupId,
     memberIds: [],
+    nominationCategoryIds: [],
     needsHelp: false,
     helpDetails: null,
   };

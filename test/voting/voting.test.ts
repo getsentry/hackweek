@@ -16,6 +16,8 @@ let projectId: string;
 let ownProjectId: string;
 let categoryId: string;
 let secondCategoryId: string;
+let excludedCategoryId: string;
+let otherYearCategoryId: string;
 
 beforeEach(async () => {
   sequence += 1;
@@ -25,6 +27,8 @@ beforeEach(async () => {
   ownProjectId = `vote-own-project-${sequence}`;
   categoryId = `vote-category-${sequence}`;
   secondCategoryId = `vote-category-2-${sequence}`;
+  excludedCategoryId = `vote-category-3-${sequence}`;
+  otherYearCategoryId = `vote-category-other-${sequence}`;
   voterToken = await tokenAndSession('voter');
   memberToken = await tokenAndSession('member');
   creatorId = `vote-creator-${sequence}`;
@@ -59,7 +63,8 @@ beforeEach(async () => {
     ).bind(ownProjectId, memberId),
     env.DB.prepare(
       `INSERT INTO award_categories (id, source_id, year_id, name, creator_id)
-       VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?), (?, ?, ?, ?, ?), (?, ?, ?, ?, ?),
+         (?, ?, ?, ?, ?)`,
     ).bind(
       categoryId,
       categoryId,
@@ -68,6 +73,16 @@ beforeEach(async () => {
       creatorId,
       secondCategoryId,
       secondCategoryId,
+      yearId,
+      'Craft',
+      creatorId,
+      excludedCategoryId,
+      excludedCategoryId,
+      yearId,
+      'Impact',
+      creatorId,
+      otherYearCategoryId,
+      otherYearCategoryId,
       otherYearId,
       'Elsewhere',
       creatorId,
@@ -76,9 +91,17 @@ beforeEach(async () => {
 });
 
 describe('voting invariants', () => {
-  it('returns compact current-user ballot status without requiring nominations', async () => {
-    const created = await api('/votes', voterToken, {method: 'POST', body: voteBody()});
-    expect(created.status).toBe(201);
+  it('treats a nomination-free project as eligible in every year category', async () => {
+    const created: Awaited<ReturnType<typeof api>>[] = [];
+    for (const currentCategoryId of [categoryId, secondCategoryId, excludedCategoryId]) {
+      created.push(
+        await api('/votes', voterToken, {
+          method: 'POST',
+          body: {...voteBody(), categoryId: currentCategoryId},
+        }),
+      );
+    }
+    expect(created.map(({status}) => status)).toEqual([201, 201, 201]);
     await env.DB.prepare('UPDATE projects SET name = ? WHERE id = ?')
       .bind('Renamed signal', projectId)
       .run();
@@ -94,23 +117,179 @@ describe('voting invariants', () => {
     expect(nominations?.count).toBe(0);
     expect(voting.body).toEqual({
       year: {id: yearId, votingEnabled: true},
-      categories: [{id: categoryId, yearId, name: 'Delight'}],
-      votes: [
-        {
-          id: created.body.vote.id,
-          yearId,
-          projectId,
-          projectName: 'Renamed signal',
-          projectActive: true,
-          categoryId,
-        },
+      categories: [
+        {id: secondCategoryId, yearId, name: 'Craft'},
+        {id: categoryId, yearId, name: 'Delight'},
+        {id: excludedCategoryId, yearId, name: 'Impact'},
       ],
+      votes: expect.arrayContaining(
+        [categoryId, secondCategoryId, excludedCategoryId].map(
+          (currentCategoryId, index) => ({
+            id: created[index].body.vote.id,
+            yearId,
+            projectId,
+            projectName: 'Renamed signal',
+            projectActive: true,
+            nominationEligible: true,
+            categoryId: currentCategoryId,
+          }),
+        ),
+      ),
     });
+    expect(voting.body.votes).toHaveLength(3);
     expect(otherUser.body).toEqual({
       year: {id: yearId, votingEnabled: true},
-      categories: [{id: categoryId, yearId, name: 'Delight'}],
+      categories: [
+        {id: secondCategoryId, yearId, name: 'Craft'},
+        {id: categoryId, yearId, name: 'Delight'},
+        {id: excludedCategoryId, yearId, name: 'Impact'},
+      ],
       votes: [],
     });
+  });
+
+  it('accepts nominated categories and atomically rejects excluded casts and moves', async () => {
+    await env.DB.prepare('UPDATE years SET voting_enabled = 0 WHERE id = ?')
+      .bind(yearId)
+      .run();
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO project_nominations
+          (project_id, award_category_id, position) VALUES (?, ?, 1)`,
+      ).bind(projectId, categoryId),
+      env.DB.prepare(
+        `INSERT INTO project_nominations
+          (project_id, award_category_id, position) VALUES (?, ?, 2)`,
+      ).bind(projectId, secondCategoryId),
+    ]);
+    await env.DB.prepare('UPDATE years SET voting_enabled = 1 WHERE id = ?')
+      .bind(yearId)
+      .run();
+
+    const firstEligible = await api('/votes', voterToken, {
+      method: 'POST',
+      body: voteBody(),
+    });
+    const secondEligible = await api('/votes', voterToken, {
+      method: 'POST',
+      body: {...voteBody(), categoryId: secondCategoryId},
+    });
+    const excluded = await api('/votes', voterToken, {
+      method: 'POST',
+      body: {...voteBody(), categoryId: excludedCategoryId},
+    });
+
+    const unrestrictedProjectId = `${projectId}-unrestricted`;
+    await env.DB.prepare(
+      `INSERT INTO projects (id, source_id, year_id, creator_id, name)
+       VALUES (?, ?, ?, ?, ?)`,
+    )
+      .bind(
+        unrestrictedProjectId,
+        unrestrictedProjectId,
+        yearId,
+        creatorId,
+        'Unrestricted signal',
+      )
+      .run();
+    const movable = await api('/votes', voterToken, {
+      method: 'POST',
+      body: {
+        ...voteBody(),
+        projectId: unrestrictedProjectId,
+        categoryId: excludedCategoryId,
+      },
+    });
+    const rejectedMove = await api(`/votes/${movable.body.vote.id}`, voterToken, {
+      method: 'PUT',
+      body: {...voteBody(), categoryId: excludedCategoryId},
+    });
+    const storedMove = await env.DB.prepare('SELECT project_id FROM votes WHERE id = ?')
+      .bind(movable.body.vote.id)
+      .first<{project_id: string}>();
+
+    expect([firstEligible.status, secondEligible.status]).toEqual([201, 201]);
+    for (const response of [excluded, rejectedMove]) {
+      expect(response).toMatchObject({
+        status: 400,
+        body: {
+          error: {
+            code: 'VALIDATION_FAILED',
+            message: 'vote project is not eligible for this award category',
+          },
+        },
+      });
+    }
+    expect(storedMove?.project_id).toBe(unrestrictedProjectId);
+    const restrictedVotes = await env.DB.prepare(
+      'SELECT COUNT(*) count FROM votes WHERE project_id = ?',
+    )
+      .bind(projectId)
+      .first<{count: number}>();
+    expect(restrictedVotes?.count).toBe(2);
+  });
+
+  it('keeps a pre-existing active ineligible selection visible and movable', async () => {
+    const created = await api('/votes', voterToken, {method: 'POST', body: voteBody()});
+    await env.DB.prepare('UPDATE years SET voting_enabled = 0 WHERE id = ?')
+      .bind(yearId)
+      .run();
+    await env.DB.prepare(
+      `INSERT INTO project_nominations
+        (project_id, award_category_id, position) VALUES (?, ?, 1)`,
+    )
+      .bind(projectId, secondCategoryId)
+      .run();
+    await env.DB.prepare('UPDATE years SET voting_enabled = 1 WHERE id = ?')
+      .bind(yearId)
+      .run();
+
+    const ineligibleStatus = await api(`/votes?year=${yearId}`, voterToken);
+    const storedBeforeMove = await env.DB.prepare(
+      'SELECT project_id FROM votes WHERE id = ?',
+    )
+      .bind(created.body.vote.id)
+      .first<{project_id: string}>();
+    expect(storedBeforeMove?.project_id).toBe(projectId);
+    expect(ineligibleStatus.body.votes).toEqual([
+      expect.objectContaining({
+        id: created.body.vote.id,
+        projectId,
+        projectActive: true,
+        nominationEligible: false,
+        categoryId,
+      }),
+    ]);
+
+    const replacementProjectId = `${projectId}-replacement`;
+    await env.DB.prepare(
+      `INSERT INTO projects (id, source_id, year_id, creator_id, name)
+       VALUES (?, ?, ?, ?, ?)`,
+    )
+      .bind(
+        replacementProjectId,
+        replacementProjectId,
+        yearId,
+        creatorId,
+        'Replacement signal',
+      )
+      .run();
+    const moved = await api(`/votes/${created.body.vote.id}`, voterToken, {
+      method: 'PUT',
+      body: {...voteBody(), projectId: replacementProjectId},
+    });
+    expect(moved.body.vote.projectId).toBe(replacementProjectId);
+
+    const movedStatus = await api(`/votes?year=${yearId}`, voterToken);
+    expect(movedStatus.body.votes).toEqual([
+      expect.objectContaining({
+        id: created.body.vote.id,
+        projectId: replacementProjectId,
+        projectActive: true,
+        nominationEligible: true,
+        categoryId,
+      }),
+    ]);
   });
 
   it('keeps a withdrawn project selection visible and movable', async () => {
@@ -139,6 +318,7 @@ describe('voting invariants', () => {
         projectId,
         projectName: 'Signal',
         projectActive: false,
+        nominationEligible: true,
         categoryId,
       }),
     ]);
@@ -156,6 +336,7 @@ describe('voting invariants', () => {
         projectId: replacementProjectId,
         projectName: 'Replacement signal',
         projectActive: true,
+        nominationEligible: true,
         categoryId,
       }),
     ]);
@@ -175,7 +356,7 @@ describe('voting invariants', () => {
     });
     const crossYear = await api('/votes', voterToken, {
       method: 'POST',
-      body: {...voteBody(), categoryId: secondCategoryId},
+      body: {...voteBody(), categoryId: otherYearCategoryId},
     });
     const missing = await api('/votes', voterToken, {
       method: 'POST',
@@ -215,7 +396,7 @@ describe('voting invariants', () => {
         otherYearId,
         voterId,
         archivedProjectId,
-        secondCategoryId,
+        otherYearCategoryId,
       ),
     ]);
 
@@ -225,7 +406,7 @@ describe('voting invariants', () => {
       body: {
         yearId: otherYearId,
         projectId: archivedProjectId,
-        categoryId: secondCategoryId,
+        categoryId: otherYearCategoryId,
       },
     });
     const replaced = await api(`/votes/${archivedVoteId}`, voterToken, {
@@ -233,7 +414,7 @@ describe('voting invariants', () => {
       body: {
         yearId: otherYearId,
         projectId: archivedProjectId,
-        categoryId: secondCategoryId,
+        categoryId: otherYearCategoryId,
       },
     });
     const deleted = await api(`/votes/${archivedVoteId}`, voterToken, {

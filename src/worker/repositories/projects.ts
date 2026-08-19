@@ -1,3 +1,4 @@
+import type {AwardCategorySummary} from '../../shared/administration';
 import type {SessionUser} from '../../shared/api';
 import type {
   GroupSummary,
@@ -58,6 +59,12 @@ interface MediaRow {
   size_bytes: number | null;
   status: MediaSummary['status'];
   created_at: string;
+}
+
+interface AwardCategoryRow {
+  id: string;
+  year_id: string;
+  name: string;
 }
 
 export async function listYears(db: D1Database): Promise<YearSummary[]> {
@@ -134,7 +141,7 @@ export async function listGroups(db: D1Database, yearId: string) {
 }
 
 export async function listProjectOptions(db: D1Database, yearId: string) {
-  const [groups, users] = await Promise.all([
+  const [groups, users, categories] = await Promise.all([
     listGroups(db, yearId),
     db
       .prepare(
@@ -142,8 +149,19 @@ export async function listProjectOptions(db: D1Database, yearId: string) {
          FROM users ORDER BY display_name COLLATE NOCASE, id`,
       )
       .all<Omit<MemberRow, 'project_id'>>(),
+    db
+      .prepare(
+        `SELECT id, year_id, name FROM award_categories
+         WHERE year_id = ? ORDER BY name COLLATE NOCASE, id`,
+      )
+      .bind(yearId)
+      .all<AwardCategoryRow>(),
   ]);
-  return {groups, users: users.results.map(mapMember)};
+  return {
+    groups,
+    users: users.results.map(mapMember),
+    categories: categories.results.map(mapAwardCategory),
+  };
 }
 
 export async function listProjects(
@@ -223,7 +241,7 @@ export async function getProject(
   if (!row) {
     throw new ServiceError('NOT_FOUND', 'Project not found', 404);
   }
-  const [members, mediaResult, year] = await Promise.all([
+  const [members, mediaResult, nominationIds, year] = await Promise.all([
     membersByProjectIds(db, [projectId]),
     db
       .prepare(
@@ -232,6 +250,7 @@ export async function getProject(
       )
       .bind(projectId)
       .all<MediaRow>(),
+    nominationCategoryIds(db, projectId),
     getYear(db, row.year_id),
   ]);
   const projectMembers = members.get(projectId) ?? [];
@@ -243,6 +262,7 @@ export async function getProject(
   return {
     ...project,
     media: mediaResult.results.map(mapMedia),
+    nominationCategoryIds: nominationIds,
     permissions: {
       canEdit: canWrite,
       canDelete: !year.submissionsClosed && (isAdmin || row.creator_id === user.id),
@@ -289,8 +309,9 @@ export async function createProject(
         .prepare('INSERT INTO project_members (project_id, user_id) VALUES (?, ?)')
         .bind(id, memberId),
     ),
+    ...nominationInsertStatements(db, id, input.nominationCategoryIds),
   ];
-  await db.batch(statements);
+  await batchProjectWrite(db, statements);
   return getProject(db, id, user);
 }
 
@@ -312,9 +333,24 @@ export async function updateProject(
     );
   }
   await assertOpenYearAndReferences(db, input, user.id);
+  const existingNominationCategoryIds = await nominationCategoryIds(db, projectId);
+  const nominationsChanged = !sameOrderedValues(
+    existingNominationCategoryIds,
+    input.nominationCategoryIds,
+  );
+  if (
+    effectiveYearFlags(existing.year_id, existing).votingEnabled &&
+    nominationsChanged
+  ) {
+    throw new ServiceError(
+      'CONFLICT',
+      'Award nominations cannot change after voting has opened',
+      409,
+    );
+  }
   const memberIds = input.kind === 'project' ? unique(input.memberIds) : [];
   await assertUsersExist(db, memberIds);
-  await db.batch([
+  await batchProjectWrite(db, [
     db
       .prepare(
         `UPDATE projects SET group_id = ?, name = ?, summary = ?, repository = ?,
@@ -335,6 +371,14 @@ export async function updateProject(
         .prepare('INSERT INTO project_members (project_id, user_id) VALUES (?, ?)')
         .bind(projectId, memberId),
     ),
+    ...(nominationsChanged
+      ? [
+          db
+            .prepare('DELETE FROM project_nominations WHERE project_id = ?')
+            .bind(projectId),
+          ...nominationInsertStatements(db, projectId, input.nominationCategoryIds),
+        ]
+      : []),
   ]);
   return getProject(db, projectId, user);
 }
@@ -385,7 +429,7 @@ export async function claimProject(
   const memberIds = unique([user.id, ...input.memberIds]);
   await assertUsersExist(db, memberIds);
   const claimMarker = new Date().toISOString();
-  const result = await db.batch([
+  const result = await batchProjectWrite(db, [
     db
       .prepare(
         `UPDATE projects SET kind = 'project', group_id = ?, name = ?, summary = ?,
@@ -413,6 +457,17 @@ export async function claimProject(
            )`,
         )
         .bind(projectId, memberId, projectId, claimMarker),
+    ),
+    ...input.nominationCategoryIds.map((categoryId, index) =>
+      db
+        .prepare(
+          `INSERT INTO project_nominations
+            (project_id, award_category_id, position)
+           SELECT ?, ?, ? WHERE EXISTS (
+             SELECT 1 FROM projects WHERE id = ? AND kind = 'project' AND updated_at = ?
+           )`,
+        )
+        .bind(projectId, categoryId, index + 1, projectId, claimMarker),
     ),
   ]);
   if (!result[0].meta.changes) {
@@ -516,6 +571,7 @@ async function assertOpenYearAndReferences(
       );
     }
   }
+  await assertNominationCategories(db, input.nominationCategoryIds, input.yearId);
   await assertUsersExist(db, unique([actorId, ...input.memberIds]));
 }
 
@@ -642,6 +698,10 @@ function mapGroup(row: {
   };
 }
 
+function mapAwardCategory(row: AwardCategoryRow): AwardCategorySummary {
+  return {id: row.id, yearId: row.year_id, name: row.name};
+}
+
 function mapMember(row: Omit<MemberRow, 'project_id'>): ProjectMember {
   return {
     id: row.id,
@@ -666,4 +726,77 @@ function mapMedia(row: MediaRow): MediaSummary {
 
 function unique(values: string[]) {
   return [...new Set(values)];
+}
+
+async function assertNominationCategories(
+  db: D1Database,
+  categoryIds: string[],
+  yearId: string,
+) {
+  if (!categoryIds.length) return;
+  const placeholders = categoryIds.map(() => '?').join(',');
+  const result = await db
+    .prepare(
+      `SELECT COUNT(*) count FROM award_categories
+       WHERE year_id = ? AND id IN (${placeholders})`,
+    )
+    .bind(yearId, ...categoryIds)
+    .first<{count: number}>();
+  if (result?.count !== categoryIds.length) {
+    throw new ServiceError(
+      'VALIDATION_FAILED',
+      'One or more award categories do not belong to this year',
+      400,
+    );
+  }
+}
+
+async function nominationCategoryIds(db: D1Database, projectId: string) {
+  const {results} = await db
+    .prepare(
+      `SELECT award_category_id FROM project_nominations
+       WHERE project_id = ? ORDER BY position`,
+    )
+    .bind(projectId)
+    .all<{award_category_id: string}>();
+  return results.map(({award_category_id}) => award_category_id);
+}
+
+async function batchProjectWrite(db: D1Database, statements: D1PreparedStatement[]) {
+  try {
+    return await db.batch(statements);
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      error.message.includes('award nominations cannot change while voting is enabled')
+    ) {
+      throw new ServiceError(
+        'CONFLICT',
+        'Award nominations cannot change after voting has opened',
+        409,
+      );
+    }
+    throw error;
+  }
+}
+
+function nominationInsertStatements(
+  db: D1Database,
+  projectId: string,
+  categoryIds: string[],
+) {
+  return categoryIds.map((categoryId, index) =>
+    db
+      .prepare(
+        `INSERT INTO project_nominations
+          (project_id, award_category_id, position) VALUES (?, ?, ?)`,
+      )
+      .bind(projectId, categoryId, index + 1),
+  );
+}
+
+function sameOrderedValues(left: string[], right: string[]) {
+  return (
+    left.length === right.length && left.every((value, index) => value === right[index])
+  );
 }

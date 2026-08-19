@@ -132,6 +132,181 @@ describe('ProjectForm team picker', () => {
   });
 });
 
+describe('ProjectForm award targeting', () => {
+  it('defaults new projects to all award categories and submits an empty set', async () => {
+    const onSubmit = vi.fn<(value: ProjectWriteRequest) => void>();
+    renderProjectForm({onSubmit, categories: awardCategories});
+
+    const allCategories = await screen.findByRole('radio', {
+      name: /All award categories/,
+    });
+    expect(allCategories).toHaveProperty('checked', true);
+
+    await userEvent.type(screen.getByLabelText('Name'), 'Fresh project');
+    await userEvent.type(screen.getByLabelText(/^Summary/), 'A new experiment.');
+    await userEvent.selectOptions(screen.getByLabelText('Group'), 'group');
+    await userEvent.click(screen.getByRole('button', {name: 'Create project'}));
+
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({nominationCategoryIds: []}),
+    );
+  });
+
+  it('allows one or two focused categories in selection order and prevents a third', async () => {
+    const onSubmit = vi.fn<(value: ProjectWriteRequest) => void>();
+    renderProjectForm({project: projectFixture, onSubmit, categories: awardCategories});
+
+    await userEvent.click(
+      await screen.findByRole('radio', {name: /Focus on specific awards/}),
+    );
+    const craft = screen.getByRole('checkbox', {name: 'Craft prize'});
+    const impact = screen.getByRole('checkbox', {name: 'Biggest impact'});
+    const moonshot = screen.getByRole('checkbox', {name: /Moonshot/});
+    await userEvent.click(craft);
+    await userEvent.click(impact);
+
+    expect(screen.getByText('2 of 2 selected')).toBeTruthy();
+    expect(moonshot).toHaveProperty('disabled', true);
+
+    await userEvent.click(screen.getByRole('button', {name: 'Save changes'}));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        nominationCategoryIds: ['craft', 'impact'],
+      }),
+    );
+
+    await userEvent.click(craft);
+    expect(moonshot).toHaveProperty('disabled', false);
+  });
+
+  it('requires a category before submitting focused mode', async () => {
+    const onSubmit = vi.fn<(value: ProjectWriteRequest) => void>();
+    renderProjectForm({project: projectFixture, onSubmit, categories: awardCategories});
+
+    await userEvent.click(
+      await screen.findByRole('radio', {name: /Focus on specific awards/}),
+    );
+    await userEvent.click(screen.getByRole('button', {name: 'Save changes'}));
+
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByText('0 of 2 selected')).toBeTruthy();
+  });
+
+  it('initializes edit mode from saved nominations', async () => {
+    renderProjectForm({
+      project: {...projectFixture, nominationCategoryIds: ['impact', 'craft']},
+      categories: awardCategories,
+    });
+
+    expect(
+      await screen.findByRole('radio', {name: /Focus on specific awards/}),
+    ).toHaveProperty('checked', true);
+    expect(screen.getByRole('checkbox', {name: 'Biggest impact'})).toHaveProperty(
+      'checked',
+      true,
+    );
+    expect(screen.getByRole('checkbox', {name: 'Craft prize'})).toHaveProperty(
+      'checked',
+      true,
+    );
+  });
+
+  it('hides targeting for ideas and restores the all-category default when claimed', async () => {
+    const idea = {
+      ...projectFixture,
+      kind: 'idea' as const,
+      group: null,
+      members: [],
+      nominationCategoryIds: [],
+    };
+    const ideaForm = renderProjectForm({project: idea, categories: awardCategories});
+
+    await screen.findByLabelText('Name');
+    expect(screen.queryByRole('group', {name: 'Award targeting'})).toBeNull();
+    ideaForm.unmount();
+
+    renderProjectForm({project: idea, claim: true, categories: awardCategories});
+    expect(
+      await screen.findByRole('radio', {name: /All award categories/}),
+    ).toHaveProperty('checked', true);
+    expect(screen.getByRole('button', {name: 'Claim project'})).toBeTruthy();
+  });
+
+  it('treats mode and category changes as unsaved edits', async () => {
+    const onCancel = vi.fn();
+    confirmMock.mockReturnValue(false);
+    renderProjectForm({
+      project: projectFixture,
+      onCancel,
+      categories: awardCategories,
+    });
+
+    await userEvent.click(
+      await screen.findByRole('radio', {name: /Focus on specific awards/}),
+    );
+    await userEvent.click(screen.getByRole('checkbox', {name: 'Moonshot'}));
+    await userEvent.click(screen.getByRole('button', {name: 'Never mind'}));
+
+    expect(confirmMock).toHaveBeenCalledTimes(1);
+    expect(onCancel).not.toHaveBeenCalled();
+  });
+
+  it('shows saved targeting as read-only while voting is open', async () => {
+    const onSubmit = vi.fn<(value: ProjectWriteRequest) => void>();
+    renderProjectForm({
+      project: {...projectFixture, nominationCategoryIds: ['moonshot']},
+      onSubmit,
+      categories: awardCategories,
+      nominationsReadOnly: true,
+    });
+
+    expect((await screen.findByRole('note')).textContent).toContain('Voting is open.');
+    expect(screen.getByRole('radio', {name: /Focus on specific awards/})).toHaveProperty(
+      'disabled',
+      true,
+    );
+    expect(screen.getByRole('checkbox', {name: 'Moonshot'})).toHaveProperty(
+      'disabled',
+      true,
+    );
+
+    await userEvent.type(screen.getByLabelText('Name'), '!');
+    await userEvent.click(screen.getByRole('button', {name: 'Save changes'}));
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({nominationCategoryIds: ['moonshot']}),
+    );
+  });
+
+  it('keeps all categories selected when no category options exist', async () => {
+    renderProjectForm({project: projectFixture, categories: []});
+
+    expect(
+      await screen.findByRole('radio', {name: /All award categories/}),
+    ).toHaveProperty('checked', true);
+    expect(screen.getByRole('radio', {name: /Focus on specific awards/})).toHaveProperty(
+      'disabled',
+      true,
+    );
+    expect(screen.getByText('No award categories are available yet.')).toBeTruthy();
+  });
+
+  it('supports keyboard selection through native award controls', async () => {
+    renderProjectForm({project: projectFixture, categories: awardCategories});
+    const focusedMode = await screen.findByRole('radio', {
+      name: /Focus on specific awards/,
+    });
+
+    focusedMode.focus();
+    await userEvent.keyboard(' ');
+    const moonshot = screen.getByRole('checkbox', {name: 'Moonshot'});
+    moonshot.focus();
+    await userEvent.keyboard(' ');
+
+    expect(focusedMode).toHaveProperty('checked', true);
+    expect(moonshot).toHaveProperty('checked', true);
+  });
+});
+
 describe('ProjectForm cancel confirmation', () => {
   it('cancels without confirmation when nothing has been edited', async () => {
     const onCancel = vi.fn();
@@ -190,16 +365,23 @@ function renderProjectForm({
   onCancel = () => {},
   onSubmit = () => {},
   users = [alice, bob],
+  categories = [],
+  claim = false,
+  nominationsReadOnly = false,
 }: {
   project?: ProjectDetail;
   onCancel?: () => void;
   onSubmit?: (value: ProjectWriteRequest) => void;
   users?: ProjectMember[];
+  categories?: Array<{id: string; yearId: string; name: string}>;
+  claim?: boolean;
+  nominationsReadOnly?: boolean;
 } = {}) {
   fetchMock.mockResolvedValue(
     json({
       groups: [{id: 'group', yearId: '2026', name: 'Orbital', projectCount: 1}],
       users,
+      categories,
     }),
   );
   const client = new QueryClient({defaultOptions: {queries: {retry: false}}});
@@ -208,8 +390,10 @@ function renderProjectForm({
       <ProjectForm
         yearId="2026"
         project={project}
+        claim={claim}
         saving={false}
         error={null}
+        nominationsReadOnly={nominationsReadOnly}
         onCancel={onCancel}
         onSubmit={onSubmit}
       />
@@ -242,6 +426,12 @@ const bob = {
   actualRole: 'member' as const,
 };
 
+const awardCategories = [
+  {id: 'moonshot', yearId: '2026', name: 'Moonshot'},
+  {id: 'craft', yearId: '2026', name: 'Craft prize'},
+  {id: 'impact', yearId: '2026', name: 'Biggest impact'},
+];
+
 const projectFixture: ProjectDetail = {
   id: 'project',
   yearId: '2026',
@@ -258,6 +448,7 @@ const projectFixture: ProjectDetail = {
   members: [alice],
   mediaCount: 0,
   media: [],
+  nominationCategoryIds: [],
   permissions: {
     canEdit: true,
     canDelete: true,

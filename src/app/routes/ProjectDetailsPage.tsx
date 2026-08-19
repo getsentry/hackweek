@@ -185,6 +185,7 @@ export function ProjectDetailsPage() {
                   name: project.data.project.name,
                   yearId: project.data.project.yearId,
                   canVote: project.data.project.permissions.canVote,
+                  nominationCategoryIds: project.data.project.nominationCategoryIds,
                 }}
               />
             )}

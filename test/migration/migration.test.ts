@@ -84,6 +84,16 @@ describe('Firebase migration transformation', () => {
         'utf8',
       );
       database.exec(progressMigration);
+      const nominationEligibilityMigration = await readFile(
+        path.resolve('migrations/0009_nomination_vote_eligibility.sql'),
+        'utf8',
+      );
+      database.exec(nominationEligibilityMigration);
+      const nominationImmutabilityMigration = await readFile(
+        path.resolve('migrations/0010_live_nomination_immutability.sql'),
+        'utf8',
+      );
+      database.exec(nominationImmutabilityMigration);
 
       expect(
         database
@@ -184,6 +194,192 @@ describe('Firebase migration transformation', () => {
           id, project_id, original_name, size_bytes, original_r2_key
         ) VALUES ('r2-replacement', 'r2-project', 'replacement.mp4', 5, 'r2/replacement.mp4');
       `);
+      expect(database.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
+    } finally {
+      database.close();
+    }
+  });
+
+  it('preserves historical votes while enforcing nomination eligibility on new writes', async () => {
+    const database = new DatabaseSync(':memory:');
+    try {
+      const migrations = [
+        '0001_initial.sql',
+        '0002_access_identity.sql',
+        '0003_voting_administration.sql',
+        '0004_stream_video_lifecycle.sql',
+        '0005_google_oauth_sessions.sql',
+        '0006_session_view_mode.sql',
+        '0007_r2_video_lifecycle.sql',
+        '0008_video_processing_progress.sql',
+      ];
+      for (const migration of migrations) {
+        database.exec(await readFile(path.resolve('migrations', migration), 'utf8'));
+      }
+      database.exec(`
+        INSERT INTO users (id, source_uid, email, display_name) VALUES
+          ('owner', 'owner', 'owner@example.com', 'Owner'),
+          ('voter', 'voter', 'voter@example.com', 'Voter'),
+          ('voter-two', 'voter-two', 'voter-two@example.com', 'Voter Two');
+        INSERT INTO years (id, voting_enabled) VALUES ('2026', 1);
+        INSERT INTO projects (id, source_id, year_id, creator_id, name) VALUES
+          ('restricted', 'restricted', '2026', 'owner', 'Restricted'),
+          ('all-categories', 'all-categories', '2026', 'owner', 'All Categories');
+        INSERT INTO award_categories
+          (id, source_id, year_id, name, creator_id) VALUES
+          ('nominated', 'nominated', '2026', 'Nominated', 'owner'),
+          ('excluded', 'excluded', '2026', 'Excluded', 'owner');
+        INSERT INTO project_nominations
+          (project_id, award_category_id, position)
+          VALUES ('restricted', 'nominated', 1);
+        INSERT INTO votes
+          (id, source_id, year_id, creator_id, project_id, award_category_id)
+          VALUES
+          ('historical-vote', 'historical-vote', '2026', 'voter', 'restricted', 'excluded');
+      `);
+
+      database.exec(
+        await readFile(
+          path.resolve('migrations/0009_nomination_vote_eligibility.sql'),
+          'utf8',
+        ),
+      );
+
+      expect(
+        database
+          .prepare(
+            `SELECT v.project_id, v.award_category_id, pn.position
+             FROM votes v JOIN project_nominations pn
+               ON pn.project_id = v.project_id
+             WHERE v.id = 'historical-vote'`,
+          )
+          .get(),
+      ).toMatchObject({
+        project_id: 'restricted',
+        award_category_id: 'excluded',
+        position: 1,
+      });
+
+      database.exec(`
+        INSERT INTO votes
+          (id, source_id, year_id, creator_id, project_id, award_category_id)
+          VALUES
+          ('eligible-vote', 'eligible-vote', '2026', 'voter', 'restricted', 'nominated');
+      `);
+      expect(() =>
+        database.exec(`
+          INSERT INTO votes
+            (id, source_id, year_id, creator_id, project_id, award_category_id)
+            VALUES
+            ('invalid-vote', 'invalid-vote', '2026', 'voter-two', 'restricted', 'excluded');
+        `),
+      ).toThrow(/vote project is not eligible for this award category/);
+
+      database.exec(`
+        UPDATE votes SET project_id = 'all-categories'
+        WHERE id = 'historical-vote';
+      `);
+      expect(() =>
+        database.exec(`
+          UPDATE votes SET project_id = 'restricted'
+          WHERE id = 'historical-vote';
+        `),
+      ).toThrow(/vote project is not eligible for this award category/);
+      expect(
+        database
+          .prepare("SELECT project_id FROM votes WHERE id = 'historical-vote'")
+          .get(),
+      ).toMatchObject({project_id: 'all-categories'});
+      expect(database.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
+    } finally {
+      database.close();
+    }
+  });
+
+  it('freezes nomination rows at the database boundary only during live voting', async () => {
+    const database = new DatabaseSync(':memory:');
+    try {
+      const migrations = [
+        '0001_initial.sql',
+        '0002_access_identity.sql',
+        '0003_voting_administration.sql',
+        '0004_stream_video_lifecycle.sql',
+        '0005_google_oauth_sessions.sql',
+        '0006_session_view_mode.sql',
+        '0007_r2_video_lifecycle.sql',
+        '0008_video_processing_progress.sql',
+        '0009_nomination_vote_eligibility.sql',
+        '0010_live_nomination_immutability.sql',
+      ];
+      for (const migration of migrations) {
+        database.exec(await readFile(path.resolve('migrations', migration), 'utf8'));
+      }
+      database.exec(`
+        INSERT INTO users (id, source_uid, email, display_name)
+          VALUES ('owner', 'owner', 'owner@example.com', 'Owner');
+        INSERT INTO years (id) VALUES ('2026');
+        INSERT INTO projects (id, source_id, year_id, creator_id, name)
+          VALUES ('project', 'project', '2026', 'owner', 'Project');
+        INSERT INTO award_categories
+          (id, source_id, year_id, name, creator_id) VALUES
+          ('first', 'first', '2026', 'First', 'owner'),
+          ('second', 'second', '2026', 'Second', 'owner');
+        INSERT INTO project_nominations
+          (project_id, award_category_id, position)
+          VALUES ('project', 'first', 1);
+        UPDATE project_nominations SET award_category_id = 'second'
+          WHERE project_id = 'project';
+        DELETE FROM project_nominations WHERE project_id = 'project';
+        INSERT INTO project_nominations
+          (project_id, award_category_id, position)
+          VALUES ('project', 'first', 1);
+        UPDATE years SET voting_enabled = 1 WHERE id = '2026';
+      `);
+
+      expect(() =>
+        database.exec(`INSERT INTO project_nominations
+          (project_id, award_category_id, position)
+          VALUES ('project', 'second', 2)`),
+      ).toThrow(/award nominations cannot change while voting is enabled/);
+      expect(() =>
+        database.exec(`UPDATE project_nominations SET position = 2
+          WHERE project_id = 'project' AND award_category_id = 'first'`),
+      ).toThrow(/award nominations cannot change while voting is enabled/);
+      expect(() =>
+        database.exec(`DELETE FROM project_nominations
+          WHERE project_id = 'project' AND award_category_id = 'first'`),
+      ).toThrow(/award nominations cannot change while voting is enabled/);
+      expect(() =>
+        database.exec("DELETE FROM award_categories WHERE id = 'first'"),
+      ).toThrow(/award nominations cannot change while voting is enabled/);
+
+      expect(
+        database.prepare("SELECT id FROM award_categories WHERE id = 'first'").get(),
+      ).toMatchObject({id: 'first'});
+      expect(
+        database
+          .prepare(`SELECT project_id, award_category_id, position
+            FROM project_nominations WHERE project_id = 'project'`)
+          .get(),
+      ).toMatchObject({
+        project_id: 'project',
+        award_category_id: 'first',
+        position: 1,
+      });
+      database.exec(`
+        INSERT INTO years (id) VALUES ('2027');
+        DELETE FROM award_categories WHERE id = 'first';
+      `);
+      expect(
+        database.prepare("SELECT id FROM award_categories WHERE id = 'first'").get(),
+      ).toBeUndefined();
+      expect(
+        database
+          .prepare(
+            "SELECT project_id FROM project_nominations WHERE project_id = 'project'",
+          )
+          .get(),
+      ).toBeUndefined();
       expect(database.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
     } finally {
       database.close();

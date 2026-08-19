@@ -1896,15 +1896,6 @@ main {
   border-color: #d9d1ff;
   background: linear-gradient(135deg, rgba(117, 83, 255, 0.06), transparent 42%), #fff;
 }
-.awardTargeting::before {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 0.3rem;
-  content: '';
-  background: var(--blurple);
-}
 .awardTargeting legend {
   color: var(--ink);
   font-size: 1rem;

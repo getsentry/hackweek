@@ -89,6 +89,7 @@ describe('voting and administration journeys', () => {
           projectId: 'project',
           projectName: 'A small machine',
           projectActive: true,
+          nominationEligible: true,
           categoryId: 'impact',
         },
         {
@@ -97,6 +98,7 @@ describe('voting and administration journeys', () => {
           projectId: 'other-project',
           projectName: 'Quiet hours',
           projectActive: true,
+          nominationEligible: true,
           categoryId: 'craft',
         },
       ],
@@ -114,6 +116,7 @@ describe('voting and administration journeys', () => {
           projectId: 'project',
           projectName: 'A small machine',
           projectActive: true,
+          nominationEligible: true,
           categoryId: 'delight',
         };
         ballot = {...ballot, votes: [...ballot.votes, selection]};
@@ -126,6 +129,7 @@ describe('voting and administration journeys', () => {
           projectId: 'project',
           projectName: 'A small machine',
           projectActive: true,
+          nominationEligible: true,
           categoryId: 'craft',
         };
         ballot = {
@@ -257,6 +261,7 @@ describe('voting and administration journeys', () => {
             projectId: 'other-project',
             projectName: 'Quiet hours',
             projectActive: true,
+            nominationEligible: true,
             categoryId: 'delight',
           },
         ],

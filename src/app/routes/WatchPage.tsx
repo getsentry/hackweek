@@ -4,12 +4,14 @@ import {Link, useParams, useSearchParams} from 'wouter';
 
 import {ProjectListItem} from '../components/ProjectCard';
 import {IndividualPlayer} from '../player/IndividualPlayer';
+import {SCREENING_TITLE_DURATION_MS} from '../player/controller';
 import {ScreeningPlayer, type ScreeningPlayerHandle} from '../player/ScreeningPlayer';
 import {getPlayback, usePlaylist, useProjectVideo} from '../queries/videos';
 import {PageState, QueryState} from '../components/AppLayout';
 import type {PlaylistItem} from '../../shared/videos';
 
 const UNGROUPED_PLAYLIST_ID = '__ungrouped__';
+const INTERLUDE_SECONDS = SCREENING_TITLE_DURATION_MS / 1_000;
 
 export function WatchPage() {
   const {yearId} = useParams<{yearId: string}>();
@@ -24,6 +26,8 @@ export function WatchPage() {
   const selectedVideos = selectedGroup
     ? videos.filter((video) => playlistGroupId(video) === selectedGroup.id)
     : videos;
+  const selectedTiming = playlistTiming(selectedVideos);
+  const allTiming = playlistTiming(videos);
   const selectGroup = useCallback(
     (groupId: string | null) => {
       setSearch(
@@ -72,7 +76,7 @@ export function WatchPage() {
                   <p className="kicker">watch party playlists</p>
                   <h2 id="reel-groups-heading">choose a group</h2>
                 </div>
-                <p>{selectedVideos.length} ready videos in this playlist</p>
+                <p>{playlistSummaryLabel(selectedVideos.length, selectedTiming)}</p>
               </header>
               <div className="reelGroupGrid" role="group" aria-label="Playlist group">
                 <button
@@ -82,6 +86,9 @@ export function WatchPage() {
                 >
                   <strong>all groups</strong>
                   <span>{videoCountLabel(videos.length)}</span>
+                  <span className="reelGroupTiming">
+                    {playlistTimingLabel(allTiming)}
+                  </span>
                 </button>
                 {groups.map((group) => (
                   <button
@@ -92,6 +99,9 @@ export function WatchPage() {
                   >
                     <strong>{group.name}</strong>
                     <span>{videoCountLabel(group.videoCount)}</span>
+                    <span className="reelGroupTiming">
+                      {playlistTimingLabel(group.timing)}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -217,24 +227,63 @@ export function VideoWatchPage() {
 }
 
 function playlistGroups(videos: PlaylistItem[]) {
-  const groups = new Map<string, {id: string; name: string; videoCount: number}>();
+  const groups = new Map<string, {id: string; name: string; videos: PlaylistItem[]}>();
   for (const video of videos) {
     const id = playlistGroupId(video);
     const group = groups.get(id);
-    if (group) group.videoCount += 1;
-    else groups.set(id, {id, name: video.groupName ?? 'ungrouped', videoCount: 1});
+    if (group) group.videos.push(video);
+    else groups.set(id, {id, name: video.groupName ?? 'ungrouped', videos: [video]});
   }
-  return [...groups.values()].sort((left, right) => left.name.localeCompare(right.name));
+  return [...groups.values()]
+    .map((group) => ({
+      id: group.id,
+      name: group.name,
+      videoCount: group.videos.length,
+      timing: playlistTiming(group.videos),
+    }))
+    .sort((left, right) => left.name.localeCompare(right.name));
 }
 
 function playlistGroupId(video: PlaylistItem) {
   return video.groupId ?? UNGROUPED_PLAYLIST_ID;
 }
 
+interface PlaylistTiming {
+  clipSeconds: number;
+  interludeSeconds: number;
+  totalSeconds: number;
+}
+
+function playlistTiming(videos: PlaylistItem[]): PlaylistTiming {
+  const clipSeconds = videos.reduce((sum, video) => sum + video.durationSeconds, 0);
+  const interludeSeconds = videos.length * INTERLUDE_SECONDS;
+  return {
+    clipSeconds,
+    interludeSeconds,
+    totalSeconds: clipSeconds + interludeSeconds,
+  };
+}
+
 function videoCountLabel(count: number) {
   return `${count} ${count === 1 ? 'video' : 'videos'}`;
 }
 
+function playlistSummaryLabel(count: number, timing: PlaylistTiming) {
+  if (!count) return 'no ready videos in this playlist';
+  return `${count} ready ${count === 1 ? 'video' : 'videos'} · ${playlistTimingLabel(timing)}`;
+}
+
+function playlistTimingLabel(timing: PlaylistTiming) {
+  return `${formatDuration(timing.totalSeconds)} total · ${formatDuration(timing.interludeSeconds)} interludes`;
+}
+
 function formatDuration(value: number) {
-  return `${Math.floor(value / 60)}:${String(Math.round(value % 60)).padStart(2, '0')}`;
+  const seconds = Math.max(0, Math.round(value));
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainder = seconds % 60;
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`;
+  }
+  return `${minutes}:${String(remainder).padStart(2, '0')}`;
 }

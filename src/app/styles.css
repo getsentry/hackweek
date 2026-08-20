@@ -3112,8 +3112,19 @@ kbd {
   color: var(--muted);
   font-size: 0.7rem;
 }
+.reelGroupGrid .reelGroupTiming {
+  margin-top: 0.35rem;
+  color: var(--ink);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+}
 .reelGroupGrid button[aria-pressed='true'] span {
   color: #d9cae5;
+}
+.reelGroupGrid button[aria-pressed='true'] .reelGroupTiming {
+  color: #fff;
 }
 .reelIndex {
   padding-top: 4rem;

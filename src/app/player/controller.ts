@@ -22,13 +22,16 @@ export interface ScreeningController {
   destroy(): void;
 }
 
+/** Title-card interlude shown before every screening clip. */
+export const SCREENING_TITLE_DURATION_MS = 5_000;
+
 export function createScreeningController({
   playlist,
   elements,
   audio,
   getPlayback,
   onState,
-  titleDurationMs = 5_000,
+  titleDurationMs = SCREENING_TITLE_DURATION_MS,
   errorDurationMs = 1_800,
   attach = attachMp4,
 }: {

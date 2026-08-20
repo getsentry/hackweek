@@ -1024,6 +1024,9 @@ describe('clickable project routes', () => {
           streamMode: 'disabled',
         });
       }
+      if (url.includes('kind=idea')) {
+        return json({projects: [], nextCursor: null});
+      }
       return json({projects: [projectFixture], nextCursor: null});
     });
 
@@ -1053,6 +1056,12 @@ describe('clickable project routes', () => {
       expect(lastUrl).not.toContain('hasVideo=');
     });
     expect(screen.queryByRole('button', {name: /has video/i})).toBeNull();
+    const emptyIdeas = await screen.findByRole('region', {name: 'idea results'});
+    expect(emptyIdeas.textContent).toContain('No ideas found');
+    expect(emptyIdeas.textContent).toContain(
+      'try another group or add the first idea for this Hackweek.',
+    );
+    expect(emptyIdeas.textContent).not.toContain('adjust the filters');
 
     await userEvent.click(screen.getByRole('button', {name: /Projects/}));
     const restoredFilter = await screen.findByRole('button', {name: /has video/i});

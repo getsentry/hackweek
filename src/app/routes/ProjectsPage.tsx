@@ -286,7 +286,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
               <span>∅</span>
               <h2>No {kind === 'idea' ? 'ideas' : 'projects'} found</h2>
               <p>
-                {search || hasVideo
+                {search || (kind === 'project' && hasVideo)
                   ? 'try another search or adjust the filters.'
                   : `try another group or add the first ${kind} for this Hackweek.`}
               </p>

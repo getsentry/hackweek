@@ -39,7 +39,6 @@ body {
   margin: 0;
   color: var(--ink);
   background: var(--paper);
-  text-transform: lowercase;
   -webkit-font-smoothing: antialiased;
 }
 a {

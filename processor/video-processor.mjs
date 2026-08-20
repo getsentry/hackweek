@@ -15,7 +15,7 @@ const PROGRESS_REPORT_TIMEOUT_MS = 5_000;
 const PORT = Number(process.env.PORT ?? 8080);
 const R2_ORIGIN = process.env.VIDEO_R2_ORIGIN ?? 'http://video-r2';
 const SCALE_FILTER =
-  "scale=w='min(1920,iw)':h='min(1080,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2";
+  "scale=w='min(1920,iw)':h='min(1080,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2:in_range=auto:out_range=tv,format=yuv420p";
 
 class ProcessorError extends Error {}
 
@@ -134,6 +134,14 @@ async function transcode(
     '4.1',
     '-pix_fmt',
     'yuv420p',
+    '-colorspace',
+    'bt709',
+    '-color_primaries',
+    'bt709',
+    '-color_trc',
+    'bt709',
+    '-color_range',
+    'tv',
     '-c:a',
     'aac',
     '-b:a',
@@ -222,20 +230,39 @@ async function validateCanonicalOutput(outputPath, sourceVideo) {
   const video = output.streams.find((stream) => stream.codec_type === 'video');
   const audio = output.streams.find((stream) => stream.codec_type === 'audio');
   const outputDuration = mediaDuration(output);
-  if (
-    !video ||
-    !audio ||
-    video.codec_name !== 'h264' ||
-    audio.codec_name !== 'aac' ||
-    video.pix_fmt !== 'yuv420p' ||
-    !positive(video.width) ||
-    !positive(video.height) ||
-    video.width > 1920 ||
-    video.height > 1080 ||
-    outputDuration > MAX_DURATION_SECONDS + 0.05
-  ) {
+  if (!video) throw new ProcessorError('Canonical output is missing a video stream');
+  if (!audio) throw new ProcessorError('Canonical output is missing an audio stream');
+  if (video.codec_name !== 'h264') {
     throw new ProcessorError(
-      'Canonical output failed codec, pixel, size, or duration checks',
+      `Canonical output video codec is ${String(video.codec_name)}, expected h264`,
+    );
+  }
+  if (audio.codec_name !== 'aac') {
+    throw new ProcessorError(
+      `Canonical output audio codec is ${String(audio.codec_name)}, expected aac`,
+    );
+  }
+  if (video.pix_fmt !== 'yuv420p') {
+    throw new ProcessorError(
+      `Canonical output pixel format is ${String(video.pix_fmt)}, expected yuv420p`,
+    );
+  }
+  if (video.color_range && video.color_range !== 'tv') {
+    throw new ProcessorError(
+      `Canonical output color range is ${String(video.color_range)}, expected tv`,
+    );
+  }
+  if (!positive(video.width) || !positive(video.height)) {
+    throw new ProcessorError('Canonical output has invalid frame size');
+  }
+  if (video.width > 1920 || video.height > 1080) {
+    throw new ProcessorError(
+      `Canonical output frame size ${video.width}x${video.height} exceeds 1920x1080`,
+    );
+  }
+  if (outputDuration > MAX_DURATION_SECONDS + 0.05) {
+    throw new ProcessorError(
+      `Canonical output duration ${outputDuration.toFixed(3)}s exceeds ${MAX_DURATION_SECONDS}s`,
     );
   }
 
@@ -296,7 +323,7 @@ async function probe(file) {
     '-v',
     'error',
     '-show_entries',
-    'format=duration:stream=codec_type,codec_name,width,height,pix_fmt,duration:stream_tags=rotate:stream_side_data=rotation',
+    'format=duration:stream=codec_type,codec_name,width,height,pix_fmt,color_range,duration:stream_tags=rotate:stream_side_data=rotation',
     '-of',
     'json',
     file,

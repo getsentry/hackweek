@@ -1044,14 +1044,27 @@ describe('clickable project routes', () => {
     );
     expect(filter.getAttribute('aria-pressed')).toBe('true');
 
-    await userEvent.click(filter);
+    await userEvent.click(screen.getByRole('button', {name: /Ideas/}));
+    await waitFor(() => {
+      const lastInput = fetchMock.mock.calls.at(-1)?.[0];
+      const lastUrl =
+        lastInput instanceof Request ? lastInput.url : lastInput?.toString();
+      expect(lastUrl).toContain('kind=idea');
+      expect(lastUrl).not.toContain('hasVideo=');
+    });
+    expect(screen.queryByRole('button', {name: /has video/i})).toBeNull();
+
+    await userEvent.click(screen.getByRole('button', {name: /Projects/}));
+    const restoredFilter = await screen.findByRole('button', {name: /has video/i});
+    expect(restoredFilter.getAttribute('aria-pressed')).toBe('true');
+    await userEvent.click(restoredFilter);
     await waitFor(() => {
       const lastInput = fetchMock.mock.calls.at(-1)?.[0];
       const lastUrl =
         lastInput instanceof Request ? lastInput.url : lastInput?.toString();
       expect(lastUrl).not.toContain('hasVideo=');
     });
-    expect(filter.getAttribute('aria-pressed')).toBe('false');
+    expect(restoredFilter.getAttribute('aria-pressed')).toBe('false');
   });
 
   it('adds every open award category before project media and video', async () => {

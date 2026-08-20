@@ -51,7 +51,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
     kind === 'project' ? group || undefined : undefined,
     search || undefined,
     cursor,
-    hasVideo,
+    kind === 'project' ? hasVideo : undefined,
   );
   const error = year.error ?? projects.error;
   const voteCategoriesByProject = selectedCategoriesByProject(ballot.data);
@@ -227,18 +227,20 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                   </select>
                 </label>
               )}
-              <button
-                type="button"
-                className="projectFilterChip"
-                aria-pressed={hasVideo}
-                onClick={() => {
-                  setHasVideo((value) => !value);
-                  resetPagination();
-                }}
-              >
-                <span aria-hidden="true">▶</span>
-                has video
-              </button>
+              {kind === 'project' && (
+                <button
+                  type="button"
+                  className="projectFilterChip"
+                  aria-pressed={hasVideo}
+                  onClick={() => {
+                    setHasVideo((value) => !value);
+                    resetPagination();
+                  }}
+                >
+                  <span aria-hidden="true">▶</span>
+                  has video
+                </button>
+              )}
               <div className="projectViewToggle" role="group" aria-label="Project view">
                 {(['grid', 'list'] as const).map((option) => (
                   <button

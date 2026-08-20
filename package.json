@@ -42,8 +42,8 @@
     "wouter": "^3.10.0"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "^1.50.0",
-    "@cloudflare/vitest-pool-workers": "^0.20.1",
+    "@cloudflare/vite-plugin": "^1.53.1",
+    "@cloudflare/vitest-pool-workers": "^0.20.3",
     "@oxlint/plugins": "1.78.0",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
@@ -58,7 +58,7 @@
     "vite": "^8.2.0",
     "vite-plus": "^0.2.7",
     "vitest": "^4.1.10",
-    "wrangler": "^4.118.0"
+    "wrangler": "^4.120.0"
   },
   "overrides": {
     "@oxlint/plugins": "$@oxlint/plugins",

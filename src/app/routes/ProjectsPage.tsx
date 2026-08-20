@@ -35,6 +35,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
   const {yearId} = useParams<{yearId: string}>();
   const [kind, setKind] = useState<'project' | 'idea'>('project');
   const [group, setGroup] = useState('');
+  const [hasVideo, setHasVideo] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [cursor, setCursor] = useState<string | undefined>();
@@ -50,6 +51,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
     kind === 'project' ? group || undefined : undefined,
     search || undefined,
     cursor,
+    hasVideo,
   );
   const error = year.error ?? projects.error;
   const voteCategoriesByProject = selectedCategoriesByProject(ballot.data);
@@ -225,6 +227,18 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                   </select>
                 </label>
               )}
+              <button
+                type="button"
+                className="projectFilterChip"
+                aria-pressed={hasVideo}
+                onClick={() => {
+                  setHasVideo((value) => !value);
+                  resetPagination();
+                }}
+              >
+                <span aria-hidden="true">▶</span>
+                has video
+              </button>
               <div className="projectViewToggle" role="group" aria-label="Project view">
                 {(['grid', 'list'] as const).map((option) => (
                   <button
@@ -270,7 +284,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
               <span>∅</span>
               <h2>No {kind === 'idea' ? 'ideas' : 'projects'} found</h2>
               <p>
-                {search
+                {search || hasVideo
                   ? 'try another search or adjust the filters.'
                   : `try another group or add the first ${kind} for this Hackweek.`}
               </p>

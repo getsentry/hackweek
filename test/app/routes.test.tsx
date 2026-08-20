@@ -1005,6 +1005,55 @@ describe('clickable project routes', () => {
     });
   });
 
+  it('toggles the has-video filter into the projects query', async () => {
+    fetchMock.mockImplementation(async (input) => {
+      const url = input instanceof Request ? input.url : input.toString();
+      if (url.includes('/api/years/2026')) {
+        return json({
+          year: {
+            id: '2026',
+            votingEnabled: false,
+            submissionsClosed: false,
+            projectCount: 1,
+            ideaCount: 0,
+            groupCount: 1,
+            participantCount: 1,
+          },
+          groups: [{id: 'group', yearId: '2026', name: 'Orbital', projectCount: 1}],
+          awards: [],
+          streamMode: 'disabled',
+        });
+      }
+      return json({projects: [projectFixture], nextCursor: null});
+    });
+
+    renderRoute(<ProjectsPage />, '/years/2026/projects', '/years/:yearId/projects');
+    await screen.findByRole('heading', {name: 'A small machine'});
+
+    const filter = screen.getByRole('button', {name: /has video/i});
+    expect(filter.getAttribute('aria-pressed')).toBe('false');
+    await userEvent.click(filter);
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringMatching(
+          /\/api\/projects\?(?=.*year=2026)(?=.*kind=project)(?=.*hasVideo=1)/,
+        ),
+        undefined,
+      ),
+    );
+    expect(filter.getAttribute('aria-pressed')).toBe('true');
+
+    await userEvent.click(filter);
+    await waitFor(() => {
+      const lastInput = fetchMock.mock.calls.at(-1)?.[0];
+      const lastUrl =
+        lastInput instanceof Request ? lastInput.url : lastInput?.toString();
+      expect(lastUrl).not.toContain('hasVideo=');
+    });
+    expect(filter.getAttribute('aria-pressed')).toBe('false');
+  });
+
   it('adds every open award category before project media and video', async () => {
     mockProjectDetails({
       detail: {

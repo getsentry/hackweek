@@ -40,6 +40,7 @@ export function useProjects(
   group?: string,
   search?: string,
   cursor?: string,
+  hasVideo?: boolean,
 ) {
   const query = new URLSearchParams({
     year: yearId,
@@ -48,9 +49,18 @@ export function useProjects(
   if (kind) query.set('kind', kind);
   if (group) query.set('group', group);
   if (search) query.set('q', search);
+  if (hasVideo) query.set('hasVideo', '1');
   if (cursor) query.set('cursor', cursor);
   return useQuery({
-    queryKey: ['projects', yearId, kind, group, search, cursor ?? null],
+    queryKey: [
+      'projects',
+      yearId,
+      kind,
+      group,
+      search,
+      hasVideo ?? false,
+      cursor ?? null,
+    ],
     queryFn: () => apiRequest<ProjectsResponse>(`/projects?${query}`),
     placeholderData: keepPreviousData,
   });

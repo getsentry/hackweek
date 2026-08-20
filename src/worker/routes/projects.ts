@@ -33,11 +33,13 @@ projectsRoutes.get('/', async (c) => {
     const limit = boundedInteger(c.req.query('limit'), 24, 1, 250, 'Limit');
     const offset = boundedInteger(c.req.query('cursor'), 0, 0, 100_000, 'Cursor');
     const search = boundedSearch(c.req.query('q'));
+    const hasVideo = optionalBooleanFlag(c.req.query('hasVideo'));
     const response: ProjectsResponse = await listProjects(c.env.DB, {
       yearId,
       kind,
       groupId: c.req.query('group'),
       search,
+      hasVideo,
       limit,
       offset,
     });
@@ -125,6 +127,17 @@ function boundedSearch(value: string | undefined) {
     );
   }
   return value.trim() || undefined;
+}
+
+function optionalBooleanFlag(value: string | undefined) {
+  if (value === undefined) return undefined;
+  if (value === '1' || value === 'true') return true;
+  if (value === '0' || value === 'false') return false;
+  throw new ServiceError(
+    'VALIDATION_FAILED',
+    'hasVideo must be 1, 0, true, or false',
+    400,
+  );
 }
 
 function boundedInteger(

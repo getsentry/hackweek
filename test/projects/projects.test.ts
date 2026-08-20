@@ -447,6 +447,56 @@ describe('project and history APIs', () => {
     expect(secondPage.body.nextCursor).toBe('2');
   });
 
+  it('filters projects that have a ready video', async () => {
+    const withVideo = await createProject(memberToken, {name: 'Ready reel'});
+    const withoutVideo = await createProject(memberToken, {name: 'Still baking'});
+    const failedVideo = await createProject(memberToken, {name: 'Broken cut'});
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO video_submissions (
+          id, project_id, original_name, content_type, size_bytes, original_r2_key,
+          processed_r2_key, status, duration_seconds, gain_db
+        ) VALUES (?, ?, 'ready.mp4', 'video/mp4', 1024, ?, ?, 'ready', 12.5, 0)`,
+      ).bind(
+        `ready-video-${suffix}`,
+        withVideo.id,
+        `originals/${withVideo.id}/ready.mp4`,
+        `processed/${withVideo.id}/ready.mp4`,
+      ),
+      env.DB.prepare(
+        `INSERT INTO video_submissions (
+          id, project_id, original_name, content_type, size_bytes, original_r2_key, status
+        ) VALUES (?, ?, 'failed.mp4', 'video/mp4', 1024, ?, 'failed')`,
+      ).bind(
+        `failed-video-${suffix}`,
+        failedVideo.id,
+        `originals/${failedVideo.id}/failed.mp4`,
+      ),
+    ]);
+
+    const filtered = await api(
+      `/projects?year=${yearId}&kind=project&hasVideo=1`,
+      memberToken,
+    );
+    const invalid = await api(
+      `/projects?year=${yearId}&kind=project&hasVideo=maybe`,
+      memberToken,
+    );
+
+    expect(filtered.status).toBe(200);
+    expect(filtered.body.projects.map((project: {id: string}) => project.id)).toEqual([
+      withVideo.id,
+    ]);
+    expect(
+      filtered.body.projects.some(
+        (project: {id: string}) =>
+          project.id === withoutVideo.id || project.id === failedVideo.id,
+      ),
+    ).toBe(false);
+    expect(invalid.status).toBe(400);
+    expect(invalid.body.error.code).toBe('VALIDATION_FAILED');
+  });
+
   it('treats SQL wildcards literally and bounds search input', async () => {
     const percent = await createProject(memberToken, {
       name: '100% reliable',

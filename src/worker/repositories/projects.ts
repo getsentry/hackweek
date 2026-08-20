@@ -171,6 +171,7 @@ export async function listProjects(
     kind?: 'project' | 'idea';
     groupId?: string;
     search?: string;
+    hasVideo?: boolean;
     limit: number;
     offset: number;
   },
@@ -185,6 +186,15 @@ export async function listProjects(
   if (options.groupId) {
     conditions.push('p.group_id = ?');
     bindings.push(options.groupId);
+  }
+  if (options.hasVideo) {
+    conditions.push(`EXISTS (
+      SELECT 1 FROM video_submissions pv
+      WHERE pv.project_id = p.id
+        AND pv.status = 'ready'
+        AND pv.retired_at IS NULL
+        AND pv.processed_r2_key IS NOT NULL
+    )`);
   }
   let relevanceOrder = '';
   if (options.search) {

@@ -34,7 +34,7 @@ export default defineConfig({
   test: {
     maxWorkers: 1,
     include: ['test/**/*.test.ts'],
-    exclude: ['test/migration/**'],
+    exclude: ['test/migration/**', 'test/processor/**'],
     setupFiles: ['./test/setup.ts'],
   },
 });

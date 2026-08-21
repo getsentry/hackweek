@@ -423,9 +423,21 @@ describe('project and history APIs', () => {
     });
     await createProject(memberToken, {
       name: 'Idea signal',
-      summary: 'A matching idea excluded by the kind filter.',
+      summary: 'A matching idea excluded by the kind and group filters.',
       kind: 'idea',
       groupId: null,
+    });
+    const otherGroupId = `other-group-${suffix}`;
+    await env.DB.prepare(
+      `INSERT INTO groups (id, source_id, year_id, name, creator_id)
+       SELECT ?, ?, year_id, 'Elsewhere', creator_id FROM groups WHERE id = ?`,
+    )
+      .bind(otherGroupId, otherGroupId, groupId)
+      .run();
+    await createProject(memberToken, {
+      name: 'Signal elsewhere',
+      summary: 'A matching project excluded by the group filter.',
+      groupId: otherGroupId,
     });
 
     const matches = await api(
@@ -443,10 +455,10 @@ describe('project and history APIs', () => {
       prefix.id,
       description.id,
     ]);
-    expect(matches.body).toMatchObject({projectCount: 3, ideaCount: 1});
+    expect(matches.body).toMatchObject({projectCount: 3, ideaCount: 0});
     expect(secondPage.body.projects[0].id).toBe(prefix.id);
     expect(secondPage.body.nextCursor).toBe('2');
-    expect(secondPage.body).toMatchObject({projectCount: 3, ideaCount: 1});
+    expect(secondPage.body).toMatchObject({projectCount: 3, ideaCount: 0});
   });
 
   it('treats SQL wildcards literally and bounds search input', async () => {

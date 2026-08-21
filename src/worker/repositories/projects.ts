@@ -186,7 +186,9 @@ export async function listProjects(
   }
   if (options.groupId) {
     conditions.push('p.group_id = ?');
+    countConditions.push('p.group_id = ?');
     bindings.push(options.groupId);
+    countBindings.push(options.groupId);
   }
   let relevanceOrder = '';
   if (options.search) {

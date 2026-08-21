@@ -346,7 +346,9 @@ function MyProjectsStrip({projects}: {projects: ProjectSummary[]}) {
             key={project.id}
           >
             <span className="tag tag--group">
-              {project.kind === 'idea' ? 'open idea' : (project.group?.name ?? 'ungrouped')}
+              {project.kind === 'idea'
+                ? 'open idea'
+                : (project.group?.name ?? 'ungrouped')}
             </span>
             <strong>{project.name}</strong>
             <MemberStack members={project.members} />

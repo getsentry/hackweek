@@ -92,7 +92,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
 
   useEffect(() => {
     resetPagination();
-  }, [yearId, search]);
+  }, [yearId, search, group]);
 
   useEffect(() => {
     if (

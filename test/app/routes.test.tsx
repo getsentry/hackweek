@@ -635,6 +635,93 @@ describe('clickable project routes', () => {
     ).toBe('true');
   });
 
+  it('resets pagination when the group filter changes', async () => {
+    fetchMock.mockImplementation(async (input) => {
+      const url = requestUrl(input);
+      if (url.includes('/api/years/2026')) {
+        return json({
+          year: {
+            id: '2026',
+            votingEnabled: false,
+            submissionsClosed: false,
+            projectCount: 251,
+            ideaCount: 0,
+            groupCount: 2,
+            participantCount: 251,
+          },
+          groups: [
+            {id: 'group-a', yearId: '2026', name: 'Orbital', projectCount: 251},
+            {id: 'group-b', yearId: '2026', name: 'Lunar', projectCount: 1},
+          ],
+          awards: [],
+        });
+      }
+
+      const projectsUrl = new URL(url, 'https://hackweek.test');
+      const group = projectsUrl.searchParams.get('group');
+      const cursor = projectsUrl.searchParams.get('cursor');
+      if (group === 'group-b') {
+        expect(cursor).toBeNull();
+        return json({
+          projects: [
+            {
+              ...projectFixture,
+              id: 'lunar-1',
+              name: 'Lunar one',
+              group: {
+                id: 'group-b',
+                yearId: '2026',
+                name: 'Lunar',
+                projectCount: 1,
+              },
+            },
+          ],
+          nextCursor: null,
+        });
+      }
+
+      if (cursor === '250') {
+        return json({
+          projects: [{...projectFixture, id: 'project-251', name: 'Project 251'}],
+          nextCursor: null,
+        });
+      }
+
+      return json({
+        projects: Array.from({length: 250}, (_, index) => ({
+          ...projectFixture,
+          id: `project-${index + 1}`,
+          name: `Project ${index + 1}`,
+        })),
+        nextCursor: '250',
+      });
+    });
+
+    renderRoute(
+      <ProjectsPage />,
+      '/years/2026/projects?group=group-a',
+      '/years/:yearId/projects',
+    );
+
+    expect(await screen.findByRole('heading', {name: 'Project 1'})).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', {name: 'next'}));
+    expect(await screen.findByRole('heading', {name: 'Project 251'})).toBeTruthy();
+
+    await userEvent.selectOptions(
+      screen.getByRole('combobox', {name: 'Group'}),
+      'group-b',
+    );
+
+    expect(await screen.findByRole('heading', {name: 'Lunar one'})).toBeTruthy();
+    await waitFor(() => {
+      const lastInput = fetchMock.mock.calls.at(-1)?.[0];
+      const lastUrl =
+        lastInput instanceof Request ? lastInput.url : lastInput?.toString();
+      expect(lastUrl).toContain('group=group-b');
+      expect(lastUrl).not.toContain('cursor=');
+    });
+  });
+
   it('keeps the selected group when viewing a project and returning', async () => {
     fetchMock.mockImplementation(async (input) => {
       const url = requestUrl(input);

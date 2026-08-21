@@ -253,9 +253,7 @@ function parseUpload(value: JsonInput): DirectUploadRequest {
     value.fileSize <= 0 ||
     value.fileSize > MAX_VIDEO_BYTES
   ) {
-    invalid(
-      `File size must be between 1 byte and ${formatBytes(MAX_VIDEO_BYTES)}`,
-    );
+    invalid(`File size must be between 1 byte and ${formatBytes(MAX_VIDEO_BYTES)}`);
   }
   const fileName = value.fileName.trim();
   return {

@@ -1,5 +1,12 @@
 import {Hono, type Context} from 'hono';
 
+import {formatBytes} from '../../shared/format';
+import {
+  isJsonNumber,
+  isJsonObject,
+  isJsonString,
+  type JsonInput,
+} from '../../shared/json';
 import type {
   CompleteVideoUploadRequest,
   DirectUploadRequest,
@@ -8,12 +15,6 @@ import type {
   PlaylistResponse,
   ProjectVideoResponse,
 } from '../../shared/videos';
-import {
-  isJsonNumber,
-  isJsonObject,
-  isJsonString,
-  type JsonInput,
-} from '../../shared/json';
 import type {WorkerEnv} from '../index';
 import {errorResponse, ServiceError} from '../services/errors';
 import {
@@ -252,7 +253,9 @@ function parseUpload(value: JsonInput): DirectUploadRequest {
     value.fileSize <= 0 ||
     value.fileSize > MAX_VIDEO_BYTES
   ) {
-    invalid(`File size must be between 1 and ${MAX_VIDEO_BYTES} bytes`);
+    invalid(
+      `File size must be between 1 byte and ${formatBytes(MAX_VIDEO_BYTES)}`,
+    );
   }
   const fileName = value.fileName.trim();
   return {

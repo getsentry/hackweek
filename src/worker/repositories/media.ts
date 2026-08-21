@@ -1,3 +1,4 @@
+import {formatBytes} from '../../shared/format';
 import {MAX_MEDIA_BYTES, type MediaSummary} from '../../shared/projects';
 import {ServiceError} from '../services/errors';
 import {currentYearIdSql, effectiveYearFlags} from './years';
@@ -31,7 +32,7 @@ export async function uploadMedia(
   if (file.size <= 0 || file.size > MAX_MEDIA_BYTES) {
     throw new ServiceError(
       'VALIDATION_FAILED',
-      `Media must be between 1 byte and ${MAX_MEDIA_BYTES / 1024 / 1024} MiB`,
+      `Media must be between 1 byte and ${formatBytes(MAX_MEDIA_BYTES)}`,
       400,
     );
   }

@@ -18,7 +18,7 @@ import {
 } from './fixture';
 
 const endpoint = 'https://hackweek.test/api/session';
-const expectedSessionTtlSeconds = 30 * 24 * 60 * 60;
+const expectedSessionTtlSeconds = 14 * 24 * 60 * 60;
 const tokenFetch = vi.fn<typeof fetch>();
 vi.stubGlobal('fetch', tokenFetch);
 

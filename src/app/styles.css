@@ -690,6 +690,17 @@ main {
   color: rgba(255, 255, 255, 0.62);
   font-size: 0.75rem;
 }
+.ballotCategoryCopy {
+  display: grid;
+  gap: 0.18rem;
+}
+.ballotCategoryCopy strong {
+  color: #fff;
+  font-size: 0.78rem;
+}
+.ballotCategoryCopy small {
+  line-height: 1.35;
+}
 .ballotSelections a {
   min-width: 0;
   overflow: hidden;
@@ -1127,6 +1138,11 @@ main {
   font-size: 0.72rem;
   font-weight: 600;
 }
+.awardStrip small {
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.4;
+}
 
 .groupManager {
   padding: 1.5rem;
@@ -1399,6 +1415,10 @@ main {
   color: var(--muted);
   font-size: 0.78rem;
   line-height: 1.45;
+}
+.projectVotingCategoryCopy .awardCategoryDescription {
+  max-width: 46rem;
+  margin-bottom: 0.55rem;
 }
 .projectVotingCategoryCopy p strong {
   color: var(--ink);
@@ -2066,6 +2086,16 @@ main {
   margin: 0;
   color: var(--ink);
   font-size: 0.78rem;
+}
+.projectForm .awardCategoryChoiceCopy {
+  display: grid;
+  gap: 0.2rem;
+}
+.projectForm .awardCategoryChoiceCopy strong {
+  font-size: 0.82rem;
+}
+.projectForm .awardCategoryChoiceCopy small {
+  line-height: 1.4;
 }
 .awardCategoryChoice--limited > span {
   color: var(--muted);

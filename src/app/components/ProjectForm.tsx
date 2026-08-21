@@ -1,6 +1,7 @@
 import {useEffect, useId, useState, type FormEvent, type KeyboardEvent} from 'react';
 
 import type {ProjectDetail, ProjectWriteRequest} from '../../shared/projects';
+import {getAwardCategoryDescription} from '../awardCategories';
 import {useProjectOptions} from '../queries/projects';
 
 export function ProjectForm({
@@ -432,12 +433,16 @@ export function ProjectForm({
                         >
                           <input
                             type="checkbox"
+                            aria-label={category.name}
                             checked={selected}
                             required={index === 0 && nominationCategoryIds.length === 0}
                             disabled={nominationsLocked || (atLimit && !selected)}
                             onChange={() => toggleNomination(category.id)}
                           />
-                          <span>{category.name}</span>
+                          <span className="awardCategoryChoiceCopy">
+                            <strong>{category.name}</strong>
+                            <small>{getAwardCategoryDescription(category.name)}</small>
+                          </span>
                           {atLimit && !selected && <small>two selected</small>}
                         </label>
                       );

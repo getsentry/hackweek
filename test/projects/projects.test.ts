@@ -404,6 +404,32 @@ describe('project and history APIs', () => {
     ]);
   });
 
+  it('filters projects by eligible award category', async () => {
+    const delight = await createProject(memberToken, {
+      name: 'Delightful project',
+      nominationCategoryIds: [categoryId],
+    });
+    await createProject(memberToken, {
+      name: 'Craft project',
+      nominationCategoryIds: [secondCategoryId],
+    });
+    const both = await createProject(memberToken, {
+      name: 'Both categories',
+      nominationCategoryIds: [categoryId, secondCategoryId],
+    });
+
+    const matches = await api(
+      `/projects?year=${yearId}&kind=project&category=${categoryId}`,
+      memberToken,
+    );
+
+    expect(matches.status).toBe(200);
+    expect(matches.body.projects.map((project: {id: string}) => project.id)).toEqual([
+      both.id,
+      delight.id,
+    ]);
+  });
+
   it('searches titles and descriptions before pagination with relevant results first', async () => {
     const exact = await createProject(memberToken, {
       name: 'Signal',

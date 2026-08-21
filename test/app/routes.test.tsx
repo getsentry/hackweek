@@ -918,6 +918,33 @@ describe('clickable project routes', () => {
     );
   });
 
+  it('filters projects by eligible award category', async () => {
+    mockProjectsOverview({
+      categories: [
+        {id: 'delight', yearId: '2026', name: 'Delight'},
+        {id: 'impact', yearId: '2026', name: 'Impact'},
+      ],
+      projects: [projectFixture],
+    });
+
+    renderRoute(<ProjectsPage />, '/years/2026/projects', '/years/:yearId/projects');
+    await screen.findByRole('heading', {name: 'A small machine'});
+
+    await userEvent.selectOptions(
+      await screen.findByLabelText('Award category'),
+      'delight',
+    );
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringMatching(
+          /\/api\/projects\?(?=.*year=2026)(?=.*kind=project)(?=.*category=delight)/,
+        ),
+        undefined,
+      ),
+    );
+  });
+
   it('live-updates server search without replacing the current list', async () => {
     let resolveSearch!: (response: Response) => void;
     const pendingSearch = new Promise<Response>((resolve) => {

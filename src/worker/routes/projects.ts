@@ -37,6 +37,7 @@ projectsRoutes.get('/', async (c) => {
       yearId,
       kind,
       groupId: c.req.query('group'),
+      categoryId: c.req.query('category'),
       search,
       limit,
       offset,

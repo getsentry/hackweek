@@ -170,6 +170,7 @@ export async function listProjects(
     yearId: string;
     kind?: 'project' | 'idea';
     groupId?: string;
+    categoryId?: string;
     search?: string;
     limit: number;
     offset: number;
@@ -185,6 +186,15 @@ export async function listProjects(
   if (options.groupId) {
     conditions.push('p.group_id = ?');
     bindings.push(options.groupId);
+  }
+  if (options.categoryId) {
+    conditions.push(
+      `EXISTS (
+        SELECT 1 FROM project_nominations pn
+        WHERE pn.project_id = p.id AND pn.award_category_id = ?
+      )`,
+    );
+    bindings.push(options.categoryId);
   }
   let relevanceOrder = '';
   if (options.search) {

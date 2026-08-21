@@ -1,8 +1,6 @@
-import type {MediaSummary} from '../../shared/projects';
+import {MAX_MEDIA_BYTES, type MediaSummary} from '../../shared/projects';
 import {ServiceError} from '../services/errors';
 import {currentYearIdSql, effectiveYearFlags} from './years';
-
-const MAX_MEDIA_BYTES = 25 * 1024 * 1024;
 
 interface UserContext {
   id: string;

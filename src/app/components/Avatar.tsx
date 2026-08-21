@@ -1,10 +1,9 @@
 import {useReducer} from 'react';
 
-// Module-level caches shared by every Avatar instance for the life of the
+// Module-level cache shared by every Avatar instance for the life of the
 // page. The same user often appears in many places at once (member stacks,
-// team panels, admin lists), so once we know a URL loads or is broken we
-// never want to re-request it or flash a fallback again.
-const loadedAvatarUrls = new Set<string>();
+// team panels, admin lists), so once we know a URL is broken we never want
+// to flash a fallback again.
 const failedAvatarUrls = new Set<string>();
 
 export interface AvatarProps {
@@ -28,7 +27,6 @@ export function Avatar({displayName, avatarUrl, className}: AvatarProps) {
           loading="lazy"
           decoding="async"
           referrerPolicy="no-referrer"
-          onLoad={() => loadedAvatarUrls.add(avatarUrl!)}
           onError={() => {
             failedAvatarUrls.add(avatarUrl!);
             forceRender();

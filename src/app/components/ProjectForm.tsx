@@ -433,7 +433,6 @@ export function ProjectForm({
                         >
                           <input
                             type="checkbox"
-                            aria-label={category.name}
                             checked={selected}
                             required={index === 0 && nominationCategoryIds.length === 0}
                             disabled={nominationsLocked || (atLimit && !selected)}

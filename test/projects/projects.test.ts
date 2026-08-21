@@ -443,8 +443,10 @@ describe('project and history APIs', () => {
       prefix.id,
       description.id,
     ]);
+    expect(matches.body).toMatchObject({projectCount: 3, ideaCount: 1});
     expect(secondPage.body.projects[0].id).toBe(prefix.id);
     expect(secondPage.body.nextCursor).toBe('2');
+    expect(secondPage.body).toMatchObject({projectCount: 3, ideaCount: 1});
   });
 
   it('treats SQL wildcards literally and bounds search input', async () => {

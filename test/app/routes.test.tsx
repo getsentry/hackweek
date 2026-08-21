@@ -986,9 +986,13 @@ describe('clickable project routes', () => {
       json({
         projects: [{...projectFixture, id: 'search-match', name: 'Useful experiment'}],
         nextCursor: null,
+        projectCount: 1,
+        ideaCount: 2,
       }),
     );
     expect(await screen.findByRole('heading', {name: 'Useful experiment'})).toBeTruthy();
+    expect(screen.getByRole('button', {name: 'Projects 1'})).toBeTruthy();
+    expect(screen.getByRole('button', {name: 'Ideas 2'})).toBeTruthy();
     await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
 
     await userEvent.click(

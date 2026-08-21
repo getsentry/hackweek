@@ -74,6 +74,8 @@ export interface YearResponse {
 export interface ProjectsResponse {
   projects: ProjectSummary[];
   nextCursor: string | null;
+  projectCount: number;
+  ideaCount: number;
 }
 
 export interface ProjectResponse {

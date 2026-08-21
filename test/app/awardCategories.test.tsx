@@ -4,12 +4,19 @@ import {getAwardCategoryDescription} from '../../src/app/awardCategories';
 
 describe('getAwardCategoryDescription', () => {
   it.each([
-    ['Moonshot', 'boldest idea'],
-    ['Craft prize', 'strongest execution'],
-    ['Biggest impact', 'meaningful difference'],
-    ['Delight', 'most joy'],
+    ['Best use of AI', 'Clever and innovative twists with AI.'],
+    ['For the devs!', 'Tools, workflows, or features that make developer life better.'],
+    [
+      'Just ship it already',
+      'The project so useful or obvious you wonder why it isn’t live yet.',
+    ],
+    [
+      'Sentry AF',
+      'The one that feels the most “us”: quirky, sharp, unmistakably Sentry.',
+    ],
+    ['The quiet win', 'Small but mighty improvements that make a big difference.'],
   ])('describes %s with category-specific guidance', (name, expected) => {
-    expect(getAwardCategoryDescription(name)).toContain(expected);
+    expect(getAwardCategoryDescription(name)).toBe(expected);
   });
 
   it('gives new categories useful fallback guidance', () => {

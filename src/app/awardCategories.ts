@@ -1,23 +1,23 @@
 const CATEGORY_GUIDANCE = [
   {
-    matches: ['moonshot'],
-    description:
-      'The boldest idea with the biggest upside, even if it is experimental. Example: a new capability that changes how we work.',
+    matches: ['best use of ai'],
+    description: 'Clever and innovative twists with AI.',
   },
   {
-    matches: ['craft'],
-    description:
-      'The strongest execution and attention to detail. Example: a polished, reliable experience that feels ready to ship.',
+    matches: ['for the devs'],
+    description: 'Tools, workflows, or features that make developer life better.',
   },
   {
-    matches: ['impact'],
-    description:
-      'The project most likely to make a meaningful difference. Example: saving teams hours or solving a widespread problem.',
+    matches: ['just ship it already'],
+    description: 'The project so useful or obvious you wonder why it isn’t live yet.',
   },
   {
-    matches: ['delight'],
-    description:
-      'The project that brings the most joy or surprise. Example: turning a frustrating workflow into something people enjoy.',
+    matches: ['sentry af'],
+    description: 'The one that feels the most “us”: quirky, sharp, unmistakably Sentry.',
+  },
+  {
+    matches: ['the quiet win'],
+    description: 'Small but mighty improvements that make a big difference.',
   },
 ] as const;
 

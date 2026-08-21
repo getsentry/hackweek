@@ -1,7 +1,11 @@
 import {createMiddleware} from 'hono/factory';
 
 import type {ApiErrorCode, ApiErrorResponse, SessionUser} from '../../shared/api';
-import {findUserBySessionToken, type SessionIdentity} from '../services/sessions';
+import {
+  findUserBySessionToken,
+  SESSION_TTL_SECONDS,
+  type SessionIdentity,
+} from '../services/sessions';
 
 export const SESSION_COOKIE_NAME = '__Host-sentry-hackweek-session';
 export const LOCAL_SESSION_COOKIE_NAME = 'sentry-hackweek-session';
@@ -144,7 +148,7 @@ export function assertRequestUsesConfiguredOrigin(request: Request, config: Auth
 
 export function sessionCookie(token: string, config: AuthConfig) {
   const name = config.secureCookie ? SESSION_COOKIE_NAME : LOCAL_SESSION_COOKIE_NAME;
-  return `${name}=${token}; Max-Age=28800; Path=/; HttpOnly; SameSite=Lax${config.secureCookie ? '; Secure' : ''}`;
+  return `${name}=${token}; Max-Age=${SESSION_TTL_SECONDS}; Path=/; HttpOnly; SameSite=Lax${config.secureCookie ? '; Secure' : ''}`;
 }
 
 export function clearSessionCookie(config: AuthConfig) {

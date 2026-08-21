@@ -164,6 +164,26 @@ export async function listProjectOptions(db: D1Database, yearId: string) {
   };
 }
 
+export async function listMyProjects(db: D1Database, yearId: string, userId: string) {
+  const {results} = await db
+    .prepare(
+      `${projectSelect()} WHERE p.year_id = ? AND p.status = 'active'
+         AND (p.creator_id = ? OR EXISTS (
+           SELECT 1 FROM project_members pm
+           WHERE pm.project_id = p.id AND pm.user_id = ?
+         ))
+       ORDER BY CASE p.kind WHEN 'project' THEN 0 ELSE 1 END,
+         p.name COLLATE NOCASE, p.id`,
+    )
+    .bind(yearId, userId, userId)
+    .all<ProjectRow>();
+  const members = await membersByProjectIds(
+    db,
+    results.map(({id}) => id),
+  );
+  return results.map((row) => mapProject(row, members.get(row.id) ?? []));
+}
+
 export async function listProjects(
   db: D1Database,
   options: {

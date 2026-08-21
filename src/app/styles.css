@@ -2747,7 +2747,6 @@ main {
   pointer-events: none;
   background: rgba(17, 11, 23, 0.78);
   backdrop-filter: blur(10px);
-  animation: clipOverlayFade 4s ease forwards;
 }
 .clipOverlay strong,
 .clipOverlay span {
@@ -3278,16 +3277,6 @@ kbd {
   .startCard--artwork .screeningStart {
     min-height: 2.6rem;
     margin-bottom: 0;
-  }
-}
-
-@keyframes clipOverlayFade {
-  0%,
-  65% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
   }
 }
 

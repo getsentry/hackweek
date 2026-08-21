@@ -527,6 +527,22 @@ describe('clickable project routes', () => {
       expect(screen.queryByRole('heading', {name: 'Still recording'})).toBeNull(),
     );
     expect(screen.getByRole('heading', {name: 'A small machine'})).toBeTruthy();
+
+    await userEvent.click(screen.getByRole('button', {name: /Ideas/}));
+    expect(screen.queryByRole('checkbox', {name: 'Has video'})).toBeNull();
+
+    await userEvent.click(screen.getByRole('button', {name: /Projects/}));
+    const resetFilter = screen.getByRole('checkbox', {name: 'Has video'});
+    expect(resetFilter).toBeInstanceOf(HTMLInputElement);
+    if (!(resetFilter instanceof HTMLInputElement)) throw new Error();
+    expect(resetFilter.checked).toBe(false);
+    await waitFor(() => {
+      const projectRequest = fetchMock.mock.calls
+        .map(([input]) => requestUrl(input))
+        .filter((url) => url.includes('/api/projects?'))
+        .at(-1);
+      expect(projectRequest).not.toContain('hasVideo=');
+    });
   });
 
   it('keeps closed-year browsing and ballot read failures local', async () => {

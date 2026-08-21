@@ -202,6 +202,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                 className={kind === 'idea' ? 'active' : ''}
                 onClick={() => {
                   setKind('idea');
+                  setHasVideoOnly(false);
                   resetPagination();
                 }}
               >

@@ -67,6 +67,16 @@ interface AwardCategoryRow {
   name: string;
 }
 
+interface AwardRow {
+  id: string;
+  year_id: string;
+  project_id: string;
+  project_name: string;
+  category_id: string;
+  category_name: string;
+  name: string;
+}
+
 export async function listYears(db: D1Database): Promise<YearSummary[]> {
   const {results} = await db
     .prepare(
@@ -257,7 +267,7 @@ export async function getProject(
   if (!row) {
     throw new ServiceError('NOT_FOUND', 'Project not found', 404);
   }
-  const [members, mediaResult, nominationIds, year] = await Promise.all([
+  const [members, mediaResult, awardResult, nominationIds, year] = await Promise.all([
     membersByProjectIds(db, [projectId]),
     db
       .prepare(
@@ -266,6 +276,18 @@ export async function getProject(
       )
       .bind(projectId)
       .all<MediaRow>(),
+    db
+      .prepare(
+        `SELECT a.id, a.year_id, a.project_id, p.name project_name,
+          a.category_id, category.name category_name, a.name
+         FROM awards a
+         JOIN projects p ON p.id = a.project_id
+         JOIN award_categories category ON category.id = a.category_id
+         WHERE a.project_id = ?
+         ORDER BY category.name COLLATE NOCASE, a.name COLLATE NOCASE, a.id`,
+      )
+      .bind(projectId)
+      .all<AwardRow>(),
     nominationCategoryIds(db, projectId),
     getYear(db, row.year_id),
   ]);
@@ -278,6 +300,7 @@ export async function getProject(
   return {
     ...project,
     media: mediaResult.results.map(mapMedia),
+    awards: awardResult.results.map(mapAward),
     nominationCategoryIds: nominationIds,
     permissions: {
       canEdit: canWrite,
@@ -716,6 +739,18 @@ function mapGroup(row: {
 
 function mapAwardCategory(row: AwardCategoryRow): AwardCategorySummary {
   return {id: row.id, yearId: row.year_id, name: row.name};
+}
+
+function mapAward(row: AwardRow) {
+  return {
+    id: row.id,
+    yearId: row.year_id,
+    projectId: row.project_id,
+    projectName: row.project_name,
+    categoryId: row.category_id,
+    categoryName: row.category_name,
+    name: row.name,
+  };
 }
 
 function mapMember(row: Omit<MemberRow, 'project_id'>): ProjectMember {

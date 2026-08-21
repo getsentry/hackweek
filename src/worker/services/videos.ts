@@ -132,10 +132,13 @@ export async function listPlaylist(
     }>();
   if (!results.length) return [];
 
-  const membersByProject = new Map<string, Array<{id: string; displayName: string}>>();
+  const membersByProject = new Map<
+    string,
+    Array<{id: string; displayName: string; avatarUrl: string | null}>
+  >();
   const members = await db
     .prepare(
-      `SELECT pm.project_id, u.id user_id, u.display_name
+      `SELECT pm.project_id, u.id user_id, u.display_name, u.avatar_url
        FROM project_members pm
        JOIN users u ON u.id = pm.user_id
        JOIN projects p ON p.id = pm.project_id
@@ -147,10 +150,19 @@ export async function listPlaylist(
        ORDER BY pm.project_id, u.display_name COLLATE NOCASE, u.id`,
     )
     .bind(yearId)
-    .all<{project_id: string; user_id: string; display_name: string}>();
+    .all<{
+      project_id: string;
+      user_id: string;
+      display_name: string;
+      avatar_url: string | null;
+    }>();
   for (const member of members.results) {
     const projectMembers = membersByProject.get(member.project_id) ?? [];
-    projectMembers.push({id: member.user_id, displayName: member.display_name});
+    projectMembers.push({
+      id: member.user_id,
+      displayName: member.display_name,
+      avatarUrl: member.avatar_url,
+    });
     membersByProject.set(member.project_id, projectMembers);
   }
 

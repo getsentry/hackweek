@@ -128,6 +128,184 @@ describe('Google OAuth authorization code flow', () => {
     });
   });
 
+  it('caches the Google profile photo in private storage on every login', async () => {
+    const first = await beginLogin();
+    const avatarUrl = 'https://lh3.googleusercontent.com/member.jpg';
+    let avatarVersion = 'first-avatar';
+    tokenFetch.mockImplementation(async (input) => {
+      if (requestUrl(input) === avatarUrl) {
+        return new Response(avatarVersion, {
+          headers: {'Content-Type': 'image/jpeg; charset=binary'},
+        });
+      }
+      return Response.json({
+        id_token: await signGoogleIdToken({nonce: first.nonce, picture: avatarUrl}),
+      });
+    });
+
+    const firstLogin = await callback(first.state);
+    const firstCookie = cookieToken(firstLogin.headers.get('Set-Cookie')!);
+    const user = await env.DB.prepare(
+      "SELECT id, avatar_url FROM users WHERE google_subject = 'google-member'",
+    ).first<{id: string; avatar_url: string}>();
+    const firstAvatar = await SELF.fetch(
+      `https://hackweek.test/api/users/${user!.id}/avatar`,
+      {headers: {Cookie: firstCookie}},
+    );
+
+    expect(user?.avatar_url).toBe(avatarUrl);
+    expect(firstAvatar.status).toBe(200);
+    expect(firstAvatar.headers.get('Content-Type')).toBe('image/jpeg');
+    expect(firstAvatar.headers.get('Cache-Control')).toBe('private, max-age=300');
+    expect(firstAvatar.headers.get('Content-Security-Policy')).toContain('sandbox');
+    expect(new TextDecoder().decode(await firstAvatar.arrayBuffer())).toBe(
+      'first-avatar',
+    );
+
+    avatarVersion = 'refreshed-avatar';
+    const second = await beginLogin();
+    tokenFetch.mockImplementation(async (input) => {
+      if (requestUrl(input) === avatarUrl) {
+        return new Response(avatarVersion, {
+          headers: {'Content-Type': 'image/jpeg'},
+        });
+      }
+      return Response.json({
+        id_token: await signGoogleIdToken({nonce: second.nonce, picture: avatarUrl}),
+      });
+    });
+
+    const secondLogin = await callback(second.state);
+    const secondCookie = cookieToken(secondLogin.headers.get('Set-Cookie')!);
+    const refreshedAvatar = await SELF.fetch(
+      `https://hackweek.test/api/users/${user!.id}/avatar`,
+      {headers: {Cookie: secondCookie}},
+    );
+
+    expect(new TextDecoder().decode(await refreshedAvatar.arrayBuffer())).toBe(
+      'refreshed-avatar',
+    );
+    expect(
+      tokenFetch.mock.calls.filter(([input]) => requestUrl(input) === avatarUrl),
+    ).toHaveLength(2);
+  });
+
+  it('accepts only safe Google profile-photo redirects', async () => {
+    const {state, nonce} = await beginLogin();
+    const source = 'https://lh3.googleusercontent.com/avatar.jpg';
+    const target = 'https://lh7-qw.googleusercontent.com/photos/avatar.jpg';
+    tokenFetch.mockImplementation(async (input) => {
+      const url = requestUrl(input);
+      if (url === source)
+        return new Response(null, {status: 302, headers: {Location: target}});
+      if (url === target) {
+        return new Response('redirected-avatar', {
+          headers: {'Content-Type': 'image/jpeg'},
+        });
+      }
+      return Response.json({
+        id_token: await signGoogleIdToken({nonce, picture: source}),
+      });
+    });
+
+    const login = await callback(state);
+    const cookie = cookieToken(login.headers.get('Set-Cookie')!);
+    const user = await env.DB.prepare(
+      "SELECT id FROM users WHERE google_subject = 'google-member'",
+    ).first<{id: string}>();
+    const avatar = await SELF.fetch(
+      `https://hackweek.test/api/users/${user!.id}/avatar`,
+      {headers: {Cookie: cookie}},
+    );
+    expect(new TextDecoder().decode(await avatar.arrayBuffer())).toBe(
+      'redirected-avatar',
+    );
+
+    const unsafeRedirect = await beginLogin();
+    tokenFetch.mockImplementation(async (input) => {
+      if (requestUrl(input) === source) {
+        return new Response(null, {
+          status: 302,
+          headers: {Location: 'http://attacker.example/avatar.jpg'},
+        });
+      }
+      return Response.json({
+        id_token: await signGoogleIdToken({
+          nonce: unsafeRedirect.nonce,
+          picture: source,
+        }),
+      });
+    });
+    const unsafeLogin = await callback(unsafeRedirect.state);
+    expect(unsafeLogin.headers.get('Set-Cookie')).toContain(SESSION_COOKIE_NAME);
+    expect(
+      tokenFetch.mock.calls.some(
+        ([input]) => requestUrl(input) === 'http://attacker.example/avatar.jpg',
+      ),
+    ).toBe(false);
+  });
+
+  it('rejects unsafe profile-photo hosts and active image content', async () => {
+    const unsafeHost = await beginLogin();
+    tokenFetch.mockImplementation(async () =>
+      Response.json({
+        id_token: await signGoogleIdToken({
+          nonce: unsafeHost.nonce,
+          picture: 'https://attacker.example/avatar.jpg',
+        }),
+      }),
+    );
+
+    const unsafeLogin = await callback(unsafeHost.state);
+    expect(unsafeLogin.headers.get('Set-Cookie')).toContain(SESSION_COOKIE_NAME);
+    expect(tokenFetch).toHaveBeenCalledTimes(1);
+
+    const svg = await beginLogin();
+    tokenFetch.mockImplementation(async (input) => {
+      if (requestUrl(input) === 'https://lh3.googleusercontent.com/avatar.svg') {
+        return new Response('<svg><script>alert(1)</script></svg>', {
+          headers: {'Content-Type': 'image/svg+xml'},
+        });
+      }
+      return Response.json({
+        id_token: await signGoogleIdToken({
+          nonce: svg.nonce,
+          picture: 'https://lh3.googleusercontent.com/avatar.svg',
+        }),
+      });
+    });
+
+    const svgLogin = await callback(svg.state);
+    const svgCookie = cookieToken(svgLogin.headers.get('Set-Cookie')!);
+    const user = await env.DB.prepare(
+      "SELECT id FROM users WHERE google_subject = 'google-member'",
+    ).first<{id: string}>();
+    const avatar = await SELF.fetch(
+      `https://hackweek.test/api/users/${user!.id}/avatar`,
+      {headers: {Cookie: svgCookie}},
+    );
+    expect(avatar.status).toBe(404);
+  });
+
+  it('keeps sign-in available when a Google profile photo cannot be refreshed', async () => {
+    const {state, nonce} = await beginLogin();
+    tokenFetch.mockImplementation(async (input) => {
+      if (requestUrl(input) === 'https://lh3.googleusercontent.com/unavailable.jpg') {
+        return new Response('rate limited', {status: 429});
+      }
+      return Response.json({
+        id_token: await signGoogleIdToken({
+          nonce,
+          picture: 'https://lh3.googleusercontent.com/unavailable.jpg',
+        }),
+      });
+    });
+
+    const response = await callback(state);
+
+    expect(response.headers.get('Set-Cookie')).toContain(SESSION_COOKIE_NAME);
+  });
+
   it('consumes state once even when exchange fails and rejects replay', async () => {
     const login = await SELF.fetch('https://hackweek.test/api/auth/login', {
       redirect: 'manual',
@@ -397,6 +575,10 @@ describe('Google OAuth configuration', () => {
     expect(LOCAL_SESSION_COOKIE_NAME).not.toMatch(/^__Host-/);
   });
 });
+
+function requestUrl(input: string | URL | Request) {
+  return input instanceof Request ? input.url : input instanceof URL ? input.href : input;
+}
 
 async function beginLogin() {
   const login = await SELF.fetch('https://hackweek.test/api/auth/login', {

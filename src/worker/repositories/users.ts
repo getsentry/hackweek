@@ -1,6 +1,7 @@
 import type {AwardSummary} from '../../shared/administration';
 import type {ProjectMember, UserProfileResponse} from '../../shared/projects';
 import {ServiceError} from '../services/errors';
+import {userAvatarKey} from '../services/users';
 import {listProjects} from './projects';
 
 interface UserRow {
@@ -19,6 +20,12 @@ interface AwardRow {
   category_id: string;
   category_name: string;
   name: string;
+}
+
+export async function getUserAvatar(bucket: R2Bucket, userId: string) {
+  const object = await bucket.get(userAvatarKey(userId));
+  if (!object) throw new ServiceError('NOT_FOUND', 'User avatar not found', 404);
+  return object;
 }
 
 export async function getUserProfile(

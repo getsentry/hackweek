@@ -2,6 +2,7 @@ import {Link, useParams} from 'wouter';
 
 import {PageState, QueryState} from '../components/AppLayout';
 import {ProjectCard} from '../components/ProjectCard';
+import {UserAvatar} from '../components/UserAvatar';
 import {useUserProfile} from '../queries/projects';
 
 export function UserPage() {
@@ -17,11 +18,7 @@ export function UserPage() {
               ← hackweek archive
             </Link>
             <div className="userIdentity">
-              {profile.data.user.avatarUrl ? (
-                <img src={profile.data.user.avatarUrl} alt="" />
-              ) : (
-                <span aria-hidden="true">{initials(profile.data.user.displayName)}</span>
-              )}
+              <UserAvatar user={profile.data.user} />
               <div>
                 <p className="kicker">Hackweek maker</p>
                 <h1>{profile.data.user.displayName}</h1>
@@ -104,13 +101,4 @@ function Highlight({value, label}: {value: number; label: string}) {
       <dd>{value}</dd>
     </div>
   );
-}
-
-function initials(value: string) {
-  return value
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join('')
-    .toUpperCase();
 }

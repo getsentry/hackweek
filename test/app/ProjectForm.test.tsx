@@ -448,6 +448,7 @@ const projectFixture: ProjectDetail = {
   members: [alice],
   mediaCount: 0,
   media: [],
+  awards: [],
   nominationCategoryIds: [],
   permissions: {
     canEdit: true,

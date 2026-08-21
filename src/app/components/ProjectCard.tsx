@@ -2,10 +2,12 @@ import {Link} from 'wouter';
 
 import type {ProjectSummary} from '../../shared/projects';
 import {Markdown} from './Markdown';
+import {UserAvatar} from './UserAvatar';
 
 interface ProjectListMember {
   id: string;
   displayName: string;
+  avatarUrl?: string | null;
 }
 
 export function ProjectCard({
@@ -145,19 +147,10 @@ function MemberStack({
           title={member.displayName}
           aria-label={`View ${member.displayName}'s Hackweek profile`}
         >
-          {initials(member.displayName)}
+          <UserAvatar user={member} />
         </Link>
       ))}
       {members.length > 4 && <span>+{members.length - 4}</span>}
     </span>
   );
-}
-
-function initials(value: string) {
-  return value
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join('')
-    .toUpperCase();
 }

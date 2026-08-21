@@ -136,6 +136,7 @@ describe('project and history APIs', () => {
       },
     });
     expect(detail.body.project.nominationCategoryIds).toEqual([]);
+    expect(detail.body.project.awards).toEqual([]);
     expect(allCategoryNominationCount?.count).toBe(0);
     expect(updated.body.project.nominationCategoryIds).toEqual([
       categoryId,
@@ -483,6 +484,57 @@ describe('project and history APIs', () => {
         project.members.some(({displayName}) => displayName === 'Ada Lovelace'),
       ),
     ).toBe(true);
+  });
+
+  it('includes every project award in project details', async () => {
+    const project = await createProject(memberToken, {name: 'Awarded project'});
+    const member = await env.DB.prepare('SELECT id FROM users WHERE google_subject = ?')
+      .bind(`project-member-${suffix}`)
+      .first<{id: string}>();
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO awards
+          (id, source_id, year_id, project_id, category_id, name, creator_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      ).bind(
+        `award-delight-${suffix}`,
+        `award-delight-${suffix}`,
+        yearId,
+        project.id,
+        categoryId,
+        'Most delightful',
+        member!.id,
+      ),
+      env.DB.prepare(
+        `INSERT INTO awards
+          (id, source_id, year_id, project_id, category_id, name, creator_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      ).bind(
+        `award-craft-${suffix}`,
+        `award-craft-${suffix}`,
+        yearId,
+        project.id,
+        secondCategoryId,
+        'Best crafted',
+        member!.id,
+      ),
+    ]);
+
+    const detail = await api(`/projects/${project.id}`, memberToken);
+
+    expect(detail.status).toBe(200);
+    expect(detail.body.project.awards).toEqual([
+      expect.objectContaining({
+        name: 'Best crafted',
+        categoryName: 'Craft',
+        projectId: project.id,
+      }),
+      expect.objectContaining({
+        name: 'Most delightful',
+        categoryName: 'Delight',
+        projectId: project.id,
+      }),
+    ]);
   });
 
   it('returns a user profile with projects, ideas, and awards across years', async () => {

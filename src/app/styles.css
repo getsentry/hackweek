@@ -173,10 +173,23 @@ input:disabled {
   color: var(--danger);
 }
 .identity {
-  display: grid;
+  display: flex;
+  gap: 0.55rem;
+  align-items: center;
   color: var(--ink);
   text-align: right;
   text-decoration: none;
+}
+.identity > .userAvatar {
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 2rem;
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 600;
+  border: 2px solid var(--lavender);
+  border-radius: 50%;
+  background: var(--blurple);
 }
 .identity:hover {
   color: var(--blurple);
@@ -193,15 +206,16 @@ input:disabled {
 .textButton:hover {
   color: var(--blurple);
 }
-.identity span,
-.identity small {
+.identityCopy,
+.identityCopy > span,
+.identityCopy > small {
   display: block;
 }
-.identity span {
+.identityCopy > span {
   font-size: 0.84rem;
   font-weight: 500;
 }
-.identity small {
+.identityCopy > small {
   margin-top: 0.15rem;
   color: var(--muted);
   font-size: 0.72rem;
@@ -1095,6 +1109,10 @@ main {
   border-radius: 50%;
   background: var(--blurple);
 }
+.memberStack > a {
+  overflow: hidden;
+  transition: transform 120ms ease;
+}
 .memberStack > :nth-child(even) {
   color: var(--ink);
   background: var(--pink);
@@ -1103,6 +1121,19 @@ main {
   z-index: 1;
   color: #fff;
   transform: translateY(-2px);
+}
+.userAvatar {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+.userAvatar--fallback {
+  display: grid;
+  place-items: center;
+  color: inherit;
+  background: inherit;
 }
 .openSeat {
   color: var(--blurple);
@@ -1184,8 +1215,7 @@ main {
   align-items: center;
   padding: clamp(2rem, 6vw, 4rem) 0;
 }
-.userIdentity > img,
-.userIdentity > span {
+.userIdentity > .userAvatar {
   display: grid;
   width: clamp(5rem, 12vw, 7rem);
   height: clamp(5rem, 12vw, 7rem);
@@ -1421,6 +1451,60 @@ main {
   min-width: 12rem;
   flex-direction: column;
   gap: 0.6rem;
+}
+.projectAwards {
+  display: grid;
+  grid-template-columns: minmax(12rem, 0.55fr) minmax(0, 1.45fr);
+  gap: clamp(1.5rem, 5vw, 4rem);
+  align-items: center;
+  padding: 1.5rem;
+  margin-top: 2rem;
+  color: #56380a;
+  border: 1px solid #ead07f;
+  border-radius: 0.8rem;
+  background: linear-gradient(135deg, rgba(253, 184, 27, 0.14), transparent 55%), #fff9df;
+  box-shadow: 0 12px 28px rgba(118, 82, 7, 0.08);
+  animation: rise 0.35s ease-out both;
+}
+.projectAwards header h2 {
+  margin: 0;
+  font-size: clamp(1.6rem, 4vw, 2.2rem);
+  letter-spacing: -0.04em;
+}
+.projectAwards ul {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.projectAwards li {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.85rem 1rem;
+  border: 1px solid rgba(118, 82, 7, 0.18);
+  border-radius: 0.65rem;
+  background: rgba(255, 255, 255, 0.78);
+}
+.projectAwards li > span {
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  color: #765207;
+  border-radius: 50%;
+  background: var(--yellow);
+}
+.projectAwards strong,
+.projectAwards small {
+  display: block;
+}
+.projectAwards small {
+  margin-top: 0.2rem;
+  color: #765207;
+  font-size: 0.7rem;
 }
 .detailLayout {
   display: grid;
@@ -1829,15 +1913,16 @@ main {
   padding: 0.8rem 0;
   border-top: 1px solid var(--line);
 }
-.teamPanel li > span {
-  display: grid;
+.teamAvatarLink {
+  display: block;
+  overflow: hidden;
   width: 2.4rem;
   height: 2.4rem;
   flex: 0 0 2.4rem;
-  place-items: center;
   color: #fff;
   font-size: 0.7rem;
   font-weight: 600;
+  text-decoration: none;
   border-radius: 50%;
   background: var(--blurple);
 }
@@ -2299,6 +2384,16 @@ main {
   border-radius: 0.55rem;
   background: #f5f2ff;
 }
+.teamMemberChip > .userAvatar,
+.teamSearchResults .userAvatar {
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 2rem;
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 600;
+  background: var(--blurple);
+}
 .teamMemberChip > span {
   min-width: 0;
 }
@@ -2382,13 +2477,19 @@ main {
   list-style: none;
 }
 .teamSearchResults button {
+  display: flex;
   width: 100%;
+  gap: 0.65rem;
+  align-items: center;
   padding: 0.6rem 0.7rem;
   text-align: left;
   border: 0;
   border-radius: 0.35rem;
   background: transparent;
   cursor: pointer;
+}
+.teamSearchResults button > span {
+  min-width: 0;
 }
 .teamSearchResults button:hover,
 .teamSearchResults button[aria-selected='true'] {
@@ -3527,7 +3628,8 @@ kbd {
   .projectGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .detailLayout {
+  .detailLayout,
+  .projectAwards {
     grid-template-columns: 1fr;
   }
   .projectVotingCategory {
@@ -3560,7 +3662,7 @@ kbd {
   .masthead nav a {
     min-height: 2.8rem;
   }
-  .identity span,
+  .identityCopy,
   .viewModeSwitch > span {
     display: none;
   }

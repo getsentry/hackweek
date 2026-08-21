@@ -5,6 +5,7 @@ import {Link, useLocation, useParams} from 'wouter';
 import {QueryState} from '../components/AppLayout';
 import {Markdown} from '../components/Markdown';
 import {ProjectVoting} from '../components/ProjectVoting';
+import {UserAvatar} from '../components/UserAvatar';
 import {useBallotStatus} from '../queries/administration';
 import {getPlayback, useProjectVideo} from '../queries/videos';
 import {ProjectVideoPanel} from '../video/ProjectVideoPanel';
@@ -108,6 +109,29 @@ export function ProjectDetailsPage() {
               {actionError}
             </p>
           )}
+          {project.data.project.awards.length > 0 && (
+            <section className="projectAwards" aria-labelledby="project-awards-title">
+              <header>
+                <p className="kicker">Hackweek honors</p>
+                <h2 id="project-awards-title">
+                  {project.data.project.awards.length === 1
+                    ? 'award winner'
+                    : 'award winners'}
+                </h2>
+              </header>
+              <ul>
+                {project.data.project.awards.map((award) => (
+                  <li key={award.id}>
+                    <span aria-hidden="true">🏆</span>
+                    <div>
+                      <strong>{award.name}</strong>
+                      <small>{award.categoryName}</small>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
           <div className="detailLayout">
             <article className="projectNarrative">
               <p className="kicker">project summary</p>
@@ -143,7 +167,13 @@ export function ProjectDetailsPage() {
               <ul>
                 {project.data.project.members.map((member) => (
                   <li key={member.id}>
-                    <span>{initials(member.displayName)}</span>
+                    <Link
+                      className="teamAvatarLink"
+                      href={`/users/${member.id}`}
+                      aria-label={`View ${member.displayName}'s Hackweek profile`}
+                    >
+                      <UserAvatar user={member} />
+                    </Link>
                     <Link href={`/users/${member.id}`}>
                       <strong>{member.displayName}</strong>
                       <small>{member.email}</small>
@@ -275,15 +305,6 @@ export function ProjectDetailsPage() {
       )}
     </QueryState>
   );
-}
-
-function initials(value: string) {
-  return value
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join('')
-    .toUpperCase();
 }
 
 function isImageMediaType(mediaType: string | null) {

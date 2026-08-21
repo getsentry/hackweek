@@ -51,6 +51,7 @@ export interface ProjectSummary {
 
 export interface ProjectDetail extends ProjectSummary {
   media: MediaSummary[];
+  awards: AwardSummary[];
   nominationCategoryIds: string[];
   permissions: {
     canEdit: boolean;

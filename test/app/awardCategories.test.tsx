@@ -20,6 +20,8 @@ describe('getAwardCategoryDescription', () => {
   });
 
   it('gives new categories useful fallback guidance', () => {
-    expect(getAwardCategoryDescription('Wildcard')).toContain('best embodies this award');
+    expect(getAwardCategoryDescription('Wildcard')).toBe(
+      'A focused award category for projects that best fit this theme.',
+    );
   });
 });

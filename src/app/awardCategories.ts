@@ -22,10 +22,10 @@ const CATEGORY_GUIDANCE = [
 ] as const;
 
 const DEFAULT_GUIDANCE =
-  'Choose the project that best embodies this award. Look for a clear fit with the category, not just your overall favorite.';
+  'A focused award category for projects that best fit this theme.';
 
 export function getAwardCategoryDescription(name: string) {
-  const normalizedName = name.trim().toLocaleLowerCase();
+  const normalizedName = name.trim().toLowerCase();
   return (
     CATEGORY_GUIDANCE.find(({matches}) =>
       matches.some((match) => normalizedName.includes(match)),

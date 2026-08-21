@@ -277,10 +277,25 @@ describe('video user experience', () => {
     expect(screen.getByRole('button', {name: 'play all'})).toBeTruthy();
     expect(screen.getByRole('heading', {name: 'choose a group'})).toBeTruthy();
     expect(
+      screen.getByText('2 ready videos · 1:25 total · 0:10 interludes'),
+    ).toBeTruthy();
+    expect(
       screen
-        .getByRole('button', {name: 'all groups 2 videos'})
+        .getByRole('button', {
+          name: 'all groups 2 videos 1:25 total · 0:10 interludes',
+        })
         .getAttribute('aria-pressed'),
     ).toBe('true');
+    expect(
+      screen.getByRole('button', {
+        name: 'Europe 1 video 0:35 total · 0:05 interludes',
+      }),
+    ).toBeTruthy();
+    expect(
+      screen.getByRole('button', {
+        name: 'Americas 1 video 0:50 total · 0:05 interludes',
+      }),
+    ).toBeTruthy();
     expect(screen.getByRole('heading', {name: 'playlist'})).toBeTruthy();
     expect(screen.getByText('Ada Lovelace · Grace Hopper')).toBeTruthy();
     const firstRow = screen
@@ -297,10 +312,19 @@ describe('video user experience', () => {
       ),
     ).toBeNull();
 
-    await userEvent.click(screen.getByRole('button', {name: 'Europe 1 video'}));
+    await userEvent.click(
+      screen.getByRole('button', {
+        name: 'Europe 1 video 0:35 total · 0:05 interludes',
+      }),
+    );
     expect(
-      screen.getByRole('button', {name: 'Europe 1 video'}).getAttribute('aria-pressed'),
+      screen
+        .getByRole('button', {
+          name: 'Europe 1 video 0:35 total · 0:05 interludes',
+        })
+        .getAttribute('aria-pressed'),
     ).toBe('true');
+    expect(screen.getByText('1 ready video · 0:35 total · 0:05 interludes')).toBeTruthy();
     expect(screen.getByRole('heading', {name: 'Europe playlist'})).toBeTruthy();
     expect(
       screen.getByRole('button', {name: 'start reel from First project'}),

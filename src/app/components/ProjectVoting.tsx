@@ -5,6 +5,7 @@ import type {
   BallotSelection,
   BallotStatusResponse,
 } from '../../shared/administration';
+import {getAwardCategoryDescription} from '../awardCategories';
 import {useVoteMutation} from '../queries/administration';
 
 export function ProjectVoting({
@@ -113,6 +114,9 @@ export function ProjectVoting({
                 </span>
                 <div className="projectVotingCategoryCopy">
                   <h3>{category.name}</h3>
+                  <p className="awardCategoryDescription">
+                    {getAwardCategoryDescription(category.name)}
+                  </p>
                   {!entered ? (
                     selectedHere ? (
                       <p>

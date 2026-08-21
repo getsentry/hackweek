@@ -2,6 +2,7 @@ import {useEffect, useRef, useState} from 'react';
 import {Link, useParams} from 'wouter';
 
 import type {BallotStatusResponse} from '../../shared/administration';
+import {getAwardCategoryDescription} from '../awardCategories';
 import {GroupManager} from '../components/GroupManager';
 import {ProjectCard} from '../components/ProjectCard';
 import {PageState, QueryState} from '../components/AppLayout';
@@ -254,6 +255,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                     href={`/years/${yearId}/projects/${award.projectId}`}
                   >
                     <span>{award.categoryName}</span>
+                    <small>{getAwardCategoryDescription(award.categoryName)}</small>
                     <strong>{award.projectName}</strong>
                   </Link>
                 ))}
@@ -446,7 +448,10 @@ function BallotOverview({
           <ul>
             {selections.map(({category, vote}) => (
               <li key={category.id}>
-                <span>{category.name}</span>
+                <span className="ballotCategoryCopy">
+                  <strong>{category.name}</strong>
+                  <small>{getAwardCategoryDescription(category.name)}</small>
+                </span>
                 {vote.projectActive && vote.nominationEligible ? (
                   <Link href={`/years/${yearId}/projects/${vote.projectId}`}>
                     {vote.projectName} <span aria-hidden="true">→</span>

@@ -10,6 +10,7 @@ import {AppLayout} from '../../src/app/components/AppLayout';
 import {ProjectCard} from '../../src/app/components/ProjectCard';
 import {ProjectDetailsPage} from '../../src/app/routes/ProjectDetailsPage';
 import {ProjectsPage} from '../../src/app/routes/ProjectsPage';
+import {UserPage} from '../../src/app/routes/UserPage';
 import {YearsPage} from '../../src/app/routes/YearsPage';
 import type {BallotStatusResponse} from '../../src/shared/administration';
 import type {ProjectDetail} from '../../src/shared/projects';
@@ -952,6 +953,9 @@ describe('clickable project routes', () => {
     const input = within(search).getByLabelText('Search projects and ideas');
     expect(input.getAttribute('type')).toBe('search');
     expect(input.getAttribute('maxlength')).toBe('100');
+    expect(input.getAttribute('placeholder')).toBe(
+      'Search titles, descriptions, and people',
+    );
 
     await userEvent.selectOptions(screen.getByLabelText('Group'), 'group');
     await waitFor(() =>
@@ -1003,6 +1007,59 @@ describe('clickable project routes', () => {
         lastInput instanceof Request ? lastInput.url : lastInput?.toString();
       expect(lastUrl).not.toContain('q=');
     });
+  });
+
+  it('renders a user history with highlights, awards, projects, and ideas', async () => {
+    fetchMock.mockResolvedValue(
+      json({
+        user: projectFixture.creator,
+        highlights: {
+          hackweekCount: 2,
+          projectCount: 2,
+          ideaCount: 1,
+          awardCount: 1,
+        },
+        awards: [
+          {
+            id: 'award',
+            yearId: '2026',
+            projectId: 'project',
+            projectName: 'A small machine',
+            categoryId: 'delight',
+            categoryName: 'Delight',
+            name: 'Most delightful',
+          },
+        ],
+        years: [
+          {yearId: '2026', projects: [projectFixture]},
+          {
+            yearId: '2025',
+            projects: [
+              {
+                ...projectFixture,
+                id: 'idea',
+                yearId: '2025',
+                name: 'A bright idea',
+                kind: 'idea',
+                members: [],
+              },
+            ],
+          },
+        ],
+      }),
+    );
+
+    renderRoute(<UserPage />, '/users/member', '/users/:userId');
+
+    expect(await screen.findByRole('heading', {name: 'Member One'})).toBeTruthy();
+    const highlights = screen.getByLabelText('Hackweek highlights');
+    expect(within(highlights).getAllByText('2', {selector: 'dd'})).toHaveLength(2);
+    expect(within(highlights).getByText('Ideas opened')).toBeTruthy();
+    expect(screen.getByRole('heading', {name: 'award shelf'})).toBeTruthy();
+    expect(screen.getByRole('link', {name: /Most delightful/})).toBeTruthy();
+    expect(screen.getByRole('heading', {name: 'A small machine'})).toBeTruthy();
+    expect(screen.getByRole('heading', {name: 'A bright idea'})).toBeTruthy();
+    expect(fetchMock).toHaveBeenCalledWith('/api/users/member', undefined);
   });
 
   it('adds every open award category before project media and video', async () => {

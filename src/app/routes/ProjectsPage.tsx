@@ -156,7 +156,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                 type="search"
                 value={searchInput}
                 maxLength={100}
-                placeholder="Search titles and descriptions"
+                placeholder="Search titles, descriptions, and people"
                 onChange={(event) => {
                   paginationRequestPending.current = false;
                   setSearchInput(event.target.value);

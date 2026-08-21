@@ -66,13 +66,14 @@ export function AppLayout({
               {viewModeError && <small role="status">{viewModeError}</small>}
             </div>
           )}
-          <div
+          <Link
             className="identity"
+            href={`/users/${user.id}`}
             aria-label={`signed in as ${user.displayName}, ${user.role}`}
           >
             <span>{user.displayName}</span>
             <small>{user.role}</small>
-          </div>
+          </Link>
           <form action="/api/auth/logout" method="post">
             <button className="textButton" type="submit">
               sign out

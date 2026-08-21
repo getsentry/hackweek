@@ -139,9 +139,14 @@ function MemberStack({
       aria-label={members.map(({displayName}) => displayName).join(', ')}
     >
       {members.slice(0, 4).map((member) => (
-        <span key={member.id} title={member.displayName}>
+        <Link
+          href={`/users/${member.id}`}
+          key={member.id}
+          title={member.displayName}
+          aria-label={`View ${member.displayName}'s Hackweek profile`}
+        >
           {initials(member.displayName)}
-        </span>
+        </Link>
       ))}
       {members.length > 4 && <span>+{members.length - 4}</span>}
     </span>

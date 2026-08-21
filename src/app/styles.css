@@ -173,7 +173,13 @@ input:disabled {
   color: var(--danger);
 }
 .identity {
+  display: grid;
+  color: var(--ink);
   text-align: right;
+  text-decoration: none;
+}
+.identity:hover {
+  color: var(--blurple);
 }
 .textButton {
   padding: 0;
@@ -227,6 +233,7 @@ main {
 .archivePage,
 .projectsPage,
 .detailPage,
+.userPage,
 .editorPage,
 .operationsPage {
   width: 100%;
@@ -983,7 +990,8 @@ main {
   padding: 0.27rem 0.5rem;
   font-size: 0.65rem;
 }
-.projectRow .memberStack > span {
+.projectRow .memberStack > span,
+.projectRow .memberStack > a {
   width: 1.65rem;
   height: 1.65rem;
   font-size: 0.55rem;
@@ -1072,7 +1080,8 @@ main {
 .memberStack {
   display: flex;
 }
-.memberStack > span {
+.memberStack > span,
+.memberStack > a {
   display: grid;
   width: 2rem;
   height: 2rem;
@@ -1081,13 +1090,19 @@ main {
   color: #fff;
   font-size: 0.62rem;
   font-weight: 600;
+  text-decoration: none;
   border: 2px solid #fff;
   border-radius: 50%;
   background: var(--blurple);
 }
-.memberStack > span:nth-child(even) {
+.memberStack > :nth-child(even) {
   color: var(--ink);
   background: var(--pink);
+}
+.memberStack > a:hover {
+  z-index: 1;
+  color: #fff;
+  transform: translateY(-2px);
 }
 .openSeat {
   color: var(--blurple);
@@ -1142,6 +1157,158 @@ main {
   color: var(--muted);
   font-size: 0.68rem;
   line-height: 1.4;
+}
+
+.userHero {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(1.5rem, 4vw, 3rem);
+  color: #fff;
+  border-radius: 1rem;
+  background:
+    radial-gradient(circle at 88% 16%, rgba(255, 112, 188, 0.48), transparent 24%),
+    linear-gradient(135deg, var(--dark-blurple), #7553ff 72%);
+  box-shadow: 0 18px 40px rgba(29, 17, 39, 0.2);
+  animation: rise 0.35s ease-out both;
+}
+.userHero .backLink,
+.userHero a {
+  color: rgba(255, 255, 255, 0.82);
+}
+.userHero .kicker {
+  color: var(--pink);
+}
+.userIdentity {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  padding: clamp(2rem, 6vw, 4rem) 0;
+}
+.userIdentity > img,
+.userIdentity > span {
+  display: grid;
+  width: clamp(5rem, 12vw, 7rem);
+  height: clamp(5rem, 12vw, 7rem);
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--ink);
+  font-size: clamp(1.5rem, 4vw, 2.35rem);
+  font-weight: 700;
+  border: 4px solid rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  background: var(--pink);
+  object-fit: cover;
+}
+.userIdentity h1 {
+  margin: 0 0 0.65rem;
+  font-size: clamp(2.5rem, 7vw, 4.5rem);
+  line-height: 0.95;
+  letter-spacing: -0.06em;
+}
+.userIdentity a {
+  font-size: 0.82rem;
+}
+.userHighlights {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  padding: 0;
+  margin: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.22);
+}
+.userHighlights > div {
+  display: flex;
+  padding: 1.25rem 1rem 0 0;
+  flex-direction: column-reverse;
+}
+.userHighlights dt {
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.userHighlights dd {
+  margin: 0 0 0.2rem;
+  font-size: clamp(1.6rem, 4vw, 2.25rem);
+  font-weight: 700;
+}
+.userAwards {
+  padding: 2rem;
+  margin: 2rem 0 0;
+  border: 1px solid #ead07f;
+  border-radius: 0.8rem;
+  background: #fff9df;
+}
+.userAwards > header h2 {
+  margin: 0;
+  font-size: 1.8rem;
+}
+.userAwards > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+.userAwards a {
+  display: grid;
+  gap: 0.25rem;
+  padding: 1rem;
+  text-decoration: none;
+  border: 1px solid rgba(118, 82, 7, 0.2);
+  border-radius: 0.65rem;
+  background: #fff;
+}
+.userAwards span,
+.userAwards small {
+  color: #765207;
+  font-size: 0.7rem;
+}
+.userTimeline {
+  margin-top: clamp(3rem, 7vw, 5rem);
+}
+.userYear {
+  position: relative;
+  padding-left: 5rem;
+  margin-bottom: 4rem;
+}
+.userYear::before {
+  position: absolute;
+  top: 0.5rem;
+  bottom: -4rem;
+  left: 1.4rem;
+  width: 1px;
+  content: '';
+  background: var(--line);
+}
+.userYear::after {
+  position: absolute;
+  top: 0.35rem;
+  left: 1rem;
+  width: 0.8rem;
+  height: 0.8rem;
+  content: '';
+  border: 3px solid var(--paper);
+  border-radius: 50%;
+  background: var(--blurple);
+  box-shadow: 0 0 0 1px var(--blurple);
+}
+.userYear:last-child::before {
+  display: none;
+}
+.userYear > header {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  padding-bottom: 1.25rem;
+}
+.userYear h2 {
+  margin: 0;
+  font-size: 2rem;
+  letter-spacing: -0.04em;
+}
+.userYear > header > a {
+  color: var(--muted);
+  font-size: 0.78rem;
 }
 
 .groupManager {
@@ -3403,6 +3570,7 @@ kbd {
   }
   .yearTimeline,
   .projectGrid,
+  .userAwards > div,
   .adminGrid,
   .metricGrid {
     grid-template-columns: 1fr;
@@ -3467,6 +3635,28 @@ kbd {
   }
   .detailActions {
     min-width: 0;
+  }
+  .userIdentity {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .userIdentity h1 {
+    overflow-wrap: anywhere;
+  }
+  .userHighlights {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .userYear {
+    padding-left: 2.5rem;
+  }
+  .userYear::before {
+    left: 0.4rem;
+  }
+  .userYear::after {
+    left: 0;
+  }
+  .userYear > header {
+    gap: 1rem;
   }
   .projectVoting > header,
   .projectVotingOwn,

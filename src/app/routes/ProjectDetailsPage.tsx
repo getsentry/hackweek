@@ -61,7 +61,12 @@ export function ProjectDetailsPage() {
                 {project.data.project.needsHelp && <span>Looking for help</span>}
               </div>
               <h1>{project.data.project.name}</h1>
-              <p>created by {project.data.project.creator.displayName}</p>
+              <p>
+                created by{' '}
+                <Link href={`/users/${project.data.project.creator.id}`}>
+                  {project.data.project.creator.displayName}
+                </Link>
+              </p>
             </div>
             <div className="detailActions">
               {project.data.project.permissions.canClaim && (
@@ -139,10 +144,10 @@ export function ProjectDetailsPage() {
                 {project.data.project.members.map((member) => (
                   <li key={member.id}>
                     <span>{initials(member.displayName)}</span>
-                    <a href={`mailto:${member.email}`}>
+                    <Link href={`/users/${member.id}`}>
                       <strong>{member.displayName}</strong>
                       <small>{member.email}</small>
-                    </a>
+                    </Link>
                   </li>
                 ))}
               </ul>

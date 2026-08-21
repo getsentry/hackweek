@@ -7,6 +7,7 @@ import {AdminPage} from './routes/AdminPage';
 import {EditProjectPage, NewProjectPage} from './routes/ProjectEditorPage';
 import {ProjectDetailsPage} from './routes/ProjectDetailsPage';
 import {ProjectsPage} from './routes/ProjectsPage';
+import {UserPage} from './routes/UserPage';
 import {YearAdministrationPage} from './routes/YearAdministrationPage';
 import {ProjectVideoWatchPage, VideoWatchPage, WatchPage} from './routes/WatchPage';
 import {YearsPage} from './routes/YearsPage';
@@ -54,6 +55,7 @@ export function App() {
     <AppLayout user={session.user} onViewModeChange={session.setViewMode}>
       <Switch>
         <Route path="/years" component={YearsPage} />
+        <Route path="/users/:userId" component={UserPage} />
         <Route path="/admin/analytics">
           {session.user.role === 'admin' ? (
             <AdminAnalyticsPage />

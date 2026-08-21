@@ -80,6 +80,23 @@ export interface ProjectResponse {
   project: ProjectDetail;
 }
 
+export interface UserProfileYear {
+  yearId: string;
+  projects: ProjectSummary[];
+}
+
+export interface UserProfileResponse {
+  user: ProjectMember;
+  highlights: {
+    hackweekCount: number;
+    projectCount: number;
+    ideaCount: number;
+    awardCount: number;
+  };
+  awards: AwardSummary[];
+  years: UserProfileYear[];
+}
+
 export interface ProjectOptionsResponse {
   users: ProjectMember[];
   groups: GroupSummary[];

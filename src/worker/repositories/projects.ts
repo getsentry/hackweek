@@ -171,6 +171,7 @@ export async function listProjects(
     kind?: 'project' | 'idea';
     groupId?: string;
     search?: string;
+    userId?: string;
     limit: number;
     offset: number;
   },
@@ -186,15 +187,30 @@ export async function listProjects(
     conditions.push('p.group_id = ?');
     bindings.push(options.groupId);
   }
+  if (options.userId) {
+    conditions.push(
+      `(p.creator_id = ? OR EXISTS (
+        SELECT 1 FROM project_members profile_member
+        WHERE profile_member.project_id = p.id AND profile_member.user_id = ?
+      ))`,
+    );
+    bindings.push(options.userId, options.userId);
+  }
   let relevanceOrder = '';
   if (options.search) {
     const escapedSearch = escapeLikePattern(options.search);
     const containsPattern = `%${escapedSearch}%`;
     conditions.push(
       `(LOWER(p.name) LIKE LOWER(?) ESCAPE '\\'
-        OR LOWER(COALESCE(p.summary, '')) LIKE LOWER(?) ESCAPE '\\')`,
+        OR LOWER(COALESCE(p.summary, '')) LIKE LOWER(?) ESCAPE '\\'
+        OR EXISTS (
+          SELECT 1 FROM project_members search_member
+          JOIN users search_user ON search_user.id = search_member.user_id
+          WHERE search_member.project_id = p.id
+            AND LOWER(search_user.display_name) LIKE LOWER(?) ESCAPE '\\'
+        ))`,
     );
-    bindings.push(containsPattern, containsPattern);
+    bindings.push(containsPattern, containsPattern, containsPattern);
     relevanceOrder = `CASE
          WHEN LOWER(p.name) = LOWER(?) THEN 0
          WHEN LOWER(p.name) LIKE LOWER(?) ESCAPE '\\' THEN 1

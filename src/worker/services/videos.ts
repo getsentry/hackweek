@@ -133,15 +133,20 @@ export async function listPlaylist(
   if (!results.length) return [];
 
   const membersByProject = new Map<string, Array<{id: string; displayName: string}>>();
-  const projectIds = results.map((row) => row.project_id);
   const members = await db
     .prepare(
       `SELECT pm.project_id, u.id user_id, u.display_name
-       FROM project_members pm JOIN users u ON u.id = pm.user_id
-       WHERE pm.project_id IN (${projectIds.map(() => '?').join(', ')})
+       FROM project_members pm
+       JOIN users u ON u.id = pm.user_id
+       JOIN projects p ON p.id = pm.project_id
+       JOIN video_submissions pv ON pv.project_id = p.id
+       WHERE p.year_id = ? AND p.status = 'active' AND p.kind = 'project'
+         AND pv.status = 'ready' AND pv.retired_at IS NULL
+         AND pv.processed_r2_key IS NOT NULL
+         AND pv.duration_seconds IS NOT NULL AND pv.gain_db IS NOT NULL
        ORDER BY pm.project_id, u.display_name COLLATE NOCASE, u.id`,
     )
-    .bind(...projectIds)
+    .bind(yearId)
     .all<{project_id: string; user_id: string; display_name: string}>();
   for (const member of members.results) {
     const projectMembers = membersByProject.get(member.project_id) ?? [];

@@ -793,6 +793,58 @@ describe('R2 multipart video lifecycle', () => {
     expect(memberArchive.body.videos).toHaveLength(1);
   });
 
+  it('returns playlists with more than 100 ready projects', async () => {
+    const statements: D1PreparedStatement[] = [];
+    for (let index = 0; index < 101; index += 1) {
+      const fixture = String(index).padStart(3, '0');
+      const bulkProjectId = `bulk-project-${suffix}-${fixture}`;
+      const videoId = `bulk-video-${suffix}-${fixture}`;
+      statements.push(
+        env.DB.prepare(
+          `INSERT INTO projects
+           (id, source_id, year_id, creator_id, group_id, name)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+        ).bind(
+          bulkProjectId,
+          bulkProjectId,
+          yearId,
+          ownerId,
+          groupId,
+          `Bulk project ${fixture}`,
+        ),
+        env.DB.prepare(
+          `INSERT INTO video_submissions
+           (id, project_id, original_name, size_bytes, original_r2_key,
+            processed_r2_key, status, duration_seconds, gain_db)
+           VALUES (?, ?, 'bulk.mp4', 1, ?, ?, 'ready', 1, 0)`,
+        ).bind(
+          videoId,
+          bulkProjectId,
+          `bulk-original-${suffix}-${fixture}`,
+          `bulk-processed-${suffix}-${fixture}`,
+        ),
+      );
+    }
+    for (let index = 0; index < statements.length; index += 50) {
+      await env.DB.batch(statements.slice(index, index + 50));
+    }
+    await env.DB.batch([
+      env.DB.prepare(
+        'INSERT INTO project_members (project_id, user_id) VALUES (?, ?)',
+      ).bind(`bulk-project-${suffix}-100`, memberId),
+      env.DB.prepare('UPDATE users SET is_admin = 1 WHERE id = ?').bind(ownerId),
+    ]);
+
+    const playlist = await api(`/videos/playlist?year=${yearId}`, ownerToken);
+
+    expect(playlist.status).toBe(200);
+    expect(playlist.body.videos).toHaveLength(101);
+    expect(playlist.body.videos[100]).toMatchObject({
+      projectName: 'Bulk project 100',
+      teamMembers: [{displayName: 'Hackweek Member'}],
+    });
+  });
+
   it('limits local processing to one while independent projects remain queued', async () => {
     const leftProject = await createProject('Processor left');
     const rightProject = await createProject('Processor right');

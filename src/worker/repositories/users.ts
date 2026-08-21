@@ -57,8 +57,10 @@ export async function getUserAvatar(
     avatarUrl: user.avatar_url,
   });
   if (!refreshed) throw new ServiceError('NOT_FOUND', 'User avatar not found', 404);
+  const body = new Response(refreshed.content).body;
+  if (!body) throw new ServiceError('NOT_FOUND', 'User avatar not found', 404);
   return {
-    body: new Response(refreshed.content).body!,
+    body,
     size: refreshed.content.byteLength,
     httpEtag: null,
     contentType: refreshed.contentType,

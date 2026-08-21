@@ -471,6 +471,64 @@ describe('clickable project routes', () => {
     expect(listBadge.closest('.projectRow')).toBeTruthy();
   });
 
+  it('marks playable videos in both views and filters projects by video', async () => {
+    const readyProject = {...projectFixture, hasVideo: true};
+    const projectWithoutVideo = {
+      ...projectFixture,
+      id: 'project-without-video',
+      name: 'Still recording',
+      hasVideo: false,
+    };
+    fetchMock.mockImplementation(async (input) => {
+      const url = input instanceof Request ? input.url : input.toString();
+      if (url.includes('/api/years/2026')) {
+        return json({
+          year: {
+            id: '2026',
+            votingEnabled: false,
+            submissionsClosed: false,
+            projectCount: 2,
+            ideaCount: 0,
+            groupCount: 1,
+            participantCount: 1,
+          },
+          groups: [{id: 'group', yearId: '2026', name: 'Orbital', projectCount: 2}],
+          awards: [],
+        });
+      }
+      const hasVideo = new URL(url, 'https://hackweek.test').searchParams.get('hasVideo');
+      return json({
+        projects:
+          hasVideo === 'true' ? [readyProject] : [readyProject, projectWithoutVideo],
+        nextCursor: null,
+      });
+    });
+
+    renderRoute(<ProjectsPage />, '/years/2026/projects', '/years/:yearId/projects');
+
+    const gridTag = await screen.findByText('has video');
+    expect(gridTag.closest('.projectCard')).toBeTruthy();
+    expect(screen.getByRole('heading', {name: 'Still recording'})).toBeTruthy();
+    expect(screen.getAllByText('has video')).toHaveLength(1);
+
+    await userEvent.click(screen.getByRole('button', {name: 'list view'}));
+    const listTag = screen.getByText('has video');
+    expect(listTag.closest('.projectRow')).toBeTruthy();
+
+    await userEvent.click(screen.getByRole('checkbox', {name: 'Has video'}));
+
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining('hasVideo=true'),
+        undefined,
+      ),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole('heading', {name: 'Still recording'})).toBeNull(),
+    );
+    expect(screen.getByRole('heading', {name: 'A small machine'})).toBeTruthy();
+  });
+
   it('keeps closed-year browsing and ballot read failures local', async () => {
     mockProjectsOverview({votingEnabled: false, projects: [projectFixture]});
     const closed = renderRoute(
@@ -1598,6 +1656,7 @@ const projectFixture: ProjectDetail = {
     },
   ],
   mediaCount: 0,
+  hasVideo: false,
   media: [],
   nominationCategoryIds: [],
   permissions: {

@@ -447,6 +447,7 @@ const projectFixture: ProjectDetail = {
   group: {id: 'group', yearId: '2026', name: 'Orbital', projectCount: 1},
   members: [alice],
   mediaCount: 0,
+  hasVideo: false,
   media: [],
   nominationCategoryIds: [],
   permissions: {

@@ -889,6 +889,18 @@ main {
   background: #fff;
   box-shadow: 0 1px 2px rgba(29, 17, 39, 0.12);
 }
+.projectVideoFilter {
+  min-height: 2.5rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid #c9c3d1;
+  border-radius: 0.5rem;
+  background: #fff;
+  cursor: pointer;
+}
+.projectVideoFilter input {
+  margin: 0;
+  accent-color: var(--blurple);
+}
 .projectControls label,
 .operationsBar label {
   display: flex;
@@ -1036,6 +1048,11 @@ main {
   border: 1px solid #d2bfff;
   border-radius: 999px;
   background: #e9d8fd;
+}
+.tag--video {
+  color: #305500;
+  border-color: #b8db78;
+  background: #f0ffd7;
 }
 .tag--help,
 .detailTags span + span {

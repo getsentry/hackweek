@@ -47,6 +47,7 @@ export interface ProjectSummary {
   group: GroupSummary | null;
   members: ProjectMember[];
   mediaCount: number;
+  hasVideo: boolean;
 }
 
 export interface ProjectDetail extends ProjectSummary {

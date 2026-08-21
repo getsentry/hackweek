@@ -36,6 +36,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
   const {yearId} = useParams<{yearId: string}>();
   const [kind, setKind] = useState<'project' | 'idea'>('project');
   const [group, setGroup] = useState('');
+  const [hasVideoOnly, setHasVideoOnly] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [cursor, setCursor] = useState<string | undefined>();
@@ -50,6 +51,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
     kind,
     kind === 'project' ? group || undefined : undefined,
     search || undefined,
+    kind === 'project' && hasVideoOnly ? true : undefined,
     cursor,
   );
   const error = year.error ?? projects.error;
@@ -226,6 +228,19 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                   </select>
                 </label>
               )}
+              {kind === 'project' && (
+                <label className="projectVideoFilter">
+                  <input
+                    type="checkbox"
+                    checked={hasVideoOnly}
+                    onChange={(event) => {
+                      setHasVideoOnly(event.target.checked);
+                      resetPagination();
+                    }}
+                  />
+                  <span>Has video</span>
+                </label>
+              )}
               <div className="projectViewToggle" role="group" aria-label="Project view">
                 {(['grid', 'list'] as const).map((option) => (
                   <button
@@ -272,7 +287,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
               <span>∅</span>
               <h2>No {kind === 'idea' ? 'ideas' : 'projects'} found</h2>
               <p>
-                {search
+                {search || (kind === 'project' && hasVideoOnly)
                   ? 'try another search or adjust the filters.'
                   : `try another group or add the first ${kind} for this Hackweek.`}
               </p>

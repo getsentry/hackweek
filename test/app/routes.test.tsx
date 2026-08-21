@@ -722,6 +722,50 @@ describe('clickable project routes', () => {
     });
   });
 
+  it('omits the group filter from idea detail links', async () => {
+    fetchMock.mockImplementation(async (input) => {
+      const url = requestUrl(input);
+      if (url.includes('/api/years/2026')) {
+        return json({
+          year: {
+            id: '2026',
+            votingEnabled: false,
+            submissionsClosed: false,
+            projectCount: 1,
+            ideaCount: 1,
+            groupCount: 1,
+            participantCount: 1,
+          },
+          groups: [{id: 'group', yearId: '2026', name: 'Orbital', projectCount: 1}],
+          awards: [],
+        });
+      }
+      return json({
+        projects: [
+          {
+            ...projectFixture,
+            id: 'idea',
+            name: 'Open idea',
+            kind: 'idea',
+            group: null,
+          },
+        ],
+        nextCursor: null,
+      });
+    });
+
+    renderRoute(
+      <ProjectsPage />,
+      '/years/2026/projects?group=group',
+      '/years/:yearId/projects',
+    );
+
+    await userEvent.click(await screen.findByRole('button', {name: /Ideas/}));
+    expect(
+      (await screen.findByRole('link', {name: 'Open idea'})).getAttribute('href'),
+    ).toBe('/years/2026/projects/idea');
+  });
+
   it('keeps the selected group when viewing a project and returning', async () => {
     fetchMock.mockImplementation(async (input) => {
       const url = requestUrl(input);

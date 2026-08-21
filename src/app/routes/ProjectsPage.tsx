@@ -297,7 +297,11 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                   project={project}
                   view={view}
                   voteCategories={voteCategoriesByProject.get(project.id)}
-                  detailsSearch={group ? `group=${encodeURIComponent(group)}` : undefined}
+                  detailsSearch={
+                    kind === 'project' && group
+                      ? `group=${encodeURIComponent(group)}`
+                      : undefined
+                  }
                   key={project.id}
                 />
               ))}

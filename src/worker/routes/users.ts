@@ -10,10 +10,13 @@ export const usersRoutes = new Hono<WorkerEnv>();
 
 usersRoutes.get('/:userId/avatar', async (c) => {
   try {
-    const object = await getUserAvatar(c.env.ATTACHMENTS, c.req.param('userId'));
+    const object = await getUserAvatar(
+      c.env.DB,
+      c.env.ATTACHMENTS,
+      c.req.param('userId'),
+    );
     const headers = new Headers();
-    object.writeHttpMetadata(headers);
-    const contentType = safeAvatarContentType(object.httpMetadata?.contentType);
+    const contentType = safeAvatarContentType(object.contentType);
     if (!contentType) {
       headers.set('Content-Type', 'application/octet-stream');
       headers.set('Content-Disposition', 'attachment');

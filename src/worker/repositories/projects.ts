@@ -174,19 +174,25 @@ export async function listProjectOptions(db: D1Database, yearId: string) {
   };
 }
 
-export async function listProjects(
-  db: D1Database,
-  options: {
-    yearId: string;
-    kind?: 'project' | 'idea';
-    groupId?: string;
-    search?: string;
-    userId?: string;
-    limit: number;
-    offset: number;
-  },
-) {
+interface ListProjectsOptions {
+  yearId: string;
+  kind?: 'project' | 'idea';
+  groupId?: string;
+  search?: string;
+  userId?: string;
+  limit: number;
+  offset: number;
+}
+
+export async function listProjects(db: D1Database, options: ListProjectsOptions) {
   await getYear(db, options.yearId);
+  return listProjectsForExistingYear(db, options);
+}
+
+export async function listProjectsForExistingYear(
+  db: D1Database,
+  options: ListProjectsOptions,
+) {
   const conditions = ['p.year_id = ?', "p.status = 'active'"];
   const bindings: unknown[] = [options.yearId];
   if (options.kind) {
@@ -199,7 +205,7 @@ export async function listProjects(
   }
   if (options.userId) {
     conditions.push(
-      `(p.creator_id = ? OR EXISTS (
+      `((p.kind = 'idea' AND p.creator_id = ?) OR EXISTS (
         SELECT 1 FROM project_members profile_member
         WHERE profile_member.project_id = p.id AND profile_member.user_id = ?
       ))`,
@@ -213,6 +219,7 @@ export async function listProjects(
     conditions.push(
       `(LOWER(p.name) LIKE LOWER(?) ESCAPE '\\'
         OR LOWER(COALESCE(p.summary, '')) LIKE LOWER(?) ESCAPE '\\'
+        OR (p.kind = 'idea' AND LOWER(u.display_name) LIKE LOWER(?) ESCAPE '\\')
         OR EXISTS (
           SELECT 1 FROM project_members search_member
           JOIN users search_user ON search_user.id = search_member.user_id
@@ -220,7 +227,7 @@ export async function listProjects(
             AND LOWER(search_user.display_name) LIKE LOWER(?) ESCAPE '\\'
         ))`,
     );
-    bindings.push(containsPattern, containsPattern, containsPattern);
+    bindings.push(containsPattern, containsPattern, containsPattern, containsPattern);
     relevanceOrder = `CASE
          WHEN LOWER(p.name) = LOWER(?) THEN 0
          WHEN LOWER(p.name) LIKE LOWER(?) ESCAPE '\\' THEN 1

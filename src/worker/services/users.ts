@@ -96,15 +96,15 @@ export async function synchronizeGoogleUser(
 export async function refreshGoogleUserAvatar(
   bucket: R2Bucket,
   user: Pick<SessionUser, 'id' | 'avatarUrl'>,
-) {
+): Promise<CachedAvatar | null> {
   const key = userAvatarKey(user.id);
   try {
     if (!user.avatarUrl) {
       await bucket.delete(key);
-      return;
+      return null;
     }
     const avatarUrl = new URL(user.avatarUrl);
-    if (!isGoogleusercontentHost(avatarUrl.hostname)) return;
+    if (!isGoogleusercontentHost(avatarUrl.hostname)) return null;
 
     const signal = AbortSignal.timeout(AVATAR_FETCH_TIMEOUT_MS);
     const response = await fetch(avatarUrl, {
@@ -113,10 +113,10 @@ export async function refreshGoogleUserAvatar(
     });
     if (response.status >= 300 && response.status < 400) {
       const location = response.headers.get('Location');
-      if (!location) return;
+      if (!location) return null;
       const redirect = new URL(location, avatarUrl);
       if (redirect.protocol !== 'https:' || !isGoogleusercontentHost(redirect.hostname)) {
-        return;
+        return null;
       }
       return refreshGoogleUserAvatarFromResponse(
         bucket,
@@ -124,9 +124,10 @@ export async function refreshGoogleUserAvatar(
         await fetch(redirect, {redirect: 'manual', signal}),
       );
     }
-    await refreshGoogleUserAvatarFromResponse(bucket, key, response);
+    return refreshGoogleUserAvatarFromResponse(bucket, key, response);
   } catch {
     // Profile photos must never prevent sign-in. A previously cached photo remains valid.
+    return null;
   }
 }
 
@@ -134,22 +135,28 @@ export function userAvatarKey(userId: string) {
   return `users/${userId}/avatar`;
 }
 
+export interface CachedAvatar {
+  content: ArrayBuffer;
+  contentType: string;
+}
+
 async function refreshGoogleUserAvatarFromResponse(
   bucket: R2Bucket,
   key: string,
   response: Response,
-) {
-  if (!response.ok) return;
+): Promise<CachedAvatar | null> {
+  if (!response.ok) return null;
   const contentType = safeAvatarContentType(response.headers.get('Content-Type'));
-  if (!contentType) return;
+  if (!contentType) return null;
   const declaredSize = Number(response.headers.get('Content-Length'));
-  if (Number.isFinite(declaredSize) && declaredSize > MAX_AVATAR_BYTES) return;
+  if (Number.isFinite(declaredSize) && declaredSize > MAX_AVATAR_BYTES) return null;
   const content = await response.arrayBuffer();
-  if (content.byteLength === 0 || content.byteLength > MAX_AVATAR_BYTES) return;
+  if (content.byteLength === 0 || content.byteLength > MAX_AVATAR_BYTES) return null;
   await bucket.put(key, content, {
     httpMetadata: {contentType, cacheControl: 'private, max-age=300'},
     customMetadata: {source: 'google'},
   });
+  return {content, contentType};
 }
 
 function isGoogleusercontentHost(hostname: string) {

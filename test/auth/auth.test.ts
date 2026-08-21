@@ -287,6 +287,38 @@ describe('Google OAuth authorization code flow', () => {
     expect(avatar.status).toBe(404);
   });
 
+  it('backfills a missing avatar cache when the profile image is first requested', async () => {
+    const cookie = await createSessionCookie({
+      picture: 'https://lh3.googleusercontent.com/backfill.jpg',
+    });
+    const user = await env.DB.prepare(
+      "SELECT id FROM users WHERE google_subject = 'google-member'",
+    ).first<{id: string}>();
+    await Promise.all([
+      env.DB.prepare('UPDATE users SET avatar_url = ? WHERE id = ?')
+        .bind('https://lh3.googleusercontent.com/backfill.jpg', user!.id)
+        .run(),
+      env.ATTACHMENTS.delete(`users/${user!.id}/avatar`),
+    ]);
+    tokenFetch.mockImplementation(
+      async () =>
+        new Response('backfilled-avatar', {
+          headers: {'Content-Type': 'image/jpeg'},
+        }),
+    );
+
+    const avatar = await SELF.fetch(
+      `https://hackweek.test/api/users/${user!.id}/avatar`,
+      {headers: {Cookie: cookie}},
+    );
+
+    expect(tokenFetch).toHaveBeenCalledTimes(1);
+    expect(avatar.status).toBe(200);
+    expect(new TextDecoder().decode(await avatar.arrayBuffer())).toBe(
+      'backfilled-avatar',
+    );
+  });
+
   it('keeps sign-in available when a Google profile photo cannot be refreshed', async () => {
     const {state, nonce} = await beginLogin();
     tokenFetch.mockImplementation(async (input) => {

@@ -486,6 +486,25 @@ describe('project and history APIs', () => {
     ).toBe(true);
   });
 
+  it('finds ideas by their creator name', async () => {
+    const idea = await createProject(memberToken, {
+      name: 'Anonymous title',
+      summary: 'No matching words here.',
+      kind: 'idea',
+      groupId: null,
+    });
+
+    const matches = await api(
+      `/projects?year=${yearId}&kind=idea&q=${encodeURIComponent('project member')}`,
+      memberToken,
+    );
+
+    expect(matches.status).toBe(200);
+    expect(matches.body.projects.map((project: {id: string}) => project.id)).toEqual([
+      idea.id,
+    ]);
+  });
+
   it('includes every project award in project details', async () => {
     const project = await createProject(memberToken, {name: 'Awarded project'});
     const member = await env.DB.prepare('SELECT id FROM users WHERE google_subject = ?')
@@ -612,6 +631,57 @@ describe('project and history APIs', () => {
         projects.map((project) => project.id),
       ),
     ).toEqual(expect.arrayContaining([currentProject.id, priorProject.id, idea.id]));
+  });
+
+  it('keeps claimed ideas with the claimant rather than the original opener', async () => {
+    const opener = await env.DB.prepare('SELECT id FROM users WHERE google_subject = ?')
+      .bind(`project-member-${suffix}`)
+      .first<{id: string}>();
+    const idea = await createProject(memberToken, {
+      name: 'Claimed profile idea',
+      kind: 'idea',
+      groupId: null,
+    });
+    await session(outsiderToken);
+    const claimant = await env.DB.prepare('SELECT id FROM users WHERE google_subject = ?')
+      .bind(`project-outsider-${suffix}`)
+      .first<{id: string}>();
+    const claimed = await api(`/projects/${idea.id}/claim`, outsiderToken, {
+      method: 'POST',
+      body: {...projectPayload(), name: 'Claimed profile project'},
+    });
+    await env.DB.prepare(
+      `INSERT INTO awards
+        (id, source_id, year_id, project_id, category_id, name, creator_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    )
+      .bind(
+        `claimed-profile-award-${suffix}`,
+        `claimed-profile-award-${suffix}`,
+        yearId,
+        idea.id,
+        categoryId,
+        'Claimed award',
+        claimant!.id,
+      )
+      .run();
+
+    const openerProfile = await api(`/users/${opener!.id}`, memberToken);
+    const claimantProfile = await api(`/users/${claimant!.id}`, memberToken);
+
+    expect(claimed.status).toBe(200);
+    expect(
+      openerProfile.body.years.flatMap(({projects}: {projects: Array<{id: string}>}) =>
+        projects.map((project) => project.id),
+      ),
+    ).not.toContain(idea.id);
+    expect(openerProfile.body.awards).toEqual([]);
+    expect(claimantProfile).toMatchObject({
+      body: {
+        highlights: {projectCount: 1, ideaCount: 0, awardCount: 1},
+        awards: [{projectId: idea.id, name: 'Claimed award'}],
+      },
+    });
   });
 
   it('returns 404 for a missing user profile', async () => {

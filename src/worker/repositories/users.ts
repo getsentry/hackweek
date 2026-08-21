@@ -1,8 +1,8 @@
 import type {AwardSummary} from '../../shared/administration';
 import type {ProjectMember, UserProfileResponse} from '../../shared/projects';
 import {ServiceError} from '../services/errors';
-import {userAvatarKey} from '../services/users';
-import {listProjects} from './projects';
+import {refreshGoogleUserAvatar, userAvatarKey} from '../services/users';
+import {listProjectsForExistingYear} from './projects';
 
 interface UserRow {
   id: string;
@@ -22,10 +22,47 @@ interface AwardRow {
   name: string;
 }
 
-export async function getUserAvatar(bucket: R2Bucket, userId: string) {
-  const object = await bucket.get(userAvatarKey(userId));
-  if (!object) throw new ServiceError('NOT_FOUND', 'User avatar not found', 404);
-  return object;
+export interface UserAvatarObject {
+  body: ReadableStream;
+  size: number;
+  httpEtag: string | null;
+  contentType: string | null;
+}
+
+export async function getUserAvatar(
+  db: D1Database,
+  bucket: R2Bucket,
+  userId: string,
+): Promise<UserAvatarObject> {
+  const key = userAvatarKey(userId);
+  const cached = await bucket.get(key);
+  if (cached) {
+    return {
+      body: cached.body,
+      size: cached.size,
+      httpEtag: cached.httpEtag,
+      contentType: cached.httpMetadata?.contentType ?? null,
+    };
+  }
+
+  const user = await db
+    .prepare('SELECT id, avatar_url FROM users WHERE id = ?')
+    .bind(userId)
+    .first<{id: string; avatar_url: string | null}>();
+  if (!user?.avatar_url) {
+    throw new ServiceError('NOT_FOUND', 'User avatar not found', 404);
+  }
+  const refreshed = await refreshGoogleUserAvatar(bucket, {
+    id: user.id,
+    avatarUrl: user.avatar_url,
+  });
+  if (!refreshed) throw new ServiceError('NOT_FOUND', 'User avatar not found', 404);
+  return {
+    body: new Response(refreshed.content).body!,
+    size: refreshed.content.byteLength,
+    httpEtag: null,
+    contentType: refreshed.contentType,
+  };
 }
 
 export async function getUserProfile(
@@ -47,7 +84,8 @@ export async function getUserProfile(
         `SELECT DISTINCT p.year_id
          FROM projects p
          LEFT JOIN project_members pm ON pm.project_id = p.id
-         WHERE p.status = 'active' AND (p.creator_id = ? OR pm.user_id = ?)
+         WHERE p.status = 'active'
+           AND ((p.kind = 'idea' AND p.creator_id = ?) OR pm.user_id = ?)
          ORDER BY p.year_id DESC`,
       )
       .bind(userId, userId)
@@ -60,7 +98,8 @@ export async function getUserProfile(
          JOIN projects p ON p.id = a.project_id
          JOIN award_categories category ON category.id = a.category_id
          LEFT JOIN project_members pm ON pm.project_id = p.id
-         WHERE p.status = 'active' AND (p.creator_id = ? OR pm.user_id = ?)
+         WHERE p.status = 'active'
+           AND ((p.kind = 'idea' AND p.creator_id = ?) OR pm.user_id = ?)
          ORDER BY a.year_id DESC, category.name COLLATE NOCASE, a.id`,
       )
       .bind(userId, userId)
@@ -92,7 +131,7 @@ async function projectsForUserAndYear(db: D1Database, userId: string, yearId: st
   const projects = [];
   let offset = 0;
   while (true) {
-    const page = await listProjects(db, {
+    const page = await listProjectsForExistingYear(db, {
       yearId,
       userId,
       limit: 250,

@@ -635,6 +635,57 @@ describe('clickable project routes', () => {
     ).toBe('true');
   });
 
+  it('keeps the selected group when viewing a project and returning', async () => {
+    fetchMock.mockImplementation(async (input) => {
+      const url = requestUrl(input);
+      if (url.includes('/api/years/2026')) {
+        return json({
+          year: {
+            id: '2026',
+            votingEnabled: false,
+            submissionsClosed: false,
+            projectCount: 1,
+            ideaCount: 0,
+            groupCount: 1,
+            participantCount: 1,
+          },
+          groups: [{id: 'group', yearId: '2026', name: 'Orbital', projectCount: 1}],
+          awards: [],
+        });
+      }
+      expect(new URL(url, 'https://hackweek.test').searchParams.get('group')).toBe(
+        'group',
+      );
+      return json({projects: [projectFixture], nextCursor: null});
+    });
+
+    const projects = renderRoute(
+      <ProjectsPage />,
+      '/years/2026/projects?group=group',
+      '/years/:yearId/projects',
+    );
+
+    const groupSelect = await screen.findByRole('combobox', {name: 'Group'});
+    expect(groupSelect).toBeInstanceOf(HTMLSelectElement);
+    if (!(groupSelect instanceof HTMLSelectElement)) throw new Error();
+    expect(groupSelect.value).toBe('group');
+    expect(screen.getByRole('link', {name: 'A small machine'}).getAttribute('href')).toBe(
+      '/years/2026/projects/project?group=group',
+    );
+
+    projects.unmount();
+    mockProjectDetails({detail: projectFixture});
+    renderRoute(
+      <ProjectDetailsPage />,
+      '/years/2026/projects/project?group=group',
+      '/years/:yearId/projects/:projectId',
+    );
+
+    expect(
+      (await screen.findByRole('link', {name: '← 2026 projects'})).getAttribute('href'),
+    ).toBe('/years/2026/projects?group=group');
+  });
+
   it('requests a 250-item page and focuses and announces loaded pages', async () => {
     let resolveSecondPage!: (response: Response) => void;
     const pendingSecondPage = new Promise<Response>((resolve) => {

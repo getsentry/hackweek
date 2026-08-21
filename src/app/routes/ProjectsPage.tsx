@@ -1,5 +1,5 @@
 import {useEffect, useRef, useState} from 'react';
-import {Link, useParams} from 'wouter';
+import {Link, useParams, useSearchParams} from 'wouter';
 
 import type {BallotStatusResponse} from '../../shared/administration';
 import {getAwardCategoryDescription} from '../awardCategories';
@@ -34,8 +34,9 @@ function saveProjectsView(view: ProjectsView) {
 
 export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
   const {yearId} = useParams<{yearId: string}>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [kind, setKind] = useState<'project' | 'idea'>('project');
-  const [group, setGroup] = useState('');
+  const group = searchParams.get('group') ?? '';
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [cursor, setCursor] = useState<string | undefined>();
@@ -70,6 +71,16 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
     paginationRequestPending.current = false;
     setCursor(undefined);
     setCursorHistory([]);
+  };
+
+  const selectGroup = (groupId: string) => {
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      if (groupId) next.set('group', groupId);
+      else next.delete('group');
+      return next;
+    });
+    resetPagination();
   };
 
   useEffect(() => {
@@ -212,10 +223,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                   <span>Group</span>
                   <select
                     value={group}
-                    onChange={(event) => {
-                      setGroup(event.target.value);
-                      resetPagination();
-                    }}
+                    onChange={(event) => selectGroup(event.target.value)}
                   >
                     <option value="">All groups</option>
                     {year.data.groups.map((item) => (
@@ -252,7 +260,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                 {year.data.awards.map((award) => (
                   <Link
                     key={award.id}
-                    href={`/years/${yearId}/projects/${award.projectId}`}
+                    href={`/years/${yearId}/projects/${award.projectId}${group ? `?group=${encodeURIComponent(group)}` : ''}`}
                   >
                     <span>{award.categoryName}</span>
                     <small>{getAwardCategoryDescription(award.categoryName)}</small>
@@ -289,6 +297,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                   project={project}
                   view={view}
                   voteCategories={voteCategoriesByProject.get(project.id)}
+                  detailsSearch={group ? `group=${encodeURIComponent(group)}` : undefined}
                   key={project.id}
                 />
               ))}

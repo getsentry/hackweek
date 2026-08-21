@@ -1,6 +1,6 @@
 import {useState, type ChangeEvent} from 'react';
 import {useQuery} from '@tanstack/react-query';
-import {Link, useLocation, useParams} from 'wouter';
+import {Link, useLocation, useParams, useSearchParams} from 'wouter';
 
 import {QueryState} from '../components/AppLayout';
 import {Markdown} from '../components/Markdown';
@@ -21,6 +21,9 @@ export function ProjectDetailsPage() {
     projectId: string;
   }>();
   const [, navigate] = useLocation();
+  const [searchParams] = useSearchParams();
+  const group = searchParams.get('group');
+  const projectsHref = `/years/${yearId}/projects${group ? `?group=${encodeURIComponent(group)}` : ''}`;
   const project = useProject(projectId);
   const ballotYearId = project.data?.project.yearId ?? yearId;
   const ballot = useBallotStatus(ballotYearId, project.data?.project.kind === 'project');
@@ -49,7 +52,7 @@ export function ProjectDetailsPage() {
         <main className="detailPage">
           <header className="detailHero">
             <div>
-              <Link className="backLink" href={`/years/${yearId}/projects`}>
+              <Link className="backLink" href={projectsHref}>
                 ← {yearId} projects
               </Link>
               <div className="detailTags">
@@ -88,7 +91,7 @@ export function ProjectDetailsPage() {
                     if (!window.confirm('Withdraw this project from the archive?'))
                       return;
                     withdraw.mutate(projectId, {
-                      onSuccess: () => navigate(`/years/${yearId}/projects`),
+                      onSuccess: () => navigate(projectsHref),
                       onError: (error) => setActionError(error.message),
                     });
                   }}

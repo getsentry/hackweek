@@ -188,10 +188,16 @@ export async function listProjects(
     bindings.push(options.groupId);
   }
   if (options.categoryId) {
+    // Empty nominations mean the project is open to every award category.
     conditions.push(
-      `EXISTS (
-        SELECT 1 FROM project_nominations pn
-        WHERE pn.project_id = p.id AND pn.award_category_id = ?
+      `(
+        NOT EXISTS (
+          SELECT 1 FROM project_nominations pn WHERE pn.project_id = p.id
+        )
+        OR EXISTS (
+          SELECT 1 FROM project_nominations pn
+          WHERE pn.project_id = p.id AND pn.award_category_id = ?
+        )
       )`,
     );
     bindings.push(options.categoryId);

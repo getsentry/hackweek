@@ -405,6 +405,10 @@ describe('project and history APIs', () => {
   });
 
   it('filters projects by eligible award category', async () => {
+    const open = await createProject(memberToken, {
+      name: 'Open project',
+      nominationCategoryIds: [],
+    });
     const delight = await createProject(memberToken, {
       name: 'Delightful project',
       nominationCategoryIds: [categoryId],
@@ -427,6 +431,7 @@ describe('project and history APIs', () => {
     expect(matches.body.projects.map((project: {id: string}) => project.id)).toEqual([
       both.id,
       delight.id,
+      open.id,
     ]);
   });
 

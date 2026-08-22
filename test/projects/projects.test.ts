@@ -128,6 +128,73 @@ describe('project and history APIs', () => {
     ).toEqual([attached.id, outsiderProject.id]);
   });
 
+  it('marks and filters only ready, playable project videos', async () => {
+    const ready = await createProject(memberToken, {name: 'Ready video'});
+    const failed = await createProject(memberToken, {name: 'Failed video'});
+    const unplayable = await createProject(memberToken, {name: 'Unplayable video'});
+    const retired = await createProject(memberToken, {name: 'Retired video'});
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO video_submissions (
+          id, project_id, original_name, size_bytes, original_r2_key,
+          processed_r2_key, status
+        ) VALUES (?, ?, 'ready.mp4', 100, ?, ?, 'ready')`,
+      ).bind(
+        `ready-video-${suffix}`,
+        ready.id,
+        `ready-original-${suffix}`,
+        `ready-processed-${suffix}`,
+      ),
+      env.DB.prepare(
+        `INSERT INTO video_submissions (
+          id, project_id, original_name, size_bytes, original_r2_key, status
+        ) VALUES (?, ?, 'failed.mp4', 100, ?, 'failed')`,
+      ).bind(`failed-video-${suffix}`, failed.id, `failed-original-${suffix}`),
+      env.DB.prepare(
+        `INSERT INTO video_submissions (
+          id, project_id, original_name, size_bytes, original_r2_key, status
+        ) VALUES (?, ?, 'unplayable.mp4', 100, ?, 'ready')`,
+      ).bind(
+        `unplayable-video-${suffix}`,
+        unplayable.id,
+        `unplayable-original-${suffix}`,
+      ),
+      env.DB.prepare(
+        `INSERT INTO video_submissions (
+          id, project_id, original_name, status, retired_at
+        ) VALUES (?, ?, 'retired.mp4', 'retired', CURRENT_TIMESTAMP)`,
+      ).bind(`retired-video-${suffix}`, retired.id),
+    ]);
+
+    const all = await api(`/projects?year=${yearId}&kind=project`, memberToken);
+    const filtered = await api(
+      `/projects?year=${yearId}&kind=project&hasVideo=true`,
+      memberToken,
+    );
+    const invalid = await api(
+      `/projects?year=${yearId}&kind=project&hasVideo=1`,
+      memberToken,
+    );
+    const videoState = new Map(
+      all.body.projects.map((project: {name: string; hasVideo: boolean}) => [
+        project.name,
+        project.hasVideo,
+      ]),
+    );
+
+    expect(videoState.get('Ready video')).toBe(true);
+    expect(videoState.get('Failed video')).toBe(false);
+    expect(videoState.get('Unplayable video')).toBe(false);
+    expect(videoState.get('Retired video')).toBe(false);
+    expect(filtered.body.projects.map((project: {id: string}) => project.id)).toEqual([
+      ready.id,
+    ]);
+    expect(invalid).toMatchObject({
+      status: 400,
+      body: {error: {code: 'VALIDATION_FAILED'}},
+    });
+  });
+
   it('returns ordered year categories and persists ordered project nominations', async () => {
     const options = await api(`/years/${yearId}/options`, memberToken);
     const allCategories = await createProject(memberToken, {

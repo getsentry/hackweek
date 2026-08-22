@@ -33,11 +33,16 @@ projectsRoutes.get('/', async (c) => {
     const limit = boundedInteger(c.req.query('limit'), 24, 1, 250, 'Limit');
     const offset = boundedInteger(c.req.query('cursor'), 0, 0, 100_000, 'Cursor');
     const search = boundedSearch(c.req.query('q'));
+    const hasVideoQuery = c.req.query('hasVideo');
+    if (hasVideoQuery !== undefined && hasVideoQuery !== 'true') {
+      throw new ServiceError('VALIDATION_FAILED', 'Has video query is invalid', 400);
+    }
     const response: ProjectsResponse = await listProjects(c.env.DB, {
       yearId,
       kind,
       groupId: c.req.query('group'),
       search,
+      hasVideo: hasVideoQuery === 'true',
       limit,
       offset,
     });

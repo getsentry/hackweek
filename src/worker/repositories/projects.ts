@@ -41,6 +41,7 @@ interface ProjectRow {
   creator_avatar: string | null;
   creator_admin: number;
   media_count: number;
+  has_video: number;
 }
 
 interface MemberRow {
@@ -191,6 +192,7 @@ export async function listProjects(
     kind?: 'project' | 'idea';
     groupId?: string;
     search?: string;
+    hasVideo?: boolean;
     limit: number;
     offset: number;
   },
@@ -209,6 +211,10 @@ export async function listProjects(
     countConditions.push('p.group_id = ?');
     bindings.push(options.groupId);
     countBindings.push(options.groupId);
+  }
+  if (options.hasVideo) {
+    conditions.push(readyVideoExistsSql);
+    countConditions.push(readyVideoExistsSql);
   }
   let relevanceOrder = '';
   if (options.search) {
@@ -665,10 +671,17 @@ function projectSelect() {
     g.id group_id, g.name group_name,
     u.email creator_email, u.display_name creator_name,
     u.avatar_url creator_avatar, u.is_admin creator_admin,
-    (SELECT COUNT(*) FROM media m WHERE m.project_id = p.id AND m.status = 'available') media_count
+    (SELECT COUNT(*) FROM media m WHERE m.project_id = p.id AND m.status = 'available') media_count,
+    ${readyVideoExistsSql} has_video
    FROM projects p JOIN users u ON u.id = p.creator_id
    LEFT JOIN groups g ON g.id = p.group_id`;
 }
+
+const readyVideoExistsSql = `EXISTS (
+  SELECT 1 FROM video_submissions video
+  WHERE video.project_id = p.id AND video.status = 'ready'
+    AND video.retired_at IS NULL AND video.processed_r2_key IS NOT NULL
+)`;
 
 function mapProject(row: ProjectRow, members: ProjectMember[]): ProjectSummary {
   return {
@@ -696,6 +709,7 @@ function mapProject(row: ProjectRow, members: ProjectMember[]): ProjectSummary {
         : null,
     members,
     mediaCount: row.media_count,
+    hasVideo: Boolean(row.has_video),
   };
 }
 

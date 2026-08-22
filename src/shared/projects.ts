@@ -72,6 +72,7 @@ export interface YearResponse {
   year: YearSummary;
   groups: GroupSummary[];
   awards: AwardSummary[];
+  myProjects: ProjectSummary[];
 }
 
 export interface ProjectsResponse {

@@ -129,7 +129,7 @@ function ProjectTags({project, className}: {project: ProjectSummary; className: 
   );
 }
 
-function MemberStack({
+export function MemberStack({
   members,
   emptyLabel = 'up for grabs',
 }: {

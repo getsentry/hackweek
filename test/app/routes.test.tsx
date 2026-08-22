@@ -206,6 +206,7 @@ describe('clickable project routes', () => {
           },
           groups: [],
           awards: [],
+          myProjects: [],
         });
       }
       if (url.includes('/api/votes?')) {
@@ -471,6 +472,58 @@ describe('clickable project routes', () => {
     expect(listBadge.closest('.projectRow')).toBeTruthy();
   });
 
+  it('tiles owned and attached projects under the page title', async () => {
+    const ownedIdea = {
+      ...projectFixture,
+      id: 'owned-idea',
+      name: 'Postcard idea',
+      kind: 'idea' as const,
+      group: null,
+      members: [],
+    };
+    const attachedProject = {
+      ...projectFixture,
+      id: 'attached-project',
+      name: 'Shared machine',
+      creator: {
+        ...projectFixture.creator,
+        id: 'someone-else',
+        displayName: 'Someone Else',
+      },
+    };
+    mockProjectsOverview({
+      votingEnabled: false,
+      projects: [projectFixture, ownedIdea, attachedProject],
+      myProjects: [attachedProject, ownedIdea],
+    });
+
+    renderRoute(<ProjectsPage />, '/years/2026/projects', '/years/:yearId/projects');
+
+    const heading = await screen.findByRole('heading', {name: 'projects & ideas'});
+    const mine = screen.getByRole('region', {name: 'your projects'});
+    expect(
+      heading.compareDocumentPosition(mine) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(within(mine).getByText('yours')).toBeTruthy();
+    const attached = within(mine).getByRole('link', {name: /Shared machine/});
+    expect(attached.getAttribute('href')).toBe('/years/2026/projects/attached-project');
+    expect(within(attached).getByLabelText('Member One')).toBeTruthy();
+    expect(
+      within(mine)
+        .getByRole('link', {name: /Postcard idea/})
+        .getAttribute('href'),
+    ).toBe('/years/2026/projects/owned-idea');
+    expect(within(mine).queryByRole('link', {name: /A small machine/})).toBeNull();
+  });
+
+  it('hides the personal project tiles when none belong to you', async () => {
+    mockProjectsOverview({votingEnabled: false, projects: [projectFixture]});
+    renderRoute(<ProjectsPage />, '/years/2026/projects', '/years/:yearId/projects');
+
+    expect(await screen.findByRole('heading', {name: 'A small machine'})).toBeTruthy();
+    expect(screen.queryByRole('region', {name: 'your projects'})).toBeNull();
+  });
+
   it('keeps closed-year browsing and ballot read failures local', async () => {
     mockProjectsOverview({votingEnabled: false, projects: [projectFixture]});
     const closed = renderRoute(
@@ -514,6 +567,7 @@ describe('clickable project routes', () => {
           },
           groups: [{id: 'group', yearId: '2026', name: 'Orbital', projectCount: 1}],
           awards: [],
+          myProjects: [],
         });
       }
       return json({
@@ -592,6 +646,7 @@ describe('clickable project routes', () => {
           },
           groups: [{id: 'group', yearId: '2026', name: 'Orbital', projectCount: 1}],
           awards: [],
+          myProjects: [],
         });
       }
       return json({
@@ -654,6 +709,7 @@ describe('clickable project routes', () => {
             {id: 'group-b', yearId: '2026', name: 'Lunar', projectCount: 1},
           ],
           awards: [],
+          myProjects: [],
         });
       }
 
@@ -738,6 +794,7 @@ describe('clickable project routes', () => {
           },
           groups: [{id: 'group', yearId: '2026', name: 'Orbital', projectCount: 1}],
           awards: [],
+          myProjects: [],
         });
       }
       return json({
@@ -782,6 +839,7 @@ describe('clickable project routes', () => {
           },
           groups: [{id: 'group', yearId: '2026', name: 'Orbital', projectCount: 1}],
           awards: [],
+          myProjects: [],
         });
       }
       expect(new URL(url, 'https://hackweek.test').searchParams.get('group')).toBe(
@@ -837,6 +895,7 @@ describe('clickable project routes', () => {
           },
           groups: [],
           awards: [],
+          myProjects: [],
         });
       }
 
@@ -941,6 +1000,7 @@ describe('clickable project routes', () => {
           },
           groups: [],
           awards: [],
+          myProjects: [],
         });
       }
 
@@ -1012,6 +1072,7 @@ describe('clickable project routes', () => {
           },
           groups: [],
           awards: [],
+          myProjects: [],
         });
       }
 
@@ -1064,6 +1125,7 @@ describe('clickable project routes', () => {
           },
           groups: [],
           awards: [],
+          myProjects: [],
         });
       }
 
@@ -1120,6 +1182,7 @@ describe('clickable project routes', () => {
           },
           groups: [{id: 'group', yearId: '2026', name: 'Orbital', projectCount: 1}],
           awards: [],
+          myProjects: [],
           streamMode: 'disabled',
         });
       }
@@ -1483,8 +1546,17 @@ describe('clickable project routes', () => {
 
     renderRoute(<ProjectCard project={{...projectFixture, summary}} />, '/');
 
-    const link = screen.getByRole('link', {name: 'link'});
-    const description = link.closest('.markdown');
+    const card = screen
+      .getByRole('heading', {name: 'A small machine'})
+      .closest('.projectCard');
+    expect(card).toBeTruthy();
+    const projectLink = screen.getByRole('link', {name: 'A small machine'});
+    const markdownLink = screen.getByRole('link', {name: 'link'});
+    expect(projectLink.getAttribute('href')).toBe('/years/2026/projects/project');
+    expect(markdownLink.getAttribute('href')).toBe('https://example.com');
+    expect(markdownLink.closest('.projectCard')).toBe(card);
+    expect(projectLink.contains(markdownLink)).toBe(false);
+    const description = markdownLink.closest('.markdown');
     expect(description?.classList.contains('markdown--compact')).toBe(true);
     expect(description?.getAttribute('title')).toBe(summary);
     expect(screen.getByText('detail').tagName).toBe('STRONG');
@@ -1714,12 +1786,14 @@ function mockProjectsOverview({
   categories = [],
   votes = [],
   projects = [],
+  myProjects = [],
   ballotError = false,
 }: {
   votingEnabled?: boolean;
   categories?: Array<{id: string; yearId: string; name: string}>;
   votes?: BallotStatusResponse['votes'];
   projects?: ProjectDetail[];
+  myProjects?: ProjectDetail[];
   ballotError?: boolean;
 }) {
   fetchMock.mockImplementation(async (input) => {
@@ -1738,6 +1812,7 @@ function mockProjectsOverview({
         },
         groups: [],
         awards: [],
+        myProjects,
       });
     }
     if (url.includes('/api/votes?')) {

@@ -2,9 +2,10 @@ import {useEffect, useRef, useState} from 'react';
 import {Link, useParams, useSearchParams} from 'wouter';
 
 import type {BallotStatusResponse} from '../../shared/administration';
+import type {ProjectSummary} from '../../shared/projects';
 import {getAwardCategoryDescription} from '../awardCategories';
 import {GroupManager} from '../components/GroupManager';
-import {ProjectCard} from '../components/ProjectCard';
+import {MemberStack, ProjectCard} from '../components/ProjectCard';
 import {PageState, QueryState} from '../components/AppLayout';
 import {useBallotStatus} from '../queries/administration';
 import {useProjects, useYear} from '../queries/projects';
@@ -130,6 +131,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                   ? 'browse the finished projects, teams, and award winners.'
                   : 'see what everyone is building, join a team, or share an idea.'}
               </p>
+              <MyProjectsStrip projects={year.data.myProjects} />
             </div>
             <div className="heroActions">
               {(isAdmin || year.data.year.submissionsClosed) && (
@@ -345,6 +347,32 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
         </main>
       )}
     </QueryState>
+  );
+}
+
+function MyProjectsStrip({projects}: {projects: ProjectSummary[]}) {
+  if (!projects.length) return null;
+  return (
+    <section className="myProjects" aria-label="your projects">
+      <p className="kicker">yours</p>
+      <div className="myProjectsTiles">
+        {projects.map((project) => (
+          <Link
+            className={`myProjectTile myProjectTile--${project.kind}`}
+            href={`/years/${project.yearId}/projects/${project.id}`}
+            key={project.id}
+          >
+            <span className="tag tag--group">
+              {project.kind === 'idea'
+                ? 'open idea'
+                : (project.group?.name ?? 'ungrouped')}
+            </span>
+            <strong>{project.name}</strong>
+            <MemberStack members={project.members} />
+          </Link>
+        ))}
+      </div>
+    </section>
   );
 }
 

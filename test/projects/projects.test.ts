@@ -95,6 +95,39 @@ describe('project and history APIs', () => {
     expect(page.body.projects[0].members).toBeInstanceOf(Array);
   });
 
+  it('includes owned and attached projects on the year payload', async () => {
+    const owned = await createProject(memberToken, {name: 'Owned engine'});
+    const idea = await createProject(memberToken, {
+      name: 'Owned postcard',
+      kind: 'idea',
+      groupId: null,
+    });
+    await session(outsiderToken);
+    const outsiderProject = await createProject(outsiderToken, {name: 'Outsider engine'});
+    const attached = await createProject(outsiderToken, {name: 'Attached engine'});
+    const member = await env.DB.prepare('SELECT id FROM users WHERE google_subject = ?')
+      .bind(`project-member-${suffix}`)
+      .first<{id: string}>();
+    await env.DB.prepare(
+      'INSERT INTO project_members (project_id, user_id) VALUES (?, ?)',
+    )
+      .bind(attached.id, member!.id)
+      .run();
+
+    const year = await api(`/years/${yearId}`, memberToken);
+    const outsiderYear = await api(`/years/${yearId}`, outsiderToken);
+
+    expect(year.status).toBe(200);
+    expect(year.body.myProjects.map((project: {id: string}) => project.id)).toEqual([
+      attached.id,
+      owned.id,
+      idea.id,
+    ]);
+    expect(
+      outsiderYear.body.myProjects.map((project: {id: string}) => project.id),
+    ).toEqual([attached.id, outsiderProject.id]);
+  });
+
   it('returns ordered year categories and persists ordered project nominations', async () => {
     const options = await api(`/years/${yearId}/options`, memberToken);
     const allCategories = await createProject(memberToken, {

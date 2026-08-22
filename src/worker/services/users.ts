@@ -1,6 +1,15 @@
 import type {SessionUser, UpdateProfileRequest} from '../../shared/api';
 import type {SessionIdentity} from './sessions';
 
+const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
+const AVATAR_FETCH_TIMEOUT_MS = 3_000;
+const ALLOWED_AVATAR_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+
+export function safeAvatarContentType(value: string | null | undefined) {
+  const contentType = value?.split(';', 1)[0].trim().toLowerCase();
+  return contentType && ALLOWED_AVATAR_TYPES.has(contentType) ? contentType : null;
+}
+
 interface UserRow {
   id: string;
   source_uid: string;
@@ -82,6 +91,78 @@ export async function synchronizeGoogleUser(
     role: 'member',
     actualRole: 'member',
   };
+}
+
+export async function refreshGoogleUserAvatar(
+  bucket: R2Bucket,
+  user: Pick<SessionUser, 'id' | 'avatarUrl'>,
+): Promise<CachedAvatar | null> {
+  const key = userAvatarKey(user.id);
+  try {
+    if (!user.avatarUrl) {
+      await bucket.delete(key);
+      return null;
+    }
+    const avatarUrl = new URL(user.avatarUrl);
+    if (!isGoogleusercontentHost(avatarUrl.hostname)) return null;
+
+    const signal = AbortSignal.timeout(AVATAR_FETCH_TIMEOUT_MS);
+    const response = await fetch(avatarUrl, {
+      redirect: 'manual',
+      signal,
+    });
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get('Location');
+      if (!location) return null;
+      const redirect = new URL(location, avatarUrl);
+      if (redirect.protocol !== 'https:' || !isGoogleusercontentHost(redirect.hostname)) {
+        return null;
+      }
+      return refreshGoogleUserAvatarFromResponse(
+        bucket,
+        key,
+        await fetch(redirect, {redirect: 'manual', signal}),
+      );
+    }
+    return refreshGoogleUserAvatarFromResponse(bucket, key, response);
+  } catch {
+    // Profile photos must never prevent sign-in. A previously cached photo remains valid.
+    return null;
+  }
+}
+
+export function userAvatarKey(userId: string) {
+  return `users/${userId}/avatar`;
+}
+
+export interface CachedAvatar {
+  content: ArrayBuffer;
+  contentType: string;
+}
+
+async function refreshGoogleUserAvatarFromResponse(
+  bucket: R2Bucket,
+  key: string,
+  response: Response,
+): Promise<CachedAvatar | null> {
+  if (!response.ok) return null;
+  const contentType = safeAvatarContentType(response.headers.get('Content-Type'));
+  if (!contentType) return null;
+  const declaredSize = Number(response.headers.get('Content-Length'));
+  if (Number.isFinite(declaredSize) && declaredSize > MAX_AVATAR_BYTES) return null;
+  const content = await response.arrayBuffer();
+  if (content.byteLength === 0 || content.byteLength > MAX_AVATAR_BYTES) return null;
+  await bucket.put(key, content, {
+    httpMetadata: {contentType, cacheControl: 'private, max-age=300'},
+    customMetadata: {source: 'google'},
+  });
+  return {content, contentType};
+}
+
+function isGoogleusercontentHost(hostname: string) {
+  return (
+    hostname === 'googleusercontent.com' || hostname.endsWith('.googleusercontent.com')
+  );
 }
 
 export async function updateUserProfile(

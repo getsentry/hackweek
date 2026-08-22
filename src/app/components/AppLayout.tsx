@@ -3,6 +3,7 @@ import {Link, useRoute} from 'wouter';
 
 import type {SessionUser, SessionViewMode} from '../../shared/api';
 import sentrySymbol from '../../assets/logos/logo-sentry-symbol.svg';
+import {UserAvatar} from './UserAvatar';
 
 export function AppLayout({
   user,
@@ -66,13 +67,17 @@ export function AppLayout({
               {viewModeError && <small role="status">{viewModeError}</small>}
             </div>
           )}
-          <div
+          <Link
             className="identity"
+            href={`/users/${user.id}`}
             aria-label={`signed in as ${user.displayName}, ${user.role}`}
           >
-            <span>{user.displayName}</span>
-            <small>{user.role}</small>
-          </div>
+            <UserAvatar user={user} />
+            <span className="identityCopy">
+              <span>{user.displayName}</span>
+              <small>{user.role}</small>
+            </span>
+          </Link>
           <form action="/api/auth/logout" method="post">
             <button className="textButton" type="submit">
               sign out

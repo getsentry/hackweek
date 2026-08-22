@@ -236,6 +236,7 @@ describe('project and history APIs', () => {
       },
     });
     expect(detail.body.project.nominationCategoryIds).toEqual([]);
+    expect(detail.body.project.awards).toEqual([]);
     expect(allCategoryNominationCount?.count).toBe(0);
     expect(updated.body.project.nominationCategoryIds).toEqual([
       categoryId,
@@ -592,6 +593,253 @@ describe('project and history APIs', () => {
     expect(secondPage.body.projects[0].id).toBe(prefix.id);
     expect(secondPage.body.nextCursor).toBe('2');
     expect(secondPage.body).toMatchObject({projectCount: 3, ideaCount: 0});
+  });
+
+  it('finds every project a person belongs to by their name', async () => {
+    const teammateToken = await createSessionCookie({
+      sub: `project-teammate-${suffix}`,
+      email: `project-teammate-${suffix}@sentry.io`,
+      name: 'Ada Lovelace',
+    });
+    await session(teammateToken);
+    const teammate = await env.DB.prepare('SELECT id FROM users WHERE google_subject = ?')
+      .bind(`project-teammate-${suffix}`)
+      .first<{id: string}>();
+    const first = await createProject(memberToken, {name: 'Analytical engine'});
+    const second = await createProject(memberToken, {name: 'Poetical science'});
+    await createProject(memberToken, {name: 'Unrelated project'});
+    await env.DB.batch(
+      [first.id, second.id].map((projectId) =>
+        env.DB.prepare(
+          'INSERT INTO project_members (project_id, user_id) VALUES (?, ?)',
+        ).bind(projectId, teammate!.id),
+      ),
+    );
+
+    const matches = await api(
+      `/projects?year=${yearId}&kind=project&q=${encodeURIComponent('ada love')}`,
+      memberToken,
+    );
+
+    expect(matches.status).toBe(200);
+    expect(matches.body.projects.map((project: {id: string}) => project.id)).toEqual([
+      first.id,
+      second.id,
+    ]);
+    expect(matches.body).toMatchObject({projectCount: 2, ideaCount: 0});
+    expect(
+      matches.body.projects.every((project: {members: Array<{displayName: string}>}) =>
+        project.members.some(({displayName}) => displayName === 'Ada Lovelace'),
+      ),
+    ).toBe(true);
+  });
+
+  it('finds ideas by their creator name', async () => {
+    const idea = await createProject(memberToken, {
+      name: 'Anonymous title',
+      summary: 'No matching words here.',
+      kind: 'idea',
+      groupId: null,
+    });
+
+    const matches = await api(
+      `/projects?year=${yearId}&kind=idea&q=${encodeURIComponent('project member')}`,
+      memberToken,
+    );
+
+    expect(matches.status).toBe(200);
+    expect(matches.body.projects.map((project: {id: string}) => project.id)).toEqual([
+      idea.id,
+    ]);
+    expect(matches.body).toMatchObject({projectCount: 0, ideaCount: 1});
+  });
+
+  it('includes every project award in project details', async () => {
+    const project = await createProject(memberToken, {name: 'Awarded project'});
+    const member = await env.DB.prepare('SELECT id FROM users WHERE google_subject = ?')
+      .bind(`project-member-${suffix}`)
+      .first<{id: string}>();
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO awards
+          (id, source_id, year_id, project_id, category_id, name, creator_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      ).bind(
+        `award-delight-${suffix}`,
+        `award-delight-${suffix}`,
+        yearId,
+        project.id,
+        categoryId,
+        'Most delightful',
+        member!.id,
+      ),
+      env.DB.prepare(
+        `INSERT INTO awards
+          (id, source_id, year_id, project_id, category_id, name, creator_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      ).bind(
+        `award-craft-${suffix}`,
+        `award-craft-${suffix}`,
+        yearId,
+        project.id,
+        secondCategoryId,
+        'Best crafted',
+        member!.id,
+      ),
+    ]);
+
+    const detail = await api(`/projects/${project.id}`, memberToken);
+
+    expect(detail.status).toBe(200);
+    expect(detail.body.project.awards).toEqual([
+      expect.objectContaining({
+        name: 'Best crafted',
+        categoryName: 'Craft',
+        projectId: project.id,
+      }),
+      expect.objectContaining({
+        name: 'Most delightful',
+        categoryName: 'Delight',
+        projectId: project.id,
+      }),
+    ]);
+  });
+
+  it('returns a user profile with projects, ideas, and awards across years', async () => {
+    const member = await env.DB.prepare('SELECT id FROM users WHERE google_subject = ?')
+      .bind(`project-member-${suffix}`)
+      .first<{id: string}>();
+    const currentProject = await createProject(memberToken, {
+      name: 'Current profile project',
+    });
+    const priorProject = {id: `profile-prior-project-${suffix}`};
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO projects
+          (id, source_id, year_id, creator_id, name, kind)
+         VALUES (?, ?, ?, ?, ?, 'project')`,
+      ).bind(
+        priorProject.id,
+        priorProject.id,
+        priorYearId,
+        member!.id,
+        'Earlier profile project',
+      ),
+      env.DB.prepare(
+        'INSERT INTO project_members (project_id, user_id) VALUES (?, ?)',
+      ).bind(priorProject.id, member!.id),
+    ]);
+    const idea = await createProject(memberToken, {
+      name: 'Profile idea',
+      kind: 'idea',
+      groupId: null,
+    });
+    await env.DB.prepare(
+      `INSERT INTO awards
+        (id, source_id, year_id, project_id, category_id, name, creator_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    )
+      .bind(
+        `profile-award-${suffix}`,
+        `profile-award-${suffix}`,
+        yearId,
+        currentProject.id,
+        categoryId,
+        'Brightest signal',
+        member!.id,
+      )
+      .run();
+
+    const profile = await api(`/users/${member!.id}`, memberToken);
+
+    expect(profile).toMatchObject({
+      status: 200,
+      body: {
+        user: {displayName: 'Project Member'},
+        highlights: {
+          hackweekCount: 2,
+          projectCount: 2,
+          ideaCount: 1,
+          awardCount: 1,
+        },
+        awards: [
+          {
+            name: 'Brightest signal',
+            projectId: currentProject.id,
+            projectName: 'Current profile project',
+          },
+        ],
+      },
+    });
+    expect(profile.body.years.map(({yearId}: {yearId: string}) => yearId)).toEqual([
+      yearId,
+      priorYearId,
+    ]);
+    expect(
+      profile.body.years.flatMap(({projects}: {projects: Array<{id: string}>}) =>
+        projects.map((project) => project.id),
+      ),
+    ).toEqual(expect.arrayContaining([currentProject.id, priorProject.id, idea.id]));
+  });
+
+  it('keeps claimed ideas with the claimant rather than the original opener', async () => {
+    const opener = await env.DB.prepare('SELECT id FROM users WHERE google_subject = ?')
+      .bind(`project-member-${suffix}`)
+      .first<{id: string}>();
+    const idea = await createProject(memberToken, {
+      name: 'Claimed profile idea',
+      kind: 'idea',
+      groupId: null,
+    });
+    await session(outsiderToken);
+    const claimant = await env.DB.prepare('SELECT id FROM users WHERE google_subject = ?')
+      .bind(`project-outsider-${suffix}`)
+      .first<{id: string}>();
+    const claimed = await api(`/projects/${idea.id}/claim`, outsiderToken, {
+      method: 'POST',
+      body: {...projectPayload(), name: 'Claimed profile project'},
+    });
+    await env.DB.prepare(
+      `INSERT INTO awards
+        (id, source_id, year_id, project_id, category_id, name, creator_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    )
+      .bind(
+        `claimed-profile-award-${suffix}`,
+        `claimed-profile-award-${suffix}`,
+        yearId,
+        idea.id,
+        categoryId,
+        'Claimed award',
+        claimant!.id,
+      )
+      .run();
+
+    const openerProfile = await api(`/users/${opener!.id}`, memberToken);
+    const claimantProfile = await api(`/users/${claimant!.id}`, memberToken);
+
+    expect(claimed.status).toBe(200);
+    expect(
+      openerProfile.body.years.flatMap(({projects}: {projects: Array<{id: string}>}) =>
+        projects.map((project) => project.id),
+      ),
+    ).not.toContain(idea.id);
+    expect(openerProfile.body.awards).toEqual([]);
+    expect(claimantProfile).toMatchObject({
+      body: {
+        highlights: {projectCount: 1, ideaCount: 0, awardCount: 1},
+        awards: [{projectId: idea.id, name: 'Claimed award'}],
+      },
+    });
+  });
+
+  it('returns 404 for a missing user profile', async () => {
+    const profile = await api('/users/missing-user', memberToken);
+
+    expect(profile).toMatchObject({
+      status: 404,
+      body: {error: {code: 'NOT_FOUND', message: 'User not found'}},
+    });
   });
 
   it('treats SQL wildcards literally and bounds search input', async () => {

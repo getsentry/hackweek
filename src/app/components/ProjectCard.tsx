@@ -1,8 +1,8 @@
 import {Link} from 'wouter';
 
 import type {ProjectSummary} from '../../shared/projects';
-import {Avatar} from './Avatar';
 import {Markdown} from './Markdown';
+import {UserAvatar} from './UserAvatar';
 
 interface ProjectListMember {
   id: string;
@@ -152,11 +152,14 @@ export function MemberStack({
       aria-label={members.map(({displayName}) => displayName).join(', ')}
     >
       {members.slice(0, 4).map((member) => (
-        <Avatar
+        <Link
+          href={`/users/${member.id}`}
           key={member.id}
-          displayName={member.displayName}
-          avatarUrl={member.avatarUrl}
-        />
+          title={member.displayName}
+          aria-label={`View ${member.displayName}'s Hackweek profile`}
+        >
+          <UserAvatar user={member} />
+        </Link>
       ))}
       {members.length > 4 && <span>+{members.length - 4}</span>}
     </span>

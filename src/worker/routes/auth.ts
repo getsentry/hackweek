@@ -22,12 +22,12 @@ import {
   revokeUserSessions,
   sha256Hex,
 } from '../services/sessions';
-import {synchronizeGoogleUser} from '../services/users';
+import {refreshGoogleUserAvatar, synchronizeGoogleUser} from '../services/users';
 
 const LOGIN_ATTEMPT_TTL_SECONDS = 10 * 60;
 
 interface AuthEnv {
-  Bindings: AuthBindings & {DB: D1Database};
+  Bindings: AuthBindings & {DB: D1Database; ATTACHMENTS: R2Bucket};
   Variables: AuthVariables;
 }
 
@@ -107,6 +107,7 @@ authRoutes.get('/callback', async (c) => {
     );
     const identity = await verifyGoogleIdToken(c.env, config, idToken, consumed.nonce);
     const user = await synchronizeGoogleUser(c.env.DB, identity);
+    await refreshGoogleUserAvatar(c.env.ATTACHMENTS, user);
     await revokeUserSessions(c.env.DB, user.id, now);
     const session = await createSession(c.env.DB, user.id, now);
     c.header('Set-Cookie', sessionCookie(session.token, config));

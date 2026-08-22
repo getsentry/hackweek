@@ -10,6 +10,7 @@ import {AppLayout} from '../../src/app/components/AppLayout';
 import {ProjectCard} from '../../src/app/components/ProjectCard';
 import {ProjectDetailsPage} from '../../src/app/routes/ProjectDetailsPage';
 import {ProjectsPage} from '../../src/app/routes/ProjectsPage';
+import {UserPage} from '../../src/app/routes/UserPage';
 import {YearsPage} from '../../src/app/routes/YearsPage';
 import type {BallotStatusResponse} from '../../src/shared/administration';
 import type {ProjectDetail} from '../../src/shared/projects';
@@ -748,7 +749,11 @@ describe('clickable project routes', () => {
     if (!(row instanceof HTMLElement)) throw new Error();
     expect(within(row).getByText('Orbital')).toBeTruthy();
     expect(within(row).getByText('looking for help')).toBeTruthy();
-    expect(within(row).getByLabelText('Member One')).toBeTruthy();
+    const memberLink = within(row).getByRole('link', {
+      name: "View Member One's Hackweek profile",
+    });
+    expect(memberLink.querySelector('img')).toBeNull();
+    expect(memberLink.textContent).toBe('MO');
     expect(within(row).queryByText('2 attachments')).toBeNull();
     expect(within(row).queryByText(projectFixture.summary)).toBeNull();
     expect(window.localStorage.getItem('hackweek.projectsView')).toBe('list');
@@ -1307,6 +1312,9 @@ describe('clickable project routes', () => {
     const input = within(search).getByLabelText('Search projects and ideas');
     expect(input.getAttribute('type')).toBe('search');
     expect(input.getAttribute('maxlength')).toBe('100');
+    expect(input.getAttribute('placeholder')).toBe(
+      'Search titles, descriptions, and people',
+    );
 
     await userEvent.selectOptions(screen.getByLabelText('Group'), 'group');
     await waitFor(() =>
@@ -1362,6 +1370,143 @@ describe('clickable project routes', () => {
         lastInput instanceof Request ? lastInput.url : lastInput?.toString();
       expect(lastUrl).not.toContain('q=');
     });
+  });
+
+  it('renders a user history with highlights, awards, projects, and ideas', async () => {
+    fetchMock.mockResolvedValue(
+      json({
+        user: {
+          ...projectFixture.creator,
+          avatarUrl: 'https://profiles.test/member.jpg',
+        },
+        highlights: {
+          hackweekCount: 2,
+          projectCount: 2,
+          ideaCount: 1,
+          awardCount: 1,
+        },
+        awards: [
+          {
+            id: 'award',
+            yearId: '2026',
+            projectId: 'project',
+            projectName: 'A small machine',
+            categoryId: 'delight',
+            categoryName: 'Delight',
+            name: 'Most delightful',
+          },
+        ],
+        years: [
+          {yearId: '2026', projects: [projectFixture]},
+          {
+            yearId: '2025',
+            projects: [
+              {
+                ...projectFixture,
+                id: 'idea',
+                yearId: '2025',
+                name: 'A bright idea',
+                kind: 'idea',
+                members: [],
+              },
+            ],
+          },
+        ],
+      }),
+    );
+
+    renderRoute(<UserPage />, '/users/member', '/users/:userId');
+
+    expect(await screen.findByRole('heading', {name: 'Member One'})).toBeTruthy();
+    expect(document.querySelector<HTMLImageElement>('.userIdentity img')?.src).toBe(
+      'http://localhost:3000/api/users/member/avatar',
+    );
+    const highlights = screen.getByLabelText('Hackweek highlights');
+    expect(within(highlights).getAllByText('2', {selector: 'dd'})).toHaveLength(2);
+    expect(within(highlights).getByText('Ideas opened')).toBeTruthy();
+    expect(screen.getByRole('heading', {name: 'award shelf'})).toBeTruthy();
+    expect(screen.getByRole('link', {name: /Most delightful/})).toBeTruthy();
+    expect(screen.getByRole('heading', {name: 'A small machine'})).toBeTruthy();
+    expect(screen.getByRole('heading', {name: 'A bright idea'})).toBeTruthy();
+    expect(fetchMock).toHaveBeenCalledWith('/api/users/member', undefined);
+  });
+
+  it('uses cached profile photos for project cards and team members', async () => {
+    const memberWithPhoto = {
+      ...projectFixture.members[0],
+      avatarUrl: 'https://profiles.test/member.jpg',
+    };
+    mockProjectDetails({
+      detail: {
+        ...projectFixture,
+        members: [memberWithPhoto],
+      },
+    });
+
+    const details = renderRoute(
+      <ProjectDetailsPage />,
+      '/years/2026/projects/project',
+      '/years/:yearId/projects/:projectId',
+    );
+
+    const teamAvatar = await screen.findByRole('link', {
+      name: "View Member One's Hackweek profile",
+    });
+    expect(teamAvatar.querySelector('img')?.getAttribute('src')).toBe(
+      '/api/users/member/avatar',
+    );
+    details.unmount();
+
+    renderRoute(
+      <ProjectCard project={{...projectFixture, members: [memberWithPhoto]}} />,
+      '/',
+    );
+    const cardAvatar = screen.getByRole('link', {
+      name: "View Member One's Hackweek profile",
+    });
+    expect(cardAvatar.querySelector('img')?.getAttribute('src')).toBe(
+      '/api/users/member/avatar',
+    );
+  });
+
+  it('shows every award a project has received on its detail page', async () => {
+    mockProjectDetails({
+      detail: {
+        ...projectFixture,
+        awards: [
+          {
+            id: 'award-delight',
+            yearId: '2026',
+            projectId: 'project',
+            projectName: 'A small machine',
+            categoryId: 'delight',
+            categoryName: 'Delight',
+            name: 'Most delightful',
+          },
+          {
+            id: 'award-impact',
+            yearId: '2026',
+            projectId: 'project',
+            projectName: 'A small machine',
+            categoryId: 'impact',
+            categoryName: 'Impact',
+            name: 'Biggest impact',
+          },
+        ],
+      },
+    });
+
+    renderRoute(
+      <ProjectDetailsPage />,
+      '/years/2026/projects/project',
+      '/years/:yearId/projects/:projectId',
+    );
+
+    const awards = await screen.findByRole('region', {name: 'award winners'});
+    expect(within(awards).getByText('Most delightful')).toBeTruthy();
+    expect(within(awards).getByText('Delight')).toBeTruthy();
+    expect(within(awards).getByText('Biggest impact')).toBeTruthy();
+    expect(within(awards).getByText('Impact')).toBeTruthy();
   });
 
   it('adds every open award category before project media and video', async () => {
@@ -1971,6 +2116,7 @@ const projectFixture: ProjectDetail = {
   mediaCount: 0,
   hasVideo: false,
   media: [],
+  awards: [],
   nominationCategoryIds: [],
   permissions: {
     canEdit: true,

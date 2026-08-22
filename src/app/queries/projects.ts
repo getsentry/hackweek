@@ -13,6 +13,7 @@ import type {
   ProjectResponse,
   ProjectsResponse,
   ProjectWriteRequest,
+  UserProfileResponse,
   YearResponse,
   YearsResponse,
 } from '../../shared/projects';
@@ -74,6 +75,14 @@ export function useProject(projectId: string) {
     queryKey: ['project', projectId],
     queryFn: () =>
       apiRequest<ProjectResponse>(`/projects/${encodeURIComponent(projectId)}`),
+  });
+}
+
+export function useUserProfile(userId: string) {
+  return useQuery({
+    queryKey: ['user', userId],
+    queryFn: () =>
+      apiRequest<UserProfileResponse>(`/users/${encodeURIComponent(userId)}`),
   });
 }
 

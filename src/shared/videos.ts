@@ -91,7 +91,11 @@ export interface PlaylistItem {
   projectName: string;
   groupId: string | null;
   groupName: string | null;
-  teamMembers: Array<{id: string; displayName: string; avatarUrl: string | null}>;
+  teamMembers: Array<{
+    id: string;
+    displayName: string;
+    avatarUrl: string | null;
+  }>;
   durationSeconds: number;
   gainDb: number;
   position: number;

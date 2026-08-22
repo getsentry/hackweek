@@ -449,6 +449,7 @@ const projectFixture: ProjectDetail = {
   mediaCount: 0,
   hasVideo: false,
   media: [],
+  awards: [],
   nominationCategoryIds: [],
   permissions: {
     canEdit: true,

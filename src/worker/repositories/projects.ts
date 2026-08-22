@@ -68,6 +68,16 @@ interface AwardCategoryRow {
   name: string;
 }
 
+interface AwardRow {
+  id: string;
+  year_id: string;
+  project_id: string;
+  project_name: string;
+  category_id: string;
+  category_name: string;
+  name: string;
+}
+
 export async function listYears(db: D1Database): Promise<YearSummary[]> {
   const {results} = await db
     .prepare(
@@ -165,6 +175,18 @@ export async function listProjectOptions(db: D1Database, yearId: string) {
   };
 }
 
+interface ListProjectsOptions {
+  yearId: string;
+  kind?: 'project' | 'idea';
+  groupId?: string;
+  categoryId?: string;
+  search?: string;
+  hasVideo?: boolean;
+  userId?: string;
+  limit: number;
+  offset: number;
+}
+
 export async function listMyProjects(db: D1Database, yearId: string, userId: string) {
   const {results} = await db
     .prepare(
@@ -185,20 +207,15 @@ export async function listMyProjects(db: D1Database, yearId: string, userId: str
   return results.map((row) => mapProject(row, members.get(row.id) ?? []));
 }
 
-export async function listProjects(
-  db: D1Database,
-  options: {
-    yearId: string;
-    kind?: 'project' | 'idea';
-    groupId?: string;
-    categoryId?: string;
-    search?: string;
-    hasVideo?: boolean;
-    limit: number;
-    offset: number;
-  },
-) {
+export async function listProjects(db: D1Database, options: ListProjectsOptions) {
   await getYear(db, options.yearId);
+  return listProjectsForExistingYear(db, options);
+}
+
+export async function listProjectsForExistingYear(
+  db: D1Database,
+  options: ListProjectsOptions,
+) {
   const conditions = ['p.year_id = ?', "p.status = 'active'"];
   const bindings: unknown[] = [options.yearId];
   const countConditions = ['p.year_id = ?', "p.status = 'active'"];
@@ -233,16 +250,42 @@ export async function listProjects(
     bindings.push(options.categoryId);
     countBindings.push(options.categoryId);
   }
+  if (options.userId) {
+    const userCondition = `((p.kind = 'idea' AND p.creator_id = ?) OR EXISTS (
+      SELECT 1 FROM project_members profile_member
+      WHERE profile_member.project_id = p.id AND profile_member.user_id = ?
+    ))`;
+    conditions.push(userCondition);
+    countConditions.push(userCondition);
+    bindings.push(options.userId, options.userId);
+    countBindings.push(options.userId, options.userId);
+  }
   let relevanceOrder = '';
   if (options.search) {
     const escapedSearch = escapeLikePattern(options.search);
     const containsPattern = `%${escapedSearch}%`;
     const searchCondition = `(LOWER(p.name) LIKE LOWER(?) ESCAPE '\\'
-        OR LOWER(COALESCE(p.summary, '')) LIKE LOWER(?) ESCAPE '\\')`;
+      OR LOWER(COALESCE(p.summary, '')) LIKE LOWER(?) ESCAPE '\\'
+      OR (p.kind = 'idea' AND EXISTS (
+        SELECT 1 FROM users search_creator
+        WHERE search_creator.id = p.creator_id
+          AND LOWER(search_creator.display_name) LIKE LOWER(?) ESCAPE '\\'
+      ))
+      OR EXISTS (
+        SELECT 1 FROM project_members search_member
+        JOIN users search_user ON search_user.id = search_member.user_id
+        WHERE search_member.project_id = p.id
+          AND LOWER(search_user.display_name) LIKE LOWER(?) ESCAPE '\\'
+      ))`;
     conditions.push(searchCondition);
     countConditions.push(searchCondition);
-    bindings.push(containsPattern, containsPattern);
-    countBindings.push(containsPattern, containsPattern);
+    bindings.push(containsPattern, containsPattern, containsPattern, containsPattern);
+    countBindings.push(
+      containsPattern,
+      containsPattern,
+      containsPattern,
+      containsPattern,
+    );
     relevanceOrder = `CASE
          WHEN LOWER(p.name) = LOWER(?) THEN 0
          WHEN LOWER(p.name) LIKE LOWER(?) ESCAPE '\\' THEN 1
@@ -302,7 +345,7 @@ export async function getProject(
   if (!row) {
     throw new ServiceError('NOT_FOUND', 'Project not found', 404);
   }
-  const [members, mediaResult, nominationIds, year] = await Promise.all([
+  const [members, mediaResult, awardResult, nominationIds, year] = await Promise.all([
     membersByProjectIds(db, [projectId]),
     db
       .prepare(
@@ -311,6 +354,18 @@ export async function getProject(
       )
       .bind(projectId)
       .all<MediaRow>(),
+    db
+      .prepare(
+        `SELECT a.id, a.year_id, a.project_id, p.name project_name,
+          a.category_id, category.name category_name, a.name
+         FROM awards a
+         JOIN projects p ON p.id = a.project_id
+         JOIN award_categories category ON category.id = a.category_id
+         WHERE a.project_id = ?
+         ORDER BY category.name COLLATE NOCASE, a.name COLLATE NOCASE, a.id`,
+      )
+      .bind(projectId)
+      .all<AwardRow>(),
     nominationCategoryIds(db, projectId),
     getYear(db, row.year_id),
   ]);
@@ -323,6 +378,7 @@ export async function getProject(
   return {
     ...project,
     media: mediaResult.results.map(mapMedia),
+    awards: awardResult.results.map(mapAward),
     nominationCategoryIds: nominationIds,
     permissions: {
       canEdit: canWrite,
@@ -769,6 +825,18 @@ function mapGroup(row: {
 
 function mapAwardCategory(row: AwardCategoryRow): AwardCategorySummary {
   return {id: row.id, yearId: row.year_id, name: row.name};
+}
+
+function mapAward(row: AwardRow) {
+  return {
+    id: row.id,
+    yearId: row.year_id,
+    projectId: row.project_id,
+    projectName: row.project_name,
+    categoryId: row.category_id,
+    categoryName: row.category_name,
+    name: row.name,
+  };
 }
 
 function mapMember(row: Omit<MemberRow, 'project_id'>): ProjectMember {

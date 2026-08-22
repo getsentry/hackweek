@@ -3,6 +3,7 @@ import {useEffect, useId, useState, type FormEvent, type KeyboardEvent} from 're
 import type {ProjectDetail, ProjectWriteRequest} from '../../shared/projects';
 import {getAwardCategoryDescription} from '../awardCategories';
 import {useProjectOptions} from '../queries/projects';
+import {UserAvatar} from './UserAvatar';
 
 export function ProjectForm({
   yearId,
@@ -263,6 +264,7 @@ export function ProjectForm({
               <ul className="selectedTeam" aria-label="Selected team members">
                 {selectedMembers.map((member) => (
                   <li className="teamMemberChip" key={member.id}>
+                    <UserAvatar user={member} />
                     <span>
                       <strong>{member.displayName}</strong>
                       <small>{member.email}</small>
@@ -335,8 +337,11 @@ export function ProjectForm({
                           onMouseEnter={() => setHighlightedMember(index)}
                           onClick={() => addMember(member.id)}
                         >
-                          <strong>{member.displayName}</strong>
-                          <small>{member.email}</small>
+                          <UserAvatar user={member} />
+                          <span>
+                            <strong>{member.displayName}</strong>
+                            <small>{member.email}</small>
+                          </span>
                         </button>
                       </li>
                     ))}

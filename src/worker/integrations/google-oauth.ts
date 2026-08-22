@@ -151,8 +151,16 @@ function safeAvatarUrl<T>(value: T) {
   if (!isJsonString(value) || value.length > 2048) return null;
   try {
     const url = new URL(value);
-    return url.protocol === 'https:' ? url.toString() : null;
+    return url.protocol === 'https:' && isGoogleusercontentHost(url.hostname)
+      ? url.toString()
+      : null;
   } catch {
     return null;
   }
+}
+
+function isGoogleusercontentHost(hostname: string) {
+  return (
+    hostname === 'googleusercontent.com' || hostname.endsWith('.googleusercontent.com')
+  );
 }

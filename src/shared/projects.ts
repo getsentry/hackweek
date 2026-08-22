@@ -55,6 +55,7 @@ export interface ProjectSummary {
 
 export interface ProjectDetail extends ProjectSummary {
   media: MediaSummary[];
+  awards: AwardSummary[];
   nominationCategoryIds: string[];
   permissions: {
     canEdit: boolean;
@@ -85,6 +86,23 @@ export interface ProjectsResponse {
 
 export interface ProjectResponse {
   project: ProjectDetail;
+}
+
+export interface UserProfileYear {
+  yearId: string;
+  projects: ProjectSummary[];
+}
+
+export interface UserProfileResponse {
+  user: ProjectMember;
+  highlights: {
+    hackweekCount: number;
+    projectCount: number;
+    ideaCount: number;
+    awardCount: number;
+  };
+  awards: AwardSummary[];
+  years: UserProfileYear[];
 }
 
 export interface ProjectOptionsResponse {

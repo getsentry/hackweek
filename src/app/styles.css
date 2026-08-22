@@ -292,7 +292,7 @@ main {
   letter-spacing: -0.055em;
 }
 .archiveHero p:last-child,
-.projectsHero > div > p:last-child,
+.projectsHero > div > p:last-of-type,
 .editorPage > header > p:last-child,
 .operationsHero > p {
   max-width: 34rem;
@@ -300,6 +300,64 @@ main {
   color: var(--muted);
   font-size: 1rem;
   line-height: 1.75;
+}
+.myProjects {
+  margin-top: 1.5rem;
+}
+.myProjects .kicker {
+  margin-bottom: 0.75rem;
+}
+.myProjectsTiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
+  gap: 0.65rem;
+}
+.myProjectTile {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 0;
+  padding: 0.85rem 0.95rem;
+  color: inherit;
+  text-decoration: none;
+  border: 1px solid var(--line);
+  border-radius: 0.65rem;
+  background: #fff;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    border-color 120ms ease;
+}
+.myProjectTile:hover {
+  color: inherit;
+  border-color: var(--blurple);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(78, 42, 154, 0.1);
+}
+.myProjectTile--idea {
+  background: #fcfaff;
+}
+.myProjectTile .tag {
+  overflow: hidden;
+  max-width: 100%;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.myProjectTile strong {
+  overflow: hidden;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.myProjectTile .memberStack,
+.myProjectTile .openSeat {
+  margin-top: 0.15rem;
+}
+.myProjectTile .memberStack > span {
+  width: 1.65rem;
+  height: 1.65rem;
 }
 
 .currentYearHero {
@@ -889,6 +947,18 @@ main {
   background: #fff;
   box-shadow: 0 1px 2px rgba(29, 17, 39, 0.12);
 }
+.projectVideoFilter {
+  min-height: 2.5rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid #c9c3d1;
+  border-radius: 0.5rem;
+  background: #fff;
+  cursor: pointer;
+}
+.projectVideoFilter input {
+  margin: 0;
+  accent-color: var(--blurple);
+}
 .projectControls label,
 .operationsBar label {
   display: flex;
@@ -923,6 +993,7 @@ main {
 }
 .projectRow {
   display: grid;
+  position: relative;
   grid-template-columns: minmax(12rem, 1fr) auto auto;
   gap: 1rem;
   align-items: center;
@@ -930,6 +1001,14 @@ main {
   padding: 0.75rem 0;
   border-bottom: 1px solid var(--line);
   animation: rise 0.3s ease-out both;
+}
+.projectRow:has(h2 a) {
+  cursor: pointer;
+}
+.projectRow h2 a::after {
+  position: absolute;
+  inset: 0;
+  content: '';
 }
 .projectRow h2 {
   min-width: 0;
@@ -995,6 +1074,7 @@ main {
 }
 .projectCard {
   display: flex;
+  position: relative;
   min-width: 0;
   min-height: 18rem;
   padding: 1.25rem;
@@ -1004,6 +1084,7 @@ main {
   background: #fff;
   box-shadow: 0 1px 0 rgba(29, 17, 39, 0.03);
   animation: rise 0.3s ease-out both;
+  cursor: pointer;
   transition:
     box-shadow 120ms ease,
     transform 120ms ease;
@@ -1037,6 +1118,11 @@ main {
   border-radius: 999px;
   background: #e9d8fd;
 }
+.tag--video {
+  color: #305500;
+  border-color: #b8db78;
+  background: #f0ffd7;
+}
 .tag--help,
 .detailTags span + span {
   color: #6f1648;
@@ -1051,6 +1137,15 @@ main {
 }
 .projectCard h2 a {
   text-decoration: none;
+}
+.projectCard h2 a::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+}
+.projectCard > .markdown a {
+  position: relative;
+  z-index: 1;
 }
 .projectCard > .markdown {
   display: -webkit-box;
@@ -1088,6 +1183,18 @@ main {
 .memberStack > span:nth-child(even) {
   color: var(--ink);
   background: var(--pink);
+}
+.avatar {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  flex: none;
+}
+.avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .openSeat {
   color: var(--blurple);
@@ -2747,7 +2854,6 @@ main {
   pointer-events: none;
   background: rgba(17, 11, 23, 0.78);
   backdrop-filter: blur(10px);
-  animation: clipOverlayFade 4s ease forwards;
 }
 .clipOverlay strong,
 .clipOverlay span {
@@ -3281,16 +3387,6 @@ kbd {
   }
 }
 
-@keyframes clipOverlayFade {
-  0%,
-  65% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-  }
-}
-
 @keyframes rise {
   from {
     opacity: 0;
@@ -3418,6 +3514,9 @@ kbd {
   .groupManager > header {
     align-items: stretch;
     flex-direction: column;
+  }
+  .myProjectsTiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .ballotOverview {
     grid-template-columns: 1fr;

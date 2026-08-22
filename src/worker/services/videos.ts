@@ -1,11 +1,12 @@
 import type {SessionUser} from '../../shared/api';
-import type {
-  PlaybackResponse,
-  PlaylistItem,
-  ProjectVideo,
-  VideoProcessingStage,
-  VideoUploadPart,
-  VideoUploadSession,
+import {
+  MAX_VIDEO_BYTES,
+  type PlaybackResponse,
+  type PlaylistItem,
+  type ProjectVideo,
+  type VideoProcessingStage,
+  type VideoUploadPart,
+  type VideoUploadSession,
 } from '../../shared/videos';
 import {
   currentYearIdSql,
@@ -16,7 +17,7 @@ import type {VideoProcessingParams, VideoProcessorResult} from '../video-process
 import {videoWorkflowInstanceId} from '../video-processing';
 import {ServiceError} from './errors';
 
-export const MAX_VIDEO_BYTES = 5 * 1024 * 1024 * 1024;
+export {MAX_VIDEO_BYTES};
 export const VIDEO_PART_SIZE = 50 * 1024 * 1024;
 export const UPLOAD_EXPIRY_MINUTES = 24 * 60;
 const UPLOAD_COMPLETION_LEASE_MINUTES = 15;
@@ -132,10 +133,13 @@ export async function listPlaylist(
     }>();
   if (!results.length) return [];
 
-  const membersByProject = new Map<string, Array<{id: string; displayName: string}>>();
+  const membersByProject = new Map<
+    string,
+    Array<{id: string; displayName: string; avatarUrl: string | null}>
+  >();
   const members = await db
     .prepare(
-      `SELECT pm.project_id, u.id user_id, u.display_name
+      `SELECT pm.project_id, u.id user_id, u.display_name, u.avatar_url
        FROM project_members pm
        JOIN users u ON u.id = pm.user_id
        JOIN projects p ON p.id = pm.project_id
@@ -147,10 +151,19 @@ export async function listPlaylist(
        ORDER BY pm.project_id, u.display_name COLLATE NOCASE, u.id`,
     )
     .bind(yearId)
-    .all<{project_id: string; user_id: string; display_name: string}>();
+    .all<{
+      project_id: string;
+      user_id: string;
+      display_name: string;
+      avatar_url: string | null;
+    }>();
   for (const member of members.results) {
     const projectMembers = membersByProject.get(member.project_id) ?? [];
-    projectMembers.push({id: member.user_id, displayName: member.display_name});
+    projectMembers.push({
+      id: member.user_id,
+      displayName: member.display_name,
+      avatarUrl: member.avatar_url,
+    });
     membersByProject.set(member.project_id, projectMembers);
   }
 

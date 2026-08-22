@@ -1,5 +1,8 @@
 export type VideoStatus = 'queued' | 'processing' | 'ready' | 'failed';
 export type VideoFailureStage = 'processing';
+
+/** Maximum size, in bytes, accepted for a single project video upload. */
+export const MAX_VIDEO_BYTES = 5 * 1024 * 1024 * 1024;
 export const VIDEO_PROCESSING_STAGES = [
   'waiting_for_processor',
   'downloading',
@@ -88,7 +91,7 @@ export interface PlaylistItem {
   projectName: string;
   groupId: string | null;
   groupName: string | null;
-  teamMembers: Array<{id: string; displayName: string}>;
+  teamMembers: Array<{id: string; displayName: string; avatarUrl: string | null}>;
   durationSeconds: number;
   gainDb: number;
   position: number;

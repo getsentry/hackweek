@@ -1,10 +1,11 @@
 import {useEffect, useRef, useState} from 'react';
-import {Link, useParams} from 'wouter';
+import {Link, useParams, useSearchParams} from 'wouter';
 
 import type {BallotStatusResponse} from '../../shared/administration';
+import type {ProjectSummary} from '../../shared/projects';
 import {getAwardCategoryDescription} from '../awardCategories';
 import {GroupManager} from '../components/GroupManager';
-import {ProjectCard} from '../components/ProjectCard';
+import {MemberStack, ProjectCard} from '../components/ProjectCard';
 import {PageState, QueryState} from '../components/AppLayout';
 import {useBallotStatus} from '../queries/administration';
 import {useProjects, useYear} from '../queries/projects';
@@ -34,9 +35,11 @@ function saveProjectsView(view: ProjectsView) {
 
 export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
   const {yearId} = useParams<{yearId: string}>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [kind, setKind] = useState<'project' | 'idea'>('project');
-  const [group, setGroup] = useState('');
+  const group = searchParams.get('group') ?? '';
   const [category, setCategory] = useState('');
+  const [hasVideoOnly, setHasVideoOnly] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [cursor, setCursor] = useState<string | undefined>();
@@ -52,11 +55,14 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
     kind === 'project' ? group || undefined : undefined,
     kind === 'project' ? category || undefined : undefined,
     search || undefined,
+    kind === 'project' && hasVideoOnly ? true : undefined,
     cursor,
   );
   const error = year.error ?? projects.error;
   const voteCategoriesByProject = selectedCategoriesByProject(ballot.data);
   const pageProjects = projects.data?.projects ?? [];
+  const projectCount = projects.data?.projectCount ?? year.data?.year.projectCount ?? 0;
+  const ideaCount = projects.data?.ideaCount ?? year.data?.year.ideaCount ?? 0;
   const nextCursor = projects.data?.nextCursor ?? null;
   const pageOffset = cursor ? Number(cursor) : 0;
   const pageStart = pageOffset + 1;
@@ -74,6 +80,16 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
     setCursorHistory([]);
   };
 
+  const selectGroup = (groupId: string) => {
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      if (groupId) next.set('group', groupId);
+      else next.delete('group');
+      return next;
+    });
+    resetPagination();
+  };
+
   useEffect(() => {
     const timeout = window.setTimeout(() => {
       setSearch(searchInput.trim());
@@ -83,7 +99,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
 
   useEffect(() => {
     resetPagination();
-  }, [yearId, search]);
+  }, [yearId, search, group]);
 
   useEffect(() => {
     if (
@@ -119,6 +135,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                   ? 'browse the finished projects, teams, and award winners.'
                   : 'see what everyone is building, join a team, or share an idea.'}
               </p>
+              <MyProjectsStrip projects={year.data.myProjects} />
             </div>
             <div className="heroActions">
               {(isAdmin || year.data.year.submissionsClosed) && (
@@ -196,16 +213,18 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                   resetPagination();
                 }}
               >
-                Projects <span>{year.data.year.projectCount}</span>
+                Projects <span>{projectCount}</span>
               </button>
               <button
                 className={kind === 'idea' ? 'active' : ''}
                 onClick={() => {
                   setKind('idea');
+                  setCategory('');
+                  setHasVideoOnly(false);
                   resetPagination();
                 }}
               >
-                Ideas <span>{year.data.year.ideaCount}</span>
+                Ideas <span>{ideaCount}</span>
               </button>
             </div>
             <div className="projectControlActions">
@@ -214,10 +233,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                   <span>Group</span>
                   <select
                     value={group}
-                    onChange={(event) => {
-                      setGroup(event.target.value);
-                      resetPagination();
-                    }}
+                    onChange={(event) => selectGroup(event.target.value)}
                   >
                     <option value="">All groups</option>
                     {year.data.groups.map((item) => (
@@ -247,6 +263,19 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                   </select>
                 </label>
               )}
+              {kind === 'project' && (
+                <label className="projectVideoFilter">
+                  <input
+                    type="checkbox"
+                    checked={hasVideoOnly}
+                    onChange={(event) => {
+                      setHasVideoOnly(event.target.checked);
+                      resetPagination();
+                    }}
+                  />
+                  <span>Has video</span>
+                </label>
+              )}
               <div className="projectViewToggle" role="group" aria-label="Project view">
                 {(['grid', 'list'] as const).map((option) => (
                   <button
@@ -273,7 +302,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                 {year.data.awards.map((award) => (
                   <Link
                     key={award.id}
-                    href={`/years/${yearId}/projects/${award.projectId}`}
+                    href={`/years/${yearId}/projects/${award.projectId}${group ? `?group=${encodeURIComponent(group)}` : ''}`}
                   >
                     <span>{award.categoryName}</span>
                     <small>{getAwardCategoryDescription(award.categoryName)}</small>
@@ -293,7 +322,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
               <span>∅</span>
               <h2>No {kind === 'idea' ? 'ideas' : 'projects'} found</h2>
               <p>
-                {search
+                {search || (kind === 'project' && hasVideoOnly)
                   ? 'try another search or adjust the filters.'
                   : `try another group or add the first ${kind} for this Hackweek.`}
               </p>
@@ -310,6 +339,11 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                   project={project}
                   view={view}
                   voteCategories={voteCategoriesByProject.get(project.id)}
+                  detailsSearch={
+                    kind === 'project' && group
+                      ? `group=${encodeURIComponent(group)}`
+                      : undefined
+                  }
                   key={project.id}
                 />
               ))}
@@ -351,6 +385,32 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
         </main>
       )}
     </QueryState>
+  );
+}
+
+function MyProjectsStrip({projects}: {projects: ProjectSummary[]}) {
+  if (!projects.length) return null;
+  return (
+    <section className="myProjects" aria-label="your projects">
+      <p className="kicker">yours</p>
+      <div className="myProjectsTiles">
+        {projects.map((project) => (
+          <Link
+            className={`myProjectTile myProjectTile--${project.kind}`}
+            href={`/years/${project.yearId}/projects/${project.id}`}
+            key={project.id}
+          >
+            <span className="tag tag--group">
+              {project.kind === 'idea'
+                ? 'open idea'
+                : (project.group?.name ?? 'ungrouped')}
+            </span>
+            <strong>{project.name}</strong>
+            <MemberStack members={project.members} />
+          </Link>
+        ))}
+      </div>
+    </section>
   );
 }
 

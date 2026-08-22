@@ -40,6 +40,7 @@ export function useProjects(
   group?: string,
   category?: string,
   search?: string,
+  hasVideo?: boolean,
   cursor?: string,
 ) {
   const query = new URLSearchParams({
@@ -50,9 +51,19 @@ export function useProjects(
   if (group) query.set('group', group);
   if (category) query.set('category', category);
   if (search) query.set('q', search);
+  if (hasVideo) query.set('hasVideo', 'true');
   if (cursor) query.set('cursor', cursor);
   return useQuery({
-    queryKey: ['projects', yearId, kind, group, category, search, cursor ?? null],
+    queryKey: [
+      'projects',
+      yearId,
+      kind,
+      group,
+      category,
+      search,
+      hasVideo,
+      cursor ?? null,
+    ],
     queryFn: () => apiRequest<ProjectsResponse>(`/projects?${query}`),
     placeholderData: keepPreviousData,
   });
@@ -120,6 +131,7 @@ export function useSaveProject(projectId?: string, claim = false) {
     onSuccess: ({project}) => {
       cache.setQueryData(['project', project.id], {project});
       void cache.invalidateQueries({queryKey: ['projects', project.yearId]});
+      void cache.invalidateQueries({queryKey: ['year', project.yearId]});
       void cache.invalidateQueries({queryKey: ['years']});
     },
   });
@@ -130,7 +142,10 @@ export function useDeleteProject() {
   return useMutation({
     mutationFn: (projectId: string) =>
       apiRequest<void>(`/projects/${encodeURIComponent(projectId)}`, {method: 'DELETE'}),
-    onSuccess: () => void cache.invalidateQueries({queryKey: ['projects']}),
+    onSuccess: () => {
+      void cache.invalidateQueries({queryKey: ['projects']});
+      void cache.invalidateQueries({queryKey: ['year']});
+    },
   });
 }
 

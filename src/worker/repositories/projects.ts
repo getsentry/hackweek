@@ -41,6 +41,7 @@ interface ProjectRow {
   creator_avatar: string | null;
   creator_admin: number;
   media_count: number;
+  has_video: number;
 }
 
 interface MemberRow {
@@ -164,6 +165,26 @@ export async function listProjectOptions(db: D1Database, yearId: string) {
   };
 }
 
+export async function listMyProjects(db: D1Database, yearId: string, userId: string) {
+  const {results} = await db
+    .prepare(
+      `${projectSelect()} WHERE p.year_id = ? AND p.status = 'active'
+         AND (p.creator_id = ? OR EXISTS (
+           SELECT 1 FROM project_members pm
+           WHERE pm.project_id = p.id AND pm.user_id = ?
+         ))
+       ORDER BY CASE p.kind WHEN 'project' THEN 0 ELSE 1 END,
+         p.name COLLATE NOCASE, p.id`,
+    )
+    .bind(yearId, userId, userId)
+    .all<ProjectRow>();
+  const members = await membersByProjectIds(
+    db,
+    results.map(({id}) => id),
+  );
+  return results.map((row) => mapProject(row, members.get(row.id) ?? []));
+}
+
 export async function listProjects(
   db: D1Database,
   options: {
@@ -172,6 +193,7 @@ export async function listProjects(
     groupId?: string;
     categoryId?: string;
     search?: string;
+    hasVideo?: boolean;
     limit: number;
     offset: number;
   },
@@ -179,38 +201,48 @@ export async function listProjects(
   await getYear(db, options.yearId);
   const conditions = ['p.year_id = ?', "p.status = 'active'"];
   const bindings: unknown[] = [options.yearId];
+  const countConditions = ['p.year_id = ?', "p.status = 'active'"];
+  const countBindings: unknown[] = [options.yearId];
   if (options.kind) {
     conditions.push('p.kind = ?');
     bindings.push(options.kind);
   }
   if (options.groupId) {
     conditions.push('p.group_id = ?');
+    countConditions.push('p.group_id = ?');
     bindings.push(options.groupId);
+    countBindings.push(options.groupId);
+  }
+  if (options.hasVideo) {
+    conditions.push(readyVideoExistsSql);
+    countConditions.push(readyVideoExistsSql);
   }
   if (options.categoryId) {
     // Empty nominations mean the project is open to every award category.
-    conditions.push(
-      `(
-        NOT EXISTS (
-          SELECT 1 FROM project_nominations pn WHERE pn.project_id = p.id
-        )
-        OR EXISTS (
-          SELECT 1 FROM project_nominations pn
-          WHERE pn.project_id = p.id AND pn.award_category_id = ?
-        )
-      )`,
-    );
+    const categoryCondition = `(
+      NOT EXISTS (
+        SELECT 1 FROM project_nominations pn WHERE pn.project_id = p.id
+      )
+      OR EXISTS (
+        SELECT 1 FROM project_nominations pn
+        WHERE pn.project_id = p.id AND pn.award_category_id = ?
+      )
+    )`;
+    conditions.push(categoryCondition);
+    countConditions.push(categoryCondition);
     bindings.push(options.categoryId);
+    countBindings.push(options.categoryId);
   }
   let relevanceOrder = '';
   if (options.search) {
     const escapedSearch = escapeLikePattern(options.search);
     const containsPattern = `%${escapedSearch}%`;
-    conditions.push(
-      `(LOWER(p.name) LIKE LOWER(?) ESCAPE '\\'
-        OR LOWER(COALESCE(p.summary, '')) LIKE LOWER(?) ESCAPE '\\')`,
-    );
+    const searchCondition = `(LOWER(p.name) LIKE LOWER(?) ESCAPE '\\'
+        OR LOWER(COALESCE(p.summary, '')) LIKE LOWER(?) ESCAPE '\\')`;
+    conditions.push(searchCondition);
+    countConditions.push(searchCondition);
     bindings.push(containsPattern, containsPattern);
+    countBindings.push(containsPattern, containsPattern);
     relevanceOrder = `CASE
          WHEN LOWER(p.name) = LOWER(?) THEN 0
          WHEN LOWER(p.name) LIKE LOWER(?) ESCAPE '\\' THEN 1
@@ -221,14 +253,25 @@ export async function listProjects(
   }
   bindings.push(options.limit + 1, options.offset);
 
-  const {results} = await db
-    .prepare(
-      `${projectSelect()} WHERE ${conditions.join(' AND ')}
-       ORDER BY ${relevanceOrder} p.needs_help DESC, p.name COLLATE NOCASE, p.id
-       LIMIT ? OFFSET ?`,
-    )
-    .bind(...bindings)
-    .all<ProjectRow>();
+  const [{results}, counts] = await Promise.all([
+    db
+      .prepare(
+        `${projectSelect()} WHERE ${conditions.join(' AND ')}
+         ORDER BY ${relevanceOrder} p.needs_help DESC, p.name COLLATE NOCASE, p.id
+         LIMIT ? OFFSET ?`,
+      )
+      .bind(...bindings)
+      .all<ProjectRow>(),
+    db
+      .prepare(
+        `SELECT
+           COUNT(CASE WHEN p.kind = 'project' THEN 1 END) project_count,
+           COUNT(CASE WHEN p.kind = 'idea' THEN 1 END) idea_count
+         FROM projects p WHERE ${countConditions.join(' AND ')}`,
+      )
+      .bind(...countBindings)
+      .first<{project_count: number; idea_count: number}>(),
+  ]);
   const page = results.slice(0, options.limit);
   const members = await membersByProjectIds(
     db,
@@ -238,6 +281,8 @@ export async function listProjects(
     projects: page.map((row) => mapProject(row, members.get(row.id) ?? [])),
     nextCursor:
       results.length > options.limit ? String(options.offset + options.limit) : null,
+    projectCount: counts?.project_count ?? 0,
+    ideaCount: counts?.idea_count ?? 0,
   };
 }
 
@@ -643,10 +688,17 @@ function projectSelect() {
     g.id group_id, g.name group_name,
     u.email creator_email, u.display_name creator_name,
     u.avatar_url creator_avatar, u.is_admin creator_admin,
-    (SELECT COUNT(*) FROM media m WHERE m.project_id = p.id AND m.status = 'available') media_count
+    (SELECT COUNT(*) FROM media m WHERE m.project_id = p.id AND m.status = 'available') media_count,
+    ${readyVideoExistsSql} has_video
    FROM projects p JOIN users u ON u.id = p.creator_id
    LEFT JOIN groups g ON g.id = p.group_id`;
 }
+
+const readyVideoExistsSql = `EXISTS (
+  SELECT 1 FROM video_submissions video
+  WHERE video.project_id = p.id AND video.status = 'ready'
+    AND video.retired_at IS NULL AND video.processed_r2_key IS NOT NULL
+)`;
 
 function mapProject(row: ProjectRow, members: ProjectMember[]): ProjectSummary {
   return {
@@ -674,6 +726,7 @@ function mapProject(row: ProjectRow, members: ProjectMember[]): ProjectSummary {
         : null,
     members,
     mediaCount: row.media_count,
+    hasVideo: Boolean(row.has_video),
   };
 }
 

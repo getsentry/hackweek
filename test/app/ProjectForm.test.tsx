@@ -159,8 +159,8 @@ describe('ProjectForm award targeting', () => {
     await userEvent.click(
       await screen.findByRole('radio', {name: /Focus on specific awards/}),
     );
-    const craft = screen.getByRole('checkbox', {name: 'Craft prize'});
-    const impact = screen.getByRole('checkbox', {name: 'Biggest impact'});
+    const craft = screen.getByRole('checkbox', {name: /Craft prize/});
+    const impact = screen.getByRole('checkbox', {name: /Biggest impact/});
     const moonshot = screen.getByRole('checkbox', {name: /Moonshot/});
     await userEvent.click(craft);
     await userEvent.click(impact);
@@ -201,11 +201,11 @@ describe('ProjectForm award targeting', () => {
     expect(
       await screen.findByRole('radio', {name: /Focus on specific awards/}),
     ).toHaveProperty('checked', true);
-    expect(screen.getByRole('checkbox', {name: 'Biggest impact'})).toHaveProperty(
+    expect(screen.getByRole('checkbox', {name: /Biggest impact/})).toHaveProperty(
       'checked',
       true,
     );
-    expect(screen.getByRole('checkbox', {name: 'Craft prize'})).toHaveProperty(
+    expect(screen.getByRole('checkbox', {name: /Craft prize/})).toHaveProperty(
       'checked',
       true,
     );
@@ -244,7 +244,7 @@ describe('ProjectForm award targeting', () => {
     await userEvent.click(
       await screen.findByRole('radio', {name: /Focus on specific awards/}),
     );
-    await userEvent.click(screen.getByRole('checkbox', {name: 'Moonshot'}));
+    await userEvent.click(screen.getByRole('checkbox', {name: /Moonshot/}));
     await userEvent.click(screen.getByRole('button', {name: 'Never mind'}));
 
     expect(confirmMock).toHaveBeenCalledTimes(1);
@@ -265,7 +265,7 @@ describe('ProjectForm award targeting', () => {
       'disabled',
       true,
     );
-    expect(screen.getByRole('checkbox', {name: 'Moonshot'})).toHaveProperty(
+    expect(screen.getByRole('checkbox', {name: /Moonshot/})).toHaveProperty(
       'disabled',
       true,
     );
@@ -298,7 +298,7 @@ describe('ProjectForm award targeting', () => {
 
     focusedMode.focus();
     await userEvent.keyboard(' ');
-    const moonshot = screen.getByRole('checkbox', {name: 'Moonshot'});
+    const moonshot = screen.getByRole('checkbox', {name: /Moonshot/});
     moonshot.focus();
     await userEvent.keyboard(' ');
 

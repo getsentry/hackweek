@@ -1,8 +1,9 @@
 import {useEffect, useRef, useState} from 'react';
-import {Link, useParams} from 'wouter';
+import {Link, useParams, useSearchParams} from 'wouter';
 
 import type {BallotStatusResponse} from '../../shared/administration';
 import type {ProjectSummary} from '../../shared/projects';
+import {getAwardCategoryDescription} from '../awardCategories';
 import {GroupManager} from '../components/GroupManager';
 import {MemberStack, ProjectCard} from '../components/ProjectCard';
 import {PageState, QueryState} from '../components/AppLayout';
@@ -34,8 +35,9 @@ function saveProjectsView(view: ProjectsView) {
 
 export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
   const {yearId} = useParams<{yearId: string}>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [kind, setKind] = useState<'project' | 'idea'>('project');
-  const [group, setGroup] = useState('');
+  const group = searchParams.get('group') ?? '';
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [cursor, setCursor] = useState<string | undefined>();
@@ -55,6 +57,8 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
   const error = year.error ?? projects.error;
   const voteCategoriesByProject = selectedCategoriesByProject(ballot.data);
   const pageProjects = projects.data?.projects ?? [];
+  const projectCount = projects.data?.projectCount ?? year.data?.year.projectCount ?? 0;
+  const ideaCount = projects.data?.ideaCount ?? year.data?.year.ideaCount ?? 0;
   const nextCursor = projects.data?.nextCursor ?? null;
   const pageOffset = cursor ? Number(cursor) : 0;
   const pageStart = pageOffset + 1;
@@ -72,6 +76,16 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
     setCursorHistory([]);
   };
 
+  const selectGroup = (groupId: string) => {
+    setSearchParams((current) => {
+      const next = new URLSearchParams(current);
+      if (groupId) next.set('group', groupId);
+      else next.delete('group');
+      return next;
+    });
+    resetPagination();
+  };
+
   useEffect(() => {
     const timeout = window.setTimeout(() => {
       setSearch(searchInput.trim());
@@ -81,7 +95,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
 
   useEffect(() => {
     resetPagination();
-  }, [yearId, search]);
+  }, [yearId, search, group]);
 
   useEffect(() => {
     if (
@@ -195,7 +209,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                   resetPagination();
                 }}
               >
-                Projects <span>{year.data.year.projectCount}</span>
+                Projects <span>{projectCount}</span>
               </button>
               <button
                 className={kind === 'idea' ? 'active' : ''}
@@ -204,7 +218,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                   resetPagination();
                 }}
               >
-                Ideas <span>{year.data.year.ideaCount}</span>
+                Ideas <span>{ideaCount}</span>
               </button>
             </div>
             <div className="projectControlActions">
@@ -213,10 +227,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                   <span>Group</span>
                   <select
                     value={group}
-                    onChange={(event) => {
-                      setGroup(event.target.value);
-                      resetPagination();
-                    }}
+                    onChange={(event) => selectGroup(event.target.value)}
                   >
                     <option value="">All groups</option>
                     {year.data.groups.map((item) => (
@@ -253,9 +264,10 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                 {year.data.awards.map((award) => (
                   <Link
                     key={award.id}
-                    href={`/years/${yearId}/projects/${award.projectId}`}
+                    href={`/years/${yearId}/projects/${award.projectId}${group ? `?group=${encodeURIComponent(group)}` : ''}`}
                   >
                     <span>{award.categoryName}</span>
+                    <small>{getAwardCategoryDescription(award.categoryName)}</small>
                     <strong>{award.projectName}</strong>
                   </Link>
                 ))}
@@ -289,6 +301,11 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                   project={project}
                   view={view}
                   voteCategories={voteCategoriesByProject.get(project.id)}
+                  detailsSearch={
+                    kind === 'project' && group
+                      ? `group=${encodeURIComponent(group)}`
+                      : undefined
+                  }
                   key={project.id}
                 />
               ))}
@@ -474,7 +491,10 @@ function BallotOverview({
           <ul>
             {selections.map(({category, vote}) => (
               <li key={category.id}>
-                <span>{category.name}</span>
+                <span className="ballotCategoryCopy">
+                  <strong>{category.name}</strong>
+                  <small>{getAwardCategoryDescription(category.name)}</small>
+                </span>
                 {vote.projectActive && vote.nominationEligible ? (
                   <Link href={`/years/${yearId}/projects/${vote.projectId}`}>
                     {vote.projectName} <span aria-hidden="true">→</span>

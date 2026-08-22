@@ -3,6 +3,9 @@ import type {SessionUser} from './api';
 
 export type ProjectKind = 'project' | 'idea';
 
+/** Maximum size, in bytes, accepted for a single project media upload. */
+export const MAX_MEDIA_BYTES = 25 * 1024 * 1024;
+
 export interface YearSummary {
   id: string;
   votingEnabled: boolean;
@@ -75,6 +78,8 @@ export interface YearResponse {
 export interface ProjectsResponse {
   projects: ProjectSummary[];
   nextCursor: string | null;
+  projectCount: number;
+  ideaCount: number;
 }
 
 export interface ProjectResponse {

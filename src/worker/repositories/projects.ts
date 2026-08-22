@@ -198,23 +198,28 @@ export async function listProjects(
   await getYear(db, options.yearId);
   const conditions = ['p.year_id = ?', "p.status = 'active'"];
   const bindings: unknown[] = [options.yearId];
+  const countConditions = ['p.year_id = ?', "p.status = 'active'"];
+  const countBindings: unknown[] = [options.yearId];
   if (options.kind) {
     conditions.push('p.kind = ?');
     bindings.push(options.kind);
   }
   if (options.groupId) {
     conditions.push('p.group_id = ?');
+    countConditions.push('p.group_id = ?');
     bindings.push(options.groupId);
+    countBindings.push(options.groupId);
   }
   let relevanceOrder = '';
   if (options.search) {
     const escapedSearch = escapeLikePattern(options.search);
     const containsPattern = `%${escapedSearch}%`;
-    conditions.push(
-      `(LOWER(p.name) LIKE LOWER(?) ESCAPE '\\'
-        OR LOWER(COALESCE(p.summary, '')) LIKE LOWER(?) ESCAPE '\\')`,
-    );
+    const searchCondition = `(LOWER(p.name) LIKE LOWER(?) ESCAPE '\\'
+        OR LOWER(COALESCE(p.summary, '')) LIKE LOWER(?) ESCAPE '\\')`;
+    conditions.push(searchCondition);
+    countConditions.push(searchCondition);
     bindings.push(containsPattern, containsPattern);
+    countBindings.push(containsPattern, containsPattern);
     relevanceOrder = `CASE
          WHEN LOWER(p.name) = LOWER(?) THEN 0
          WHEN LOWER(p.name) LIKE LOWER(?) ESCAPE '\\' THEN 1
@@ -225,14 +230,25 @@ export async function listProjects(
   }
   bindings.push(options.limit + 1, options.offset);
 
-  const {results} = await db
-    .prepare(
-      `${projectSelect()} WHERE ${conditions.join(' AND ')}
-       ORDER BY ${relevanceOrder} p.needs_help DESC, p.name COLLATE NOCASE, p.id
-       LIMIT ? OFFSET ?`,
-    )
-    .bind(...bindings)
-    .all<ProjectRow>();
+  const [{results}, counts] = await Promise.all([
+    db
+      .prepare(
+        `${projectSelect()} WHERE ${conditions.join(' AND ')}
+         ORDER BY ${relevanceOrder} p.needs_help DESC, p.name COLLATE NOCASE, p.id
+         LIMIT ? OFFSET ?`,
+      )
+      .bind(...bindings)
+      .all<ProjectRow>(),
+    db
+      .prepare(
+        `SELECT
+           COUNT(CASE WHEN p.kind = 'project' THEN 1 END) project_count,
+           COUNT(CASE WHEN p.kind = 'idea' THEN 1 END) idea_count
+         FROM projects p WHERE ${countConditions.join(' AND ')}`,
+      )
+      .bind(...countBindings)
+      .first<{project_count: number; idea_count: number}>(),
+  ]);
   const page = results.slice(0, options.limit);
   const members = await membersByProjectIds(
     db,
@@ -242,6 +258,8 @@ export async function listProjects(
     projects: page.map((row) => mapProject(row, members.get(row.id) ?? [])),
     nextCursor:
       results.length > options.limit ? String(options.offset + options.limit) : null,
+    projectCount: counts?.project_count ?? 0,
+    ideaCount: counts?.idea_count ?? 0,
   };
 }
 

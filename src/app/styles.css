@@ -748,6 +748,17 @@ main {
   color: rgba(255, 255, 255, 0.62);
   font-size: 0.75rem;
 }
+.ballotCategoryCopy {
+  display: grid;
+  gap: 0.18rem;
+}
+.ballotCategoryCopy strong {
+  color: #fff;
+  font-size: 0.78rem;
+}
+.ballotCategoryCopy small {
+  line-height: 1.35;
+}
 .ballotSelections a {
   min-width: 0;
   overflow: hidden;
@@ -1156,6 +1167,18 @@ main {
   color: var(--ink);
   background: var(--pink);
 }
+.avatar {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  flex: none;
+}
+.avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 .openSeat {
   color: var(--blurple);
   font-weight: 500;
@@ -1204,6 +1227,11 @@ main {
   color: #765207;
   font-size: 0.72rem;
   font-weight: 600;
+}
+.awardStrip small {
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.4;
 }
 
 .groupManager {
@@ -1477,6 +1505,10 @@ main {
   color: var(--muted);
   font-size: 0.78rem;
   line-height: 1.45;
+}
+.projectVotingCategoryCopy .awardCategoryDescription {
+  max-width: 46rem;
+  margin-bottom: 0.55rem;
 }
 .projectVotingCategoryCopy p strong {
   color: var(--ink);
@@ -2145,6 +2177,16 @@ main {
   color: var(--ink);
   font-size: 0.78rem;
 }
+.projectForm .awardCategoryChoiceCopy {
+  display: grid;
+  gap: 0.2rem;
+}
+.projectForm .awardCategoryChoiceCopy strong {
+  font-size: 0.82rem;
+}
+.projectForm .awardCategoryChoiceCopy small {
+  line-height: 1.4;
+}
 .awardCategoryChoice--limited > span {
   color: var(--muted);
 }
@@ -2795,7 +2837,6 @@ main {
   pointer-events: none;
   background: rgba(17, 11, 23, 0.78);
   backdrop-filter: blur(10px);
-  animation: clipOverlayFade 4s ease forwards;
 }
 .clipOverlay strong,
 .clipOverlay span {
@@ -3326,16 +3367,6 @@ kbd {
   .startCard--artwork .screeningStart {
     min-height: 2.6rem;
     margin-bottom: 0;
-  }
-}
-
-@keyframes clipOverlayFade {
-  0%,
-  65% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
   }
 }
 

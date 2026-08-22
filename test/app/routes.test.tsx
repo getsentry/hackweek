@@ -206,6 +206,7 @@ describe('clickable project routes', () => {
           },
           groups: [],
           awards: [],
+          myProjects: [],
         });
       }
       if (url.includes('/api/votes?')) {
@@ -471,6 +472,58 @@ describe('clickable project routes', () => {
     expect(listBadge.closest('.projectRow')).toBeTruthy();
   });
 
+  it('tiles owned and attached projects under the page title', async () => {
+    const ownedIdea = {
+      ...projectFixture,
+      id: 'owned-idea',
+      name: 'Postcard idea',
+      kind: 'idea' as const,
+      group: null,
+      members: [],
+    };
+    const attachedProject = {
+      ...projectFixture,
+      id: 'attached-project',
+      name: 'Shared machine',
+      creator: {
+        ...projectFixture.creator,
+        id: 'someone-else',
+        displayName: 'Someone Else',
+      },
+    };
+    mockProjectsOverview({
+      votingEnabled: false,
+      projects: [projectFixture, ownedIdea, attachedProject],
+      myProjects: [attachedProject, ownedIdea],
+    });
+
+    renderRoute(<ProjectsPage />, '/years/2026/projects', '/years/:yearId/projects');
+
+    const heading = await screen.findByRole('heading', {name: 'projects & ideas'});
+    const mine = screen.getByRole('region', {name: 'your projects'});
+    expect(
+      heading.compareDocumentPosition(mine) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(within(mine).getByText('yours')).toBeTruthy();
+    const attached = within(mine).getByRole('link', {name: /Shared machine/});
+    expect(attached.getAttribute('href')).toBe('/years/2026/projects/attached-project');
+    expect(within(attached).getByLabelText('Member One')).toBeTruthy();
+    expect(
+      within(mine)
+        .getByRole('link', {name: /Postcard idea/})
+        .getAttribute('href'),
+    ).toBe('/years/2026/projects/owned-idea');
+    expect(within(mine).queryByRole('link', {name: /A small machine/})).toBeNull();
+  });
+
+  it('hides the personal project tiles when none belong to you', async () => {
+    mockProjectsOverview({votingEnabled: false, projects: [projectFixture]});
+    renderRoute(<ProjectsPage />, '/years/2026/projects', '/years/:yearId/projects');
+
+    expect(await screen.findByRole('heading', {name: 'A small machine'})).toBeTruthy();
+    expect(screen.queryByRole('region', {name: 'your projects'})).toBeNull();
+  });
+
   it('marks playable videos in both views and filters projects by video', async () => {
     const readyProject = {...projectFixture, hasVideo: true};
     const projectWithoutVideo = {
@@ -494,6 +547,7 @@ describe('clickable project routes', () => {
           },
           groups: [{id: 'group', yearId: '2026', name: 'Orbital', projectCount: 2}],
           awards: [],
+          myProjects: [],
         });
       }
       const hasVideo = new URL(url, 'https://hackweek.test').searchParams.get('hasVideo');
@@ -588,6 +642,7 @@ describe('clickable project routes', () => {
           },
           groups: [{id: 'group', yearId: '2026', name: 'Orbital', projectCount: 1}],
           awards: [],
+          myProjects: [],
         });
       }
       return json({
@@ -666,6 +721,7 @@ describe('clickable project routes', () => {
           },
           groups: [{id: 'group', yearId: '2026', name: 'Orbital', projectCount: 1}],
           awards: [],
+          myProjects: [],
         });
       }
       return json({
@@ -709,6 +765,191 @@ describe('clickable project routes', () => {
     ).toBe('true');
   });
 
+  it('resets pagination when the group filter changes', async () => {
+    fetchMock.mockImplementation(async (input) => {
+      const url = requestUrl(input);
+      if (url.includes('/api/years/2026')) {
+        return json({
+          year: {
+            id: '2026',
+            votingEnabled: false,
+            submissionsClosed: false,
+            projectCount: 251,
+            ideaCount: 0,
+            groupCount: 2,
+            participantCount: 251,
+          },
+          groups: [
+            {id: 'group-a', yearId: '2026', name: 'Orbital', projectCount: 251},
+            {id: 'group-b', yearId: '2026', name: 'Lunar', projectCount: 1},
+          ],
+          awards: [],
+          myProjects: [],
+        });
+      }
+
+      const projectsUrl = new URL(url, 'https://hackweek.test');
+      const group = projectsUrl.searchParams.get('group');
+      const cursor = projectsUrl.searchParams.get('cursor');
+      if (group === 'group-b') {
+        expect(cursor).toBeNull();
+        return json({
+          projects: [
+            {
+              ...projectFixture,
+              id: 'lunar-1',
+              name: 'Lunar one',
+              group: {
+                id: 'group-b',
+                yearId: '2026',
+                name: 'Lunar',
+                projectCount: 1,
+              },
+            },
+          ],
+          nextCursor: null,
+        });
+      }
+
+      if (cursor === '250') {
+        return json({
+          projects: [{...projectFixture, id: 'project-251', name: 'Project 251'}],
+          nextCursor: null,
+        });
+      }
+
+      return json({
+        projects: Array.from({length: 250}, (_, index) => ({
+          ...projectFixture,
+          id: `project-${index + 1}`,
+          name: `Project ${index + 1}`,
+        })),
+        nextCursor: '250',
+      });
+    });
+
+    renderRoute(
+      <ProjectsPage />,
+      '/years/2026/projects?group=group-a',
+      '/years/:yearId/projects',
+    );
+
+    expect(await screen.findByRole('heading', {name: 'Project 1'})).toBeTruthy();
+    await userEvent.click(screen.getByRole('button', {name: 'next'}));
+    expect(await screen.findByRole('heading', {name: 'Project 251'})).toBeTruthy();
+
+    await userEvent.selectOptions(
+      screen.getByRole('combobox', {name: 'Group'}),
+      'group-b',
+    );
+
+    expect(await screen.findByRole('heading', {name: 'Lunar one'})).toBeTruthy();
+    await waitFor(() => {
+      const lastInput = fetchMock.mock.calls.at(-1)?.[0];
+      const lastUrl =
+        lastInput instanceof Request ? lastInput.url : lastInput?.toString();
+      expect(lastUrl).toContain('group=group-b');
+      expect(lastUrl).not.toContain('cursor=');
+    });
+  });
+
+  it('omits the group filter from idea detail links', async () => {
+    fetchMock.mockImplementation(async (input) => {
+      const url = requestUrl(input);
+      if (url.includes('/api/years/2026')) {
+        return json({
+          year: {
+            id: '2026',
+            votingEnabled: false,
+            submissionsClosed: false,
+            projectCount: 1,
+            ideaCount: 1,
+            groupCount: 1,
+            participantCount: 1,
+          },
+          groups: [{id: 'group', yearId: '2026', name: 'Orbital', projectCount: 1}],
+          awards: [],
+          myProjects: [],
+        });
+      }
+      return json({
+        projects: [
+          {
+            ...projectFixture,
+            id: 'idea',
+            name: 'Open idea',
+            kind: 'idea',
+            group: null,
+          },
+        ],
+        nextCursor: null,
+      });
+    });
+
+    renderRoute(
+      <ProjectsPage />,
+      '/years/2026/projects?group=group',
+      '/years/:yearId/projects',
+    );
+
+    await userEvent.click(await screen.findByRole('button', {name: /Ideas/}));
+    expect(
+      (await screen.findByRole('link', {name: 'Open idea'})).getAttribute('href'),
+    ).toBe('/years/2026/projects/idea');
+  });
+
+  it('keeps the selected group when viewing a project and returning', async () => {
+    fetchMock.mockImplementation(async (input) => {
+      const url = requestUrl(input);
+      if (url.includes('/api/years/2026')) {
+        return json({
+          year: {
+            id: '2026',
+            votingEnabled: false,
+            submissionsClosed: false,
+            projectCount: 1,
+            ideaCount: 0,
+            groupCount: 1,
+            participantCount: 1,
+          },
+          groups: [{id: 'group', yearId: '2026', name: 'Orbital', projectCount: 1}],
+          awards: [],
+          myProjects: [],
+        });
+      }
+      expect(new URL(url, 'https://hackweek.test').searchParams.get('group')).toBe(
+        'group',
+      );
+      return json({projects: [projectFixture], nextCursor: null});
+    });
+
+    const projects = renderRoute(
+      <ProjectsPage />,
+      '/years/2026/projects?group=group',
+      '/years/:yearId/projects',
+    );
+
+    const groupSelect = await screen.findByRole('combobox', {name: 'Group'});
+    expect(groupSelect).toBeInstanceOf(HTMLSelectElement);
+    if (!(groupSelect instanceof HTMLSelectElement)) throw new Error();
+    expect(groupSelect.value).toBe('group');
+    expect(screen.getByRole('link', {name: 'A small machine'}).getAttribute('href')).toBe(
+      '/years/2026/projects/project?group=group',
+    );
+
+    projects.unmount();
+    mockProjectDetails({detail: projectFixture});
+    renderRoute(
+      <ProjectDetailsPage />,
+      '/years/2026/projects/project?group=group',
+      '/years/:yearId/projects/:projectId',
+    );
+
+    expect(
+      (await screen.findByRole('link', {name: '← 2026 projects'})).getAttribute('href'),
+    ).toBe('/years/2026/projects?group=group');
+  });
+
   it('requests a 250-item page and focuses and announces loaded pages', async () => {
     let resolveSecondPage!: (response: Response) => void;
     const pendingSecondPage = new Promise<Response>((resolve) => {
@@ -729,6 +970,7 @@ describe('clickable project routes', () => {
           },
           groups: [],
           awards: [],
+          myProjects: [],
         });
       }
 
@@ -833,6 +1075,7 @@ describe('clickable project routes', () => {
           },
           groups: [],
           awards: [],
+          myProjects: [],
         });
       }
 
@@ -904,6 +1147,7 @@ describe('clickable project routes', () => {
           },
           groups: [],
           awards: [],
+          myProjects: [],
         });
       }
 
@@ -956,6 +1200,7 @@ describe('clickable project routes', () => {
           },
           groups: [],
           awards: [],
+          myProjects: [],
         });
       }
 
@@ -1012,6 +1257,7 @@ describe('clickable project routes', () => {
           },
           groups: [{id: 'group', yearId: '2026', name: 'Orbital', projectCount: 1}],
           awards: [],
+          myProjects: [],
           streamMode: 'disabled',
         });
       }
@@ -1060,9 +1306,13 @@ describe('clickable project routes', () => {
       json({
         projects: [{...projectFixture, id: 'search-match', name: 'Useful experiment'}],
         nextCursor: null,
+        projectCount: 1,
+        ideaCount: 2,
       }),
     );
     expect(await screen.findByRole('heading', {name: 'Useful experiment'})).toBeTruthy();
+    expect(screen.getByRole('button', {name: 'Projects 1'})).toBeTruthy();
+    expect(screen.getByRole('button', {name: 'Ideas 2'})).toBeTruthy();
     await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
 
     await userEvent.click(
@@ -1371,8 +1621,17 @@ describe('clickable project routes', () => {
 
     renderRoute(<ProjectCard project={{...projectFixture, summary}} />, '/');
 
-    const link = screen.getByRole('link', {name: 'link'});
-    const description = link.closest('.markdown');
+    const card = screen
+      .getByRole('heading', {name: 'A small machine'})
+      .closest('.projectCard');
+    expect(card).toBeTruthy();
+    const projectLink = screen.getByRole('link', {name: 'A small machine'});
+    const markdownLink = screen.getByRole('link', {name: 'link'});
+    expect(projectLink.getAttribute('href')).toBe('/years/2026/projects/project');
+    expect(markdownLink.getAttribute('href')).toBe('https://example.com');
+    expect(markdownLink.closest('.projectCard')).toBe(card);
+    expect(projectLink.contains(markdownLink)).toBe(false);
+    const description = markdownLink.closest('.markdown');
     expect(description?.classList.contains('markdown--compact')).toBe(true);
     expect(description?.getAttribute('title')).toBe(summary);
     expect(screen.getByText('detail').tagName).toBe('STRONG');
@@ -1602,12 +1861,14 @@ function mockProjectsOverview({
   categories = [],
   votes = [],
   projects = [],
+  myProjects = [],
   ballotError = false,
 }: {
   votingEnabled?: boolean;
   categories?: Array<{id: string; yearId: string; name: string}>;
   votes?: BallotStatusResponse['votes'];
   projects?: ProjectDetail[];
+  myProjects?: ProjectDetail[];
   ballotError?: boolean;
 }) {
   fetchMock.mockImplementation(async (input) => {
@@ -1626,6 +1887,7 @@ function mockProjectsOverview({
         },
         groups: [],
         awards: [],
+        myProjects,
       });
     }
     if (url.includes('/api/votes?')) {

@@ -120,6 +120,7 @@ export function useSaveProject(projectId?: string, claim = false) {
     onSuccess: ({project}) => {
       cache.setQueryData(['project', project.id], {project});
       void cache.invalidateQueries({queryKey: ['projects', project.yearId]});
+      void cache.invalidateQueries({queryKey: ['year', project.yearId]});
       void cache.invalidateQueries({queryKey: ['years']});
     },
   });
@@ -130,7 +131,10 @@ export function useDeleteProject() {
   return useMutation({
     mutationFn: (projectId: string) =>
       apiRequest<void>(`/projects/${encodeURIComponent(projectId)}`, {method: 'DELETE'}),
-    onSuccess: () => void cache.invalidateQueries({queryKey: ['projects']}),
+    onSuccess: () => {
+      void cache.invalidateQueries({queryKey: ['projects']});
+      void cache.invalidateQueries({queryKey: ['year']});
+    },
   });
 }
 

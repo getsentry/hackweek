@@ -7,6 +7,7 @@ import {createGroup} from '../repositories/groups';
 import {
   getYear,
   listGroups,
+  listMyProjects,
   listProjectOptions,
   listYears,
 } from '../repositories/projects';
@@ -23,9 +24,10 @@ yearsRoutes.get('/', async (c) => {
 yearsRoutes.get('/:yearId', async (c) => {
   try {
     const yearId = c.req.param('yearId');
-    const [year, groups, awardResult] = await Promise.all([
+    const [year, groups, myProjects, awardResult] = await Promise.all([
       getYear(c.env.DB, yearId),
       listGroups(c.env.DB, yearId),
+      listMyProjects(c.env.DB, yearId, c.get('user').id),
       c.env.DB.prepare(
         `SELECT a.id, a.year_id, a.project_id, p.name project_name,
           a.category_id, category.name category_name, a.name
@@ -47,6 +49,7 @@ yearsRoutes.get('/:yearId', async (c) => {
     const response: YearResponse = {
       year,
       groups,
+      myProjects,
       awards: awardResult.results.map((award) => ({
         id: award.id,
         yearId: award.year_id,

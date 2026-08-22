@@ -56,6 +56,8 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
   const error = year.error ?? projects.error;
   const voteCategoriesByProject = selectedCategoriesByProject(ballot.data);
   const pageProjects = projects.data?.projects ?? [];
+  const projectCount = projects.data?.projectCount ?? year.data?.year.projectCount ?? 0;
+  const ideaCount = projects.data?.ideaCount ?? year.data?.year.ideaCount ?? 0;
   const nextCursor = projects.data?.nextCursor ?? null;
   const pageOffset = cursor ? Number(cursor) : 0;
   const pageStart = pageOffset + 1;
@@ -205,7 +207,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                   resetPagination();
                 }}
               >
-                Projects <span>{year.data.year.projectCount}</span>
+                Projects <span>{projectCount}</span>
               </button>
               <button
                 className={kind === 'idea' ? 'active' : ''}
@@ -214,7 +216,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                   resetPagination();
                 }}
               >
-                Ideas <span>{year.data.year.ideaCount}</span>
+                Ideas <span>{ideaCount}</span>
               </button>
             </div>
             <div className="projectControlActions">

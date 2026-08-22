@@ -2,6 +2,8 @@ import {useState, type ChangeEvent} from 'react';
 import {useQuery} from '@tanstack/react-query';
 import {Link, useLocation, useParams} from 'wouter';
 
+import {formatBytes} from '../../shared/format';
+import {MAX_MEDIA_BYTES} from '../../shared/projects';
 import {QueryState} from '../components/AppLayout';
 import {Markdown} from '../components/Markdown';
 import {ProjectVoting} from '../components/ProjectVoting';
@@ -34,13 +36,20 @@ export function ProjectDetailsPage() {
     enabled: video.data?.video?.status === 'ready',
   });
   const [actionError, setActionError] = useState<string | null>(null);
+  const [mediaError, setMediaError] = useState<string | null>(null);
 
   function addMedia(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
-    if (!file) return;
-    setActionError(null);
-    upload.mutate(file, {onError: (error) => setActionError(error.message)});
     event.target.value = '';
+    if (!file) return;
+    setMediaError(null);
+    if (file.size > MAX_MEDIA_BYTES) {
+      setMediaError(
+        `"${file.name}" is ${formatBytes(file.size)}, which is over the ${formatBytes(MAX_MEDIA_BYTES)} limit for attachments.`,
+      );
+      return;
+    }
+    upload.mutate(file, {onError: (error) => setMediaError(error.message)});
   }
 
   return (
@@ -253,7 +262,12 @@ export function ProjectDetailsPage() {
                         </a>
                         {project.data.project.permissions.canManageMedia && (
                           <button
-                            onClick={() => removeMedia.mutate(media.id)}
+                            onClick={() => {
+                              setMediaError(null);
+                              removeMedia.mutate(media.id, {
+                                onError: (error) => setMediaError(error.message),
+                              });
+                            }}
                             disabled={removeMedia.isPending}
                           >
                             Delete
@@ -263,6 +277,11 @@ export function ProjectDetailsPage() {
                     );
                   })}
                 </ul>
+              )}
+              {mediaError && (
+                <p className="formError" role="alert">
+                  {mediaError}
+                </p>
               )}
             </section>
           )}
@@ -283,10 +302,4 @@ function initials(value: string) {
 
 function isImageMediaType(mediaType: string | null) {
   return mediaType?.toLowerCase().startsWith('image/') ?? false;
-}
-
-function formatBytes(value: number | null) {
-  if (value === null) return 'Size unknown';
-  if (value < 1024) return `${value} B`;
-  return `${(value / 1024).toFixed(value > 1024 * 100 ? 0 : 1)} KiB`;
 }

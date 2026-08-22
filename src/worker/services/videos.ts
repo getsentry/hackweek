@@ -1,11 +1,12 @@
 import type {SessionUser} from '../../shared/api';
-import type {
-  PlaybackResponse,
-  PlaylistItem,
-  ProjectVideo,
-  VideoProcessingStage,
-  VideoUploadPart,
-  VideoUploadSession,
+import {
+  MAX_VIDEO_BYTES,
+  type PlaybackResponse,
+  type PlaylistItem,
+  type ProjectVideo,
+  type VideoProcessingStage,
+  type VideoUploadPart,
+  type VideoUploadSession,
 } from '../../shared/videos';
 import {
   currentYearIdSql,
@@ -16,7 +17,7 @@ import type {VideoProcessingParams, VideoProcessorResult} from '../video-process
 import {videoWorkflowInstanceId} from '../video-processing';
 import {ServiceError} from './errors';
 
-export const MAX_VIDEO_BYTES = 5 * 1024 * 1024 * 1024;
+export {MAX_VIDEO_BYTES};
 export const VIDEO_PART_SIZE = 50 * 1024 * 1024;
 export const UPLOAD_EXPIRY_MINUTES = 24 * 60;
 const UPLOAD_COMPLETION_LEASE_MINUTES = 15;

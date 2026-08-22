@@ -1,11 +1,13 @@
 import {Link} from 'wouter';
 
 import type {ProjectSummary} from '../../shared/projects';
+import {Avatar} from './Avatar';
 import {Markdown} from './Markdown';
 
 interface ProjectListMember {
   id: string;
   displayName: string;
+  avatarUrl: string | null;
 }
 
 export function ProjectCard({
@@ -139,20 +141,13 @@ function MemberStack({
       aria-label={members.map(({displayName}) => displayName).join(', ')}
     >
       {members.slice(0, 4).map((member) => (
-        <span key={member.id} title={member.displayName}>
-          {initials(member.displayName)}
-        </span>
+        <Avatar
+          key={member.id}
+          displayName={member.displayName}
+          avatarUrl={member.avatarUrl}
+        />
       ))}
       {members.length > 4 && <span>+{members.length - 4}</span>}
     </span>
   );
-}
-
-function initials(value: string) {
-  return value
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join('')
-    .toUpperCase();
 }

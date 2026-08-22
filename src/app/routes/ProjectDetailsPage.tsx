@@ -5,6 +5,7 @@ import {Link, useLocation, useParams} from 'wouter';
 import {formatBytes} from '../../shared/format';
 import {MAX_MEDIA_BYTES} from '../../shared/projects';
 import {QueryState} from '../components/AppLayout';
+import {Avatar} from '../components/Avatar';
 import {Markdown} from '../components/Markdown';
 import {ProjectVoting} from '../components/ProjectVoting';
 import {useBallotStatus} from '../queries/administration';
@@ -147,7 +148,10 @@ export function ProjectDetailsPage() {
               <ul>
                 {project.data.project.members.map((member) => (
                   <li key={member.id}>
-                    <span>{initials(member.displayName)}</span>
+                    <Avatar
+                      displayName={member.displayName}
+                      avatarUrl={member.avatarUrl}
+                    />
                     <a href={`mailto:${member.email}`}>
                       <strong>{member.displayName}</strong>
                       <small>{member.email}</small>
@@ -289,15 +293,6 @@ export function ProjectDetailsPage() {
       )}
     </QueryState>
   );
-}
-
-function initials(value: string) {
-  return value
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join('')
-    .toUpperCase();
 }
 
 function isImageMediaType(mediaType: string | null) {

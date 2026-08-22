@@ -18,6 +18,7 @@ import {
 } from './fixture';
 
 const endpoint = 'https://hackweek.test/api/session';
+const expectedSessionTtlSeconds = 14 * 24 * 60 * 60;
 const tokenFetch = vi.fn<typeof fetch>();
 vi.stubGlobal('fetch', tokenFetch);
 
@@ -99,6 +100,7 @@ describe('Google OAuth authorization code flow', () => {
     expect(setCookie).toContain('Secure');
     expect(setCookie).toContain('SameSite=Lax');
     expect(setCookie).toContain('Path=/');
+    expect(setCookie).toContain(`Max-Age=${expectedSessionTtlSeconds}`);
     const rawToken = cookieToken(setCookie).split('=')[1];
     expect(rawToken).toHaveLength(43);
     const stored = await env.DB.prepare(
@@ -110,7 +112,10 @@ describe('Google OAuth authorization code flow', () => {
       ttl: number;
       revoked_at: number | null;
     }>();
-    expect(stored).toMatchObject({token_hash: await sha256Hex(rawToken), ttl: 28800});
+    expect(stored).toMatchObject({
+      token_hash: await sha256Hex(rawToken),
+      ttl: expectedSessionTtlSeconds,
+    });
     expect(stored?.token_hash).not.toBe(rawToken);
     expect(
       await env.DB.prepare('SELECT google_subject, is_admin FROM users').first(),

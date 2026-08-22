@@ -7,19 +7,21 @@ import {UserAvatar} from './UserAvatar';
 interface ProjectListMember {
   id: string;
   displayName: string;
-  avatarUrl?: string | null;
+  avatarUrl: string | null;
 }
 
 export function ProjectCard({
   project,
   view = 'grid',
   voteCategories = [],
+  detailsSearch,
 }: {
   project: ProjectSummary;
   view?: 'grid' | 'list';
   voteCategories?: string[];
+  detailsSearch?: string;
 }) {
-  const projectLink = `/years/${project.yearId}/projects/${project.id}`;
+  const projectLink = `/years/${project.yearId}/projects/${project.id}${detailsSearch ? `?${detailsSearch}` : ''}`;
 
   if (view === 'list') {
     return (
@@ -30,6 +32,7 @@ export function ProjectCard({
         groupName={project.group?.name ?? 'ungrouped'}
         members={project.members}
         needsHelp={project.needsHelp}
+        hasVideo={project.hasVideo}
         voteCategories={voteCategories}
       />
     );
@@ -60,6 +63,7 @@ export function ProjectListItem({
   detail,
   members,
   needsHelp = false,
+  hasVideo = false,
   emptyMemberLabel = 'up for grabs',
   voteCategories = [],
 }: {
@@ -72,6 +76,7 @@ export function ProjectListItem({
   detail?: string;
   members: ProjectListMember[];
   needsHelp?: boolean;
+  hasVideo?: boolean;
   emptyMemberLabel?: string;
   voteCategories?: string[];
 }) {
@@ -94,6 +99,7 @@ export function ProjectListItem({
       <div className="projectRowTags">
         <span className="tag tag--group">{groupName}</span>
         {detail && <span className="tag">{detail}</span>}
+        <ProjectVideoTag hasVideo={hasVideo} />
         <ProjectVoteBadge categories={voteCategories} />
         {needsHelp && <strong className="tag tag--help">looking for help</strong>}
       </div>
@@ -122,12 +128,17 @@ function ProjectTags({project, className}: {project: ProjectSummary; className: 
       <span className="tag tag--group">
         {project.kind === 'idea' ? 'open idea' : (project.group?.name ?? 'ungrouped')}
       </span>
+      <ProjectVideoTag hasVideo={project.hasVideo} />
       {project.needsHelp && <strong className="tag tag--help">looking for help</strong>}
     </div>
   );
 }
 
-function MemberStack({
+function ProjectVideoTag({hasVideo}: {hasVideo: boolean}) {
+  return hasVideo ? <strong className="tag tag--video">has video</strong> : null;
+}
+
+export function MemberStack({
   members,
   emptyLabel = 'up for grabs',
 }: {

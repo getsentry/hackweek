@@ -1,10 +1,12 @@
 import {useRef, useState, type ChangeEvent, type DragEvent} from 'react';
 import {useQueryClient} from '@tanstack/react-query';
 
-import type {
-  PlaybackResponse,
-  ProjectVideo,
-  VideoProcessingStage,
+import {formatBytes} from '../../shared/format';
+import {
+  MAX_VIDEO_BYTES,
+  type PlaybackResponse,
+  type ProjectVideo,
+  type VideoProcessingStage,
 } from '../../shared/videos';
 import {IndividualPlayer} from '../player/IndividualPlayer';
 import {useCreateVideoUpload, useDeleteVideo, useRetryVideo} from '../queries/videos';
@@ -47,6 +49,12 @@ export function ProjectVideoPanel(props: {
 
   function beginUpload(file: File) {
     setError(null);
+    if (file.size > MAX_VIDEO_BYTES) {
+      setError(
+        `"${file.name}" is ${formatBytes(file.size)}, which is over the ${formatBytes(MAX_VIDEO_BYTES)} limit for project videos.`,
+      );
+      return;
+    }
     setUpload({...INITIAL_UPLOAD, bytesTotal: file.size});
     createUpload.mutate(file, {
       onSuccess: (result) => {

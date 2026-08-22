@@ -1,7 +1,9 @@
 import {useState, type ChangeEvent} from 'react';
 import {useQuery} from '@tanstack/react-query';
-import {Link, useLocation, useParams} from 'wouter';
+import {Link, useLocation, useParams, useSearchParams} from 'wouter';
 
+import {formatBytes} from '../../shared/format';
+import {MAX_MEDIA_BYTES} from '../../shared/projects';
 import {QueryState} from '../components/AppLayout';
 import {Markdown} from '../components/Markdown';
 import {ProjectVoting} from '../components/ProjectVoting';
@@ -22,6 +24,9 @@ export function ProjectDetailsPage() {
     projectId: string;
   }>();
   const [, navigate] = useLocation();
+  const [searchParams] = useSearchParams();
+  const group = searchParams.get('group');
+  const projectsHref = `/years/${yearId}/projects${group ? `?group=${encodeURIComponent(group)}` : ''}`;
   const project = useProject(projectId);
   const ballotYearId = project.data?.project.yearId ?? yearId;
   const ballot = useBallotStatus(ballotYearId, project.data?.project.kind === 'project');
@@ -35,13 +40,20 @@ export function ProjectDetailsPage() {
     enabled: video.data?.video?.status === 'ready',
   });
   const [actionError, setActionError] = useState<string | null>(null);
+  const [mediaError, setMediaError] = useState<string | null>(null);
 
   function addMedia(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
-    if (!file) return;
-    setActionError(null);
-    upload.mutate(file, {onError: (error) => setActionError(error.message)});
     event.target.value = '';
+    if (!file) return;
+    setMediaError(null);
+    if (file.size > MAX_MEDIA_BYTES) {
+      setMediaError(
+        `"${file.name}" is ${formatBytes(file.size)}, which is over the ${formatBytes(MAX_MEDIA_BYTES)} limit for attachments.`,
+      );
+      return;
+    }
+    upload.mutate(file, {onError: (error) => setMediaError(error.message)});
   }
 
   return (
@@ -50,7 +62,7 @@ export function ProjectDetailsPage() {
         <main className="detailPage">
           <header className="detailHero">
             <div>
-              <Link className="backLink" href={`/years/${yearId}/projects`}>
+              <Link className="backLink" href={projectsHref}>
                 ← {yearId} projects
               </Link>
               <div className="detailTags">
@@ -94,7 +106,7 @@ export function ProjectDetailsPage() {
                     if (!window.confirm('Withdraw this project from the archive?'))
                       return;
                     withdraw.mutate(projectId, {
-                      onSuccess: () => navigate(`/years/${yearId}/projects`),
+                      onSuccess: () => navigate(projectsHref),
                       onError: (error) => setActionError(error.message),
                     });
                   }}
@@ -288,7 +300,12 @@ export function ProjectDetailsPage() {
                         </a>
                         {project.data.project.permissions.canManageMedia && (
                           <button
-                            onClick={() => removeMedia.mutate(media.id)}
+                            onClick={() => {
+                              setMediaError(null);
+                              removeMedia.mutate(media.id, {
+                                onError: (error) => setMediaError(error.message),
+                              });
+                            }}
                             disabled={removeMedia.isPending}
                           >
                             Delete
@@ -298,6 +315,11 @@ export function ProjectDetailsPage() {
                     );
                   })}
                 </ul>
+              )}
+              {mediaError && (
+                <p className="formError" role="alert">
+                  {mediaError}
+                </p>
               )}
             </section>
           )}
@@ -309,10 +331,4 @@ export function ProjectDetailsPage() {
 
 function isImageMediaType(mediaType: string | null) {
   return mediaType?.toLowerCase().startsWith('image/') ?? false;
-}
-
-function formatBytes(value: number | null) {
-  if (value === null) return 'Size unknown';
-  if (value < 1024) return `${value} B`;
-  return `${(value / 1024).toFixed(value > 1024 * 100 ? 0 : 1)} KiB`;
 }

@@ -95,6 +95,106 @@ describe('project and history APIs', () => {
     expect(page.body.projects[0].members).toBeInstanceOf(Array);
   });
 
+  it('includes owned and attached projects on the year payload', async () => {
+    const owned = await createProject(memberToken, {name: 'Owned engine'});
+    const idea = await createProject(memberToken, {
+      name: 'Owned postcard',
+      kind: 'idea',
+      groupId: null,
+    });
+    await session(outsiderToken);
+    const outsiderProject = await createProject(outsiderToken, {name: 'Outsider engine'});
+    const attached = await createProject(outsiderToken, {name: 'Attached engine'});
+    const member = await env.DB.prepare('SELECT id FROM users WHERE google_subject = ?')
+      .bind(`project-member-${suffix}`)
+      .first<{id: string}>();
+    await env.DB.prepare(
+      'INSERT INTO project_members (project_id, user_id) VALUES (?, ?)',
+    )
+      .bind(attached.id, member!.id)
+      .run();
+
+    const year = await api(`/years/${yearId}`, memberToken);
+    const outsiderYear = await api(`/years/${yearId}`, outsiderToken);
+
+    expect(year.status).toBe(200);
+    expect(year.body.myProjects.map((project: {id: string}) => project.id)).toEqual([
+      attached.id,
+      owned.id,
+      idea.id,
+    ]);
+    expect(
+      outsiderYear.body.myProjects.map((project: {id: string}) => project.id),
+    ).toEqual([attached.id, outsiderProject.id]);
+  });
+
+  it('marks and filters only ready, playable project videos', async () => {
+    const ready = await createProject(memberToken, {name: 'Ready video'});
+    const failed = await createProject(memberToken, {name: 'Failed video'});
+    const unplayable = await createProject(memberToken, {name: 'Unplayable video'});
+    const retired = await createProject(memberToken, {name: 'Retired video'});
+    await env.DB.batch([
+      env.DB.prepare(
+        `INSERT INTO video_submissions (
+          id, project_id, original_name, size_bytes, original_r2_key,
+          processed_r2_key, status
+        ) VALUES (?, ?, 'ready.mp4', 100, ?, ?, 'ready')`,
+      ).bind(
+        `ready-video-${suffix}`,
+        ready.id,
+        `ready-original-${suffix}`,
+        `ready-processed-${suffix}`,
+      ),
+      env.DB.prepare(
+        `INSERT INTO video_submissions (
+          id, project_id, original_name, size_bytes, original_r2_key, status
+        ) VALUES (?, ?, 'failed.mp4', 100, ?, 'failed')`,
+      ).bind(`failed-video-${suffix}`, failed.id, `failed-original-${suffix}`),
+      env.DB.prepare(
+        `INSERT INTO video_submissions (
+          id, project_id, original_name, size_bytes, original_r2_key, status
+        ) VALUES (?, ?, 'unplayable.mp4', 100, ?, 'ready')`,
+      ).bind(
+        `unplayable-video-${suffix}`,
+        unplayable.id,
+        `unplayable-original-${suffix}`,
+      ),
+      env.DB.prepare(
+        `INSERT INTO video_submissions (
+          id, project_id, original_name, status, retired_at
+        ) VALUES (?, ?, 'retired.mp4', 'retired', CURRENT_TIMESTAMP)`,
+      ).bind(`retired-video-${suffix}`, retired.id),
+    ]);
+
+    const all = await api(`/projects?year=${yearId}&kind=project`, memberToken);
+    const filtered = await api(
+      `/projects?year=${yearId}&kind=project&hasVideo=true`,
+      memberToken,
+    );
+    const invalid = await api(
+      `/projects?year=${yearId}&kind=project&hasVideo=1`,
+      memberToken,
+    );
+    const videoState = new Map(
+      all.body.projects.map((project: {name: string; hasVideo: boolean}) => [
+        project.name,
+        project.hasVideo,
+      ]),
+    );
+
+    expect(videoState.get('Ready video')).toBe(true);
+    expect(videoState.get('Failed video')).toBe(false);
+    expect(videoState.get('Unplayable video')).toBe(false);
+    expect(videoState.get('Retired video')).toBe(false);
+    expect(filtered.body.projects.map((project: {id: string}) => project.id)).toEqual([
+      ready.id,
+    ]);
+    expect(invalid).toMatchObject({
+      status: 400,
+      body: {error: {code: 'VALIDATION_FAILED'}},
+    });
+  });
+
   it('returns ordered year categories and persists ordered project nominations', async () => {
     const options = await api(`/years/${yearId}/options`, memberToken);
     const allCategories = await createProject(memberToken, {
@@ -405,6 +505,39 @@ describe('project and history APIs', () => {
     ]);
   });
 
+  it('filters projects by eligible award category', async () => {
+    const open = await createProject(memberToken, {
+      name: 'Open project',
+      nominationCategoryIds: [],
+    });
+    const delight = await createProject(memberToken, {
+      name: 'Delightful project',
+      nominationCategoryIds: [categoryId],
+    });
+    await createProject(memberToken, {
+      name: 'Craft project',
+      nominationCategoryIds: [secondCategoryId],
+    });
+    const both = await createProject(memberToken, {
+      name: 'Both categories',
+      nominationCategoryIds: [categoryId, secondCategoryId],
+    });
+
+    const matches = await api(
+      `/projects?year=${yearId}&kind=project&category=${categoryId}`,
+      memberToken,
+    );
+
+    expect(matches.status).toBe(200);
+    expect(matches.body.projects.map((project: {id: string}) => project.id)).toEqual([
+      both.id,
+      delight.id,
+      open.id,
+    ]);
+    expect(matches.body.projectCount).toBe(3);
+    expect(matches.body.ideaCount).toBe(0);
+  });
+
   it('searches titles and descriptions before pagination with relevant results first', async () => {
     const exact = await createProject(memberToken, {
       name: 'Signal',
@@ -424,9 +557,21 @@ describe('project and history APIs', () => {
     });
     await createProject(memberToken, {
       name: 'Idea signal',
-      summary: 'A matching idea excluded by the kind filter.',
+      summary: 'A matching idea excluded by the kind and group filters.',
       kind: 'idea',
       groupId: null,
+    });
+    const otherGroupId = `other-group-${suffix}`;
+    await env.DB.prepare(
+      `INSERT INTO groups (id, source_id, year_id, name, creator_id)
+       SELECT ?, ?, year_id, 'Elsewhere', creator_id FROM groups WHERE id = ?`,
+    )
+      .bind(otherGroupId, otherGroupId, groupId)
+      .run();
+    await createProject(memberToken, {
+      name: 'Signal elsewhere',
+      summary: 'A matching project excluded by the group filter.',
+      groupId: otherGroupId,
     });
 
     const matches = await api(
@@ -444,8 +589,10 @@ describe('project and history APIs', () => {
       prefix.id,
       description.id,
     ]);
+    expect(matches.body).toMatchObject({projectCount: 3, ideaCount: 0});
     expect(secondPage.body.projects[0].id).toBe(prefix.id);
     expect(secondPage.body.nextCursor).toBe('2');
+    expect(secondPage.body).toMatchObject({projectCount: 3, ideaCount: 0});
   });
 
   it('finds every project a person belongs to by their name', async () => {
@@ -479,6 +626,7 @@ describe('project and history APIs', () => {
       first.id,
       second.id,
     ]);
+    expect(matches.body).toMatchObject({projectCount: 2, ideaCount: 0});
     expect(
       matches.body.projects.every((project: {members: Array<{displayName: string}>}) =>
         project.members.some(({displayName}) => displayName === 'Ada Lovelace'),
@@ -503,6 +651,7 @@ describe('project and history APIs', () => {
     expect(matches.body.projects.map((project: {id: string}) => project.id)).toEqual([
       idea.id,
     ]);
+    expect(matches.body).toMatchObject({projectCount: 0, ideaCount: 1});
   });
 
   it('includes every project award in project details', async () => {

@@ -14,12 +14,14 @@ export function ProjectCard({
   project,
   view = 'grid',
   voteCategories = [],
+  detailsSearch,
 }: {
   project: ProjectSummary;
   view?: 'grid' | 'list';
   voteCategories?: string[];
+  detailsSearch?: string;
 }) {
-  const projectLink = `/years/${project.yearId}/projects/${project.id}`;
+  const projectLink = `/years/${project.yearId}/projects/${project.id}${detailsSearch ? `?${detailsSearch}` : ''}`;
 
   if (view === 'list') {
     return (

@@ -504,6 +504,39 @@ describe('project and history APIs', () => {
     ]);
   });
 
+  it('filters projects by eligible award category', async () => {
+    const open = await createProject(memberToken, {
+      name: 'Open project',
+      nominationCategoryIds: [],
+    });
+    const delight = await createProject(memberToken, {
+      name: 'Delightful project',
+      nominationCategoryIds: [categoryId],
+    });
+    await createProject(memberToken, {
+      name: 'Craft project',
+      nominationCategoryIds: [secondCategoryId],
+    });
+    const both = await createProject(memberToken, {
+      name: 'Both categories',
+      nominationCategoryIds: [categoryId, secondCategoryId],
+    });
+
+    const matches = await api(
+      `/projects?year=${yearId}&kind=project&category=${categoryId}`,
+      memberToken,
+    );
+
+    expect(matches.status).toBe(200);
+    expect(matches.body.projects.map((project: {id: string}) => project.id)).toEqual([
+      both.id,
+      delight.id,
+      open.id,
+    ]);
+    expect(matches.body.projectCount).toBe(3);
+    expect(matches.body.ideaCount).toBe(0);
+  });
+
   it('searches titles and descriptions before pagination with relevant results first', async () => {
     const exact = await createProject(memberToken, {
       name: 'Signal',

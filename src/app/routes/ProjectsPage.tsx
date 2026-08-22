@@ -38,6 +38,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [kind, setKind] = useState<'project' | 'idea'>('project');
   const group = searchParams.get('group') ?? '';
+  const [category, setCategory] = useState('');
   const [hasVideoOnly, setHasVideoOnly] = useState(false);
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
@@ -52,6 +53,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
     yearId,
     kind,
     kind === 'project' ? group || undefined : undefined,
+    kind === 'project' ? category || undefined : undefined,
     search || undefined,
     kind === 'project' && hasVideoOnly ? true : undefined,
     cursor,
@@ -217,6 +219,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                 className={kind === 'idea' ? 'active' : ''}
                 onClick={() => {
                   setKind('idea');
+                  setCategory('');
                   setHasVideoOnly(false);
                   resetPagination();
                 }}
@@ -236,6 +239,25 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                     {year.data.groups.map((item) => (
                       <option value={item.id} key={item.id}>
                         {item.name} ({item.projectCount})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {kind === 'project' && ballot.data && ballot.data.categories.length > 0 && (
+                <label>
+                  <span>Award category</span>
+                  <select
+                    value={category}
+                    onChange={(event) => {
+                      setCategory(event.target.value);
+                      resetPagination();
+                    }}
+                  >
+                    <option value="">All award categories</option>
+                    {ballot.data.categories.map((item) => (
+                      <option value={item.id} key={item.id}>
+                        {item.name}
                       </option>
                     ))}
                   </select>

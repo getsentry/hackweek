@@ -38,6 +38,7 @@ export function useProjects(
   yearId: string,
   kind?: 'project' | 'idea',
   group?: string,
+  category?: string,
   search?: string,
   hasVideo?: boolean,
   cursor?: string,
@@ -48,11 +49,21 @@ export function useProjects(
   });
   if (kind) query.set('kind', kind);
   if (group) query.set('group', group);
+  if (category) query.set('category', category);
   if (search) query.set('q', search);
   if (hasVideo) query.set('hasVideo', 'true');
   if (cursor) query.set('cursor', cursor);
   return useQuery({
-    queryKey: ['projects', yearId, kind, group, search, hasVideo, cursor ?? null],
+    queryKey: [
+      'projects',
+      yearId,
+      kind,
+      group,
+      category,
+      search,
+      hasVideo,
+      cursor ?? null,
+    ],
     queryFn: () => apiRequest<ProjectsResponse>(`/projects?${query}`),
     placeholderData: keepPreviousData,
   });

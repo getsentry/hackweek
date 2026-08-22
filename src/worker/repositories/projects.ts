@@ -191,6 +191,7 @@ export async function listProjects(
     yearId: string;
     kind?: 'project' | 'idea';
     groupId?: string;
+    categoryId?: string;
     search?: string;
     hasVideo?: boolean;
     limit: number;
@@ -215,6 +216,22 @@ export async function listProjects(
   if (options.hasVideo) {
     conditions.push(readyVideoExistsSql);
     countConditions.push(readyVideoExistsSql);
+  }
+  if (options.categoryId) {
+    // Empty nominations mean the project is open to every award category.
+    const categoryCondition = `(
+      NOT EXISTS (
+        SELECT 1 FROM project_nominations pn WHERE pn.project_id = p.id
+      )
+      OR EXISTS (
+        SELECT 1 FROM project_nominations pn
+        WHERE pn.project_id = p.id AND pn.award_category_id = ?
+      )
+    )`;
+    conditions.push(categoryCondition);
+    countConditions.push(categoryCondition);
+    bindings.push(options.categoryId);
+    countBindings.push(options.categoryId);
   }
   let relevanceOrder = '';
   if (options.search) {

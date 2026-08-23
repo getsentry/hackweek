@@ -36,15 +36,21 @@ function saveProjectsView(view: ProjectsView) {
 export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
   const {yearId} = useParams<{yearId: string}>();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [kind, setKind] = useState<'project' | 'idea'>('project');
+  const [defaultView] = useState<ProjectsView>(getProjectsView);
+  const kind = searchParams.get('kind') === 'idea' ? 'idea' : 'project';
   const group = searchParams.get('group') ?? '';
-  const [category, setCategory] = useState('');
-  const [hasVideoOnly, setHasVideoOnly] = useState(false);
-  const [searchInput, setSearchInput] = useState('');
-  const [search, setSearch] = useState('');
+  const category = searchParams.get('category') ?? '';
+  const hasVideoOnly = searchParams.get('hasVideo') === 'true';
+  const searchParam = searchParams.get('q') ?? '';
+  const [searchInput, setSearchInput] = useState(searchParam);
+  const previousSearchParam = useRef(searchParam);
+  const pendingSearchParam = useRef<string | undefined>(undefined);
+  const search = searchParam.trim();
+  const viewParam = searchParams.get('view');
+  const view: ProjectsView =
+    viewParam === 'grid' || viewParam === 'list' ? viewParam : defaultView;
   const [cursor, setCursor] = useState<string | undefined>();
   const [cursorHistory, setCursorHistory] = useState<Array<string | undefined>>([]);
-  const [view, setView] = useState<ProjectsView>(getProjectsView);
   const resultStart = useRef<HTMLElement | null>(null);
   const paginationRequestPending = useRef(false);
   const year = useYear(yearId);
@@ -80,26 +86,40 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
     setCursorHistory([]);
   };
 
-  const selectGroup = (groupId: string) => {
+  const setFilter = (
+    name: string,
+    value: string | undefined,
+    options?: {replace?: boolean},
+  ) => {
     setSearchParams((current) => {
       const next = new URLSearchParams(current);
-      if (groupId) next.set('group', groupId);
-      else next.delete('group');
+      if (value) next.set(name, value);
+      else next.delete(name);
       return next;
-    });
-    resetPagination();
+    }, options);
   };
 
   useEffect(() => {
+    if (previousSearchParam.current !== searchParam) {
+      previousSearchParam.current = searchParam;
+      const internalUpdate = pendingSearchParam.current === searchParam;
+      pendingSearchParam.current = undefined;
+      if (!internalUpdate) setSearchInput(searchParam);
+      return;
+    }
+    if (searchInput === searchParam) return;
+
     const timeout = window.setTimeout(() => {
-      setSearch(searchInput.trim());
+      const nextSearchParam = searchInput.trim();
+      pendingSearchParam.current = nextSearchParam;
+      setFilter('q', nextSearchParam || undefined, {replace: true});
     }, SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(timeout);
-  }, [searchInput]);
+  }, [searchInput, searchParam]);
 
   useEffect(() => {
     resetPagination();
-  }, [yearId, search, group]);
+  }, [yearId, kind, search, group, category, hasVideoOnly]);
 
   useEffect(() => {
     if (
@@ -135,7 +155,10 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                   ? 'browse the finished projects, teams, and award winners.'
                   : 'see what everyone is building, join a team, or share an idea.'}
               </p>
-              <MyProjectsStrip projects={year.data.myProjects} />
+              <MyProjectsStrip
+                projects={year.data.myProjects}
+                detailsSearch={searchParams.toString()}
+              />
             </div>
             <div className="heroActions">
               {(isAdmin || year.data.year.submissionsClosed) && (
@@ -161,6 +184,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
               data={ballot.data}
               error={ballot.error}
               loading={ballot.isLoading}
+              detailsSearch={searchParams.toString()}
             />
           )}
           <div
@@ -187,8 +211,8 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                   className="textAction"
                   onClick={() => {
                     resetPagination();
+                    setFilter('q', undefined, {replace: true});
                     setSearchInput('');
-                    setSearch('');
                   }}
                 >
                   clear
@@ -209,7 +233,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
               <button
                 className={kind === 'project' ? 'active' : ''}
                 onClick={() => {
-                  setKind('project');
+                  setFilter('kind', undefined);
                   resetPagination();
                 }}
               >
@@ -218,9 +242,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
               <button
                 className={kind === 'idea' ? 'active' : ''}
                 onClick={() => {
-                  setKind('idea');
-                  setCategory('');
-                  setHasVideoOnly(false);
+                  setFilter('kind', 'idea');
                   resetPagination();
                 }}
               >
@@ -233,7 +255,10 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                   <span>Group</span>
                   <select
                     value={group}
-                    onChange={(event) => selectGroup(event.target.value)}
+                    onChange={(event) => {
+                      setFilter('group', event.target.value || undefined);
+                      resetPagination();
+                    }}
                   >
                     <option value="">All groups</option>
                     {year.data.groups.map((item) => (
@@ -250,7 +275,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                   <select
                     value={category}
                     onChange={(event) => {
-                      setCategory(event.target.value);
+                      setFilter('category', event.target.value || undefined);
                       resetPagination();
                     }}
                   >
@@ -269,7 +294,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                     type="checkbox"
                     checked={hasVideoOnly}
                     onChange={(event) => {
-                      setHasVideoOnly(event.target.checked);
+                      setFilter('hasVideo', event.target.checked ? 'true' : undefined);
                       resetPagination();
                     }}
                   />
@@ -284,7 +309,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                     aria-pressed={view === option}
                     key={option}
                     onClick={() => {
-                      setView(option);
+                      setFilter('view', option);
                       saveProjectsView(option);
                     }}
                   >
@@ -302,7 +327,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                 {year.data.awards.map((award) => (
                   <Link
                     key={award.id}
-                    href={`/years/${yearId}/projects/${award.projectId}${group ? `?group=${encodeURIComponent(group)}` : ''}`}
+                    href={`/years/${yearId}/projects/${award.projectId}${searchParams.size ? `?${searchParams}` : ''}`}
                   >
                     <span>{award.categoryName}</span>
                     <small>{getAwardCategoryDescription(award.categoryName)}</small>
@@ -340,11 +365,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                   view={view}
                   voteCategories={voteCategoriesByProject.get(project.id)}
                   showHelpLabel={!year.data.year.submissionsClosed}
-                  detailsSearch={
-                    kind === 'project' && group
-                      ? `group=${encodeURIComponent(group)}`
-                      : undefined
-                  }
+                  detailsSearch={searchParams.toString() || undefined}
                   key={project.id}
                 />
               ))}
@@ -389,7 +410,13 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
   );
 }
 
-function MyProjectsStrip({projects}: {projects: ProjectSummary[]}) {
+function MyProjectsStrip({
+  projects,
+  detailsSearch,
+}: {
+  projects: ProjectSummary[];
+  detailsSearch: string;
+}) {
   if (!projects.length) return null;
   return (
     <section className="myProjects" aria-label="your projects">
@@ -398,7 +425,7 @@ function MyProjectsStrip({projects}: {projects: ProjectSummary[]}) {
         {projects.map((project) => (
           <Link
             className={`myProjectTile myProjectTile--${project.kind}`}
-            href={`/years/${project.yearId}/projects/${project.id}`}
+            href={`/years/${project.yearId}/projects/${project.id}${detailsSearch ? `?${detailsSearch}` : ''}`}
             key={project.id}
           >
             <span className="tag tag--group">
@@ -436,11 +463,13 @@ function BallotOverview({
   data,
   error,
   loading,
+  detailsSearch,
 }: {
   yearId: string;
   data?: BallotStatusResponse;
   error: Error | null;
   loading: boolean;
+  detailsSearch: string;
 }) {
   if (loading) {
     return (
@@ -535,7 +564,9 @@ function BallotOverview({
                   <small>{getAwardCategoryDescription(category.name)}</small>
                 </span>
                 {vote.projectActive && vote.nominationEligible ? (
-                  <Link href={`/years/${yearId}/projects/${vote.projectId}`}>
+                  <Link
+                    href={`/years/${yearId}/projects/${vote.projectId}${detailsSearch ? `?${detailsSearch}` : ''}`}
+                  >
                     {vote.projectName} <span aria-hidden="true">→</span>
                   </Link>
                 ) : (

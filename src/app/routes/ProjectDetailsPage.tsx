@@ -25,8 +25,8 @@ export function ProjectDetailsPage() {
   }>();
   const [, navigate] = useLocation();
   const [searchParams] = useSearchParams();
-  const group = searchParams.get('group');
-  const projectsHref = `/years/${yearId}/projects${group ? `?group=${encodeURIComponent(group)}` : ''}`;
+  const projectsSearch = searchParams.toString();
+  const projectsHref = `/years/${yearId}/projects${projectsSearch ? `?${projectsSearch}` : ''}`;
   const project = useProject(projectId);
   const ballotYearId = project.data?.project.yearId ?? yearId;
   const ballot = useBallotStatus(ballotYearId, project.data?.project.kind === 'project');

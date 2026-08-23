@@ -1,6 +1,6 @@
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import type {ReactNode} from 'react';
-import {render, screen, waitFor, within} from '@testing-library/react';
+import {act, render, screen, waitFor, within} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {Route, Router} from 'wouter';
 import {memoryLocation} from 'wouter/memory-location';
@@ -525,7 +525,7 @@ describe('clickable project routes', () => {
     expect(screen.queryByRole('region', {name: 'your projects'})).toBeNull();
   });
 
-  it('marks playable videos in both views and filters projects by video', async () => {
+  it('marks playable videos in both views and preserves the video filter', async () => {
     const readyProject = {...projectFixture, hasVideo: true};
     const projectWithoutVideo = {
       ...projectFixture,
@@ -587,16 +587,16 @@ describe('clickable project routes', () => {
     expect(screen.queryByRole('checkbox', {name: 'Has video'})).toBeNull();
 
     await userEvent.click(screen.getByRole('button', {name: /Projects/}));
-    const resetFilter = screen.getByRole('checkbox', {name: 'Has video'});
-    expect(resetFilter).toBeInstanceOf(HTMLInputElement);
-    if (!(resetFilter instanceof HTMLInputElement)) throw new Error();
-    expect(resetFilter.checked).toBe(false);
+    const preservedFilter = screen.getByRole('checkbox', {name: 'Has video'});
+    expect(preservedFilter).toBeInstanceOf(HTMLInputElement);
+    if (!(preservedFilter instanceof HTMLInputElement)) throw new Error();
+    expect(preservedFilter.checked).toBe(true);
     await waitFor(() => {
       const projectRequest = fetchMock.mock.calls
         .map(([input]) => requestUrl(input))
         .filter((url) => url.includes('/api/projects?'))
         .at(-1);
-      expect(projectRequest).not.toContain('hasVideo=');
+      expect(projectRequest).toContain('hasVideo=true');
     });
   });
 
@@ -878,7 +878,7 @@ describe('clickable project routes', () => {
     });
   });
 
-  it('omits the group filter from idea detail links', async () => {
+  it('preserves project filters when viewing ideas', async () => {
     fetchMock.mockImplementation(async (input) => {
       const url = requestUrl(input);
       if (url.includes('/api/years/2026')) {
@@ -920,17 +920,18 @@ describe('clickable project routes', () => {
     await userEvent.click(await screen.findByRole('button', {name: /Ideas/}));
     expect(
       (await screen.findByRole('link', {name: 'Open idea'})).getAttribute('href'),
-    ).toBe('/years/2026/projects/idea');
+    ).toBe('/years/2026/projects/idea?group=group&kind=idea');
   });
 
-  it('keeps the selected group when viewing a project and returning', async () => {
+  it('restores every URL filter and keeps them when viewing a project', async () => {
+    const filters = 'group=group&q=small&hasVideo=true&view=list&category=delight';
     fetchMock.mockImplementation(async (input) => {
       const url = requestUrl(input);
       if (url.includes('/api/years/2026')) {
         return json({
           year: {
             id: '2026',
-            votingEnabled: false,
+            votingEnabled: true,
             submissionsClosed: false,
             projectCount: 1,
             ideaCount: 0,
@@ -942,15 +943,26 @@ describe('clickable project routes', () => {
           myProjects: [],
         });
       }
-      expect(new URL(url, 'https://hackweek.test').searchParams.get('group')).toBe(
-        'group',
-      );
+      if (url.includes('/api/votes?')) {
+        return json({
+          year: {id: '2026', votingEnabled: true},
+          categories: [{id: 'delight', yearId: '2026', name: 'Delight'}],
+          votes: [],
+        });
+      }
+      const params = new URL(url, 'https://hackweek.test').searchParams;
+      expect(Object.fromEntries(params)).toMatchObject({
+        group: 'group',
+        q: 'small',
+        hasVideo: 'true',
+        category: 'delight',
+      });
       return json({projects: [projectFixture], nextCursor: null});
     });
 
     const projects = renderRoute(
       <ProjectsPage />,
-      '/years/2026/projects?group=group',
+      `/years/2026/projects?${filters}`,
       '/years/:yearId/projects',
     );
 
@@ -958,21 +970,85 @@ describe('clickable project routes', () => {
     expect(groupSelect).toBeInstanceOf(HTMLSelectElement);
     if (!(groupSelect instanceof HTMLSelectElement)) throw new Error();
     expect(groupSelect.value).toBe('group');
+    expect(screen.getByRole('searchbox').getAttribute('value')).toBe('small');
+    const hasVideo = screen.getByRole('checkbox', {name: 'Has video'});
+    expect(hasVideo).toBeInstanceOf(HTMLInputElement);
+    if (!(hasVideo instanceof HTMLInputElement)) throw new Error();
+    expect(hasVideo.checked).toBe(true);
+    const category = await screen.findByRole('combobox', {name: 'Award category'});
+    expect(category).toBeInstanceOf(HTMLSelectElement);
+    if (!(category instanceof HTMLSelectElement)) throw new Error();
+    expect(category.value).toBe('delight');
+    expect(
+      screen.getByRole('button', {name: 'list view'}).getAttribute('aria-pressed'),
+    ).toBe('true');
     expect(screen.getByRole('link', {name: 'A small machine'}).getAttribute('href')).toBe(
-      '/years/2026/projects/project?group=group',
+      `/years/2026/projects/project?${filters}`,
     );
 
     projects.unmount();
     mockProjectDetails({detail: projectFixture});
     renderRoute(
       <ProjectDetailsPage />,
-      '/years/2026/projects/project?group=group',
+      `/years/2026/projects/project?${filters}`,
       '/years/:yearId/projects/:projectId',
     );
 
     expect(
       (await screen.findByRole('link', {name: '← 2026 projects'})).getAttribute('href'),
-    ).toBe('/years/2026/projects?group=group');
+    ).toBe(`/years/2026/projects?${filters}`);
+  });
+
+  it('applies search changes from URL navigation without a debounce delay', async () => {
+    fetchMock.mockImplementation(async (input) => {
+      const url = requestUrl(input);
+      if (url.includes('/api/years/2026')) {
+        return json({
+          year: {
+            id: '2026',
+            votingEnabled: false,
+            submissionsClosed: false,
+            projectCount: 2,
+            ideaCount: 0,
+            groupCount: 0,
+            participantCount: 2,
+          },
+          groups: [],
+          awards: [],
+          myProjects: [],
+        });
+      }
+      const search = new URL(url, 'https://hackweek.test').searchParams.get('q');
+      return json({
+        projects: [
+          {
+            ...projectFixture,
+            id: search ? 'search-match' : 'all-projects',
+            name: search ? 'Search match' : 'All projects',
+          },
+        ],
+        nextCursor: null,
+      });
+    });
+
+    const route = renderRoute(
+      <ProjectsPage />,
+      '/years/2026/projects?q=small',
+      '/years/:yearId/projects',
+    );
+    expect(await screen.findByRole('heading', {name: 'Search match'})).toBeTruthy();
+
+    await act(async () => route.navigate('/years/2026/projects'));
+
+    const projectRequest = fetchMock.mock.calls
+      .map(([input]) => requestUrl(input))
+      .filter((url) => url.includes('/api/projects?'))
+      .at(-1);
+    expect(new URL(projectRequest!, 'https://hackweek.test').searchParams.get('q')).toBe(
+      null,
+    );
+    expect(screen.getByRole('searchbox').getAttribute('value')).toBe('');
+    expect(await screen.findByRole('heading', {name: 'All projects'})).toBeTruthy();
   });
 
   it('requests a 250-item page and focuses and announces loaded pages', async () => {
@@ -1294,7 +1370,7 @@ describe('clickable project routes', () => {
     const categorySelect = await screen.findByLabelText('Award category');
     expect(categorySelect).toBeInstanceOf(HTMLSelectElement);
     if (!(categorySelect instanceof HTMLSelectElement)) throw new Error();
-    expect(categorySelect.value).toBe('');
+    expect(categorySelect.value).toBe('delight');
   });
 
   it('live-updates server search without replacing the current list', async () => {
@@ -1347,10 +1423,21 @@ describe('clickable project routes', () => {
     const activeSearch = screen.getByRole('search', {
       name: 'Search projects and ideas',
     });
-    await userEvent.type(
-      within(activeSearch).getByLabelText('Search projects and ideas'),
-      'useful experiment',
+    const activeSearchInput = within(activeSearch).getByLabelText(
+      'Search projects and ideas',
     );
+    await userEvent.type(activeSearchInput, 'useful ');
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringMatching(
+          /\/api\/projects\?(?=.*year=2026)(?=.*kind=project)(?=.*group=group)(?=.*q=useful(?:&|$))/,
+        ),
+        undefined,
+      ),
+    );
+    expect(activeSearchInput.getAttribute('value')).toBe('useful ');
+
+    await userEvent.type(activeSearchInput, 'experiment');
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         expect.stringMatching(
@@ -2016,14 +2103,15 @@ describe('clickable project routes', () => {
 
 function renderRoute(element: ReactNode, path: string, pattern = path) {
   const client = new QueryClient({defaultOptions: {queries: {retry: false}}});
-  const {hook} = memoryLocation({path});
-  return render(
-    <Router hook={hook}>
+  const location = memoryLocation({path});
+  const rendered = render(
+    <Router hook={location.hook}>
       <QueryClientProvider client={client}>
         <Route path={pattern}>{element}</Route>
       </QueryClientProvider>
     </Router>,
   );
+  return {...rendered, navigate: location.navigate};
 }
 
 function json<T>(value: T, status = 200) {

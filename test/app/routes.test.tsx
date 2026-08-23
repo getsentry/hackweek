@@ -601,7 +601,11 @@ describe('clickable project routes', () => {
   });
 
   it('keeps closed-year browsing and ballot read failures local', async () => {
-    mockProjectsOverview({votingEnabled: false, projects: [projectFixture]});
+    mockProjectsOverview({
+      votingEnabled: false,
+      submissionsClosed: true,
+      projects: [projectFixture],
+    });
     const closed = renderRoute(
       <ProjectsPage />,
       '/years/2026/projects',
@@ -625,6 +629,22 @@ describe('clickable project routes', () => {
     expect(await screen.findByText('progress is taking a break')).toBeTruthy();
     expect(screen.getByRole('heading', {name: 'A small machine'})).toBeTruthy();
     expect(screen.queryByRole('heading', {name: 'Something went wrong'})).toBeNull();
+  });
+
+  it('hides help labels in both overview views when submissions are closed', async () => {
+    mockProjectsOverview({
+      votingEnabled: false,
+      submissionsClosed: true,
+      projects: [{...projectFixture, needsHelp: true}],
+    });
+
+    renderRoute(<ProjectsPage />, '/years/2026/projects', '/years/:yearId/projects');
+
+    await screen.findByRole('heading', {name: 'A small machine'});
+    expect(screen.queryByText('looking for help')).toBeNull();
+
+    await userEvent.click(screen.getByRole('button', {name: 'list view'}));
+    expect(screen.queryByText('looking for help')).toBeNull();
   });
 
   it('defaults to the grid view when storage is unavailable', async () => {
@@ -2038,6 +2058,7 @@ function mockProjectDetails({
 
 function mockProjectsOverview({
   votingEnabled = true,
+  submissionsClosed = false,
   categories = [],
   votes = [],
   projects = [],
@@ -2045,6 +2066,7 @@ function mockProjectsOverview({
   ballotError = false,
 }: {
   votingEnabled?: boolean;
+  submissionsClosed?: boolean;
   categories?: Array<{id: string; yearId: string; name: string}>;
   votes?: BallotStatusResponse['votes'];
   projects?: ProjectDetail[];
@@ -2058,7 +2080,7 @@ function mockProjectsOverview({
         year: {
           id: '2026',
           votingEnabled,
-          submissionsClosed: false,
+          submissionsClosed,
           isCurrent: true,
           projectCount: projects.length,
           ideaCount: 0,

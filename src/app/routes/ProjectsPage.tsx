@@ -44,6 +44,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
   const searchParam = searchParams.get('q') ?? '';
   const [searchInput, setSearchInput] = useState(searchParam);
   const previousSearchParam = useRef(searchParam);
+  const pendingSearchParam = useRef<string | undefined>(undefined);
   const search = searchParam.trim();
   const viewParam = searchParams.get('view');
   const view: ProjectsView =
@@ -101,13 +102,17 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
   useEffect(() => {
     if (previousSearchParam.current !== searchParam) {
       previousSearchParam.current = searchParam;
-      setSearchInput(searchParam);
+      const internalUpdate = pendingSearchParam.current === searchParam;
+      pendingSearchParam.current = undefined;
+      if (!internalUpdate) setSearchInput(searchParam);
       return;
     }
     if (searchInput === searchParam) return;
 
     const timeout = window.setTimeout(() => {
-      setFilter('q', searchInput.trim() || undefined, {replace: true});
+      const nextSearchParam = searchInput.trim();
+      pendingSearchParam.current = nextSearchParam;
+      setFilter('q', nextSearchParam || undefined, {replace: true});
     }, SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(timeout);
   }, [searchInput, searchParam]);

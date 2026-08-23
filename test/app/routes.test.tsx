@@ -1423,10 +1423,21 @@ describe('clickable project routes', () => {
     const activeSearch = screen.getByRole('search', {
       name: 'Search projects and ideas',
     });
-    await userEvent.type(
-      within(activeSearch).getByLabelText('Search projects and ideas'),
-      'useful experiment',
+    const activeSearchInput = within(activeSearch).getByLabelText(
+      'Search projects and ideas',
     );
+    await userEvent.type(activeSearchInput, 'useful ');
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringMatching(
+          /\/api\/projects\?(?=.*year=2026)(?=.*kind=project)(?=.*group=group)(?=.*q=useful(?:&|$))/,
+        ),
+        undefined,
+      ),
+    );
+    expect(activeSearchInput.getAttribute('value')).toBe('useful ');
+
+    await userEvent.type(activeSearchInput, 'experiment');
     await waitFor(() =>
       expect(fetchMock).toHaveBeenCalledWith(
         expect.stringMatching(

@@ -1,6 +1,6 @@
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import type {ReactNode} from 'react';
-import {render, screen, waitFor, within} from '@testing-library/react';
+import {act, render, screen, waitFor, within} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {Route, Router} from 'wouter';
 import {memoryLocation} from 'wouter/memory-location';
@@ -997,6 +997,58 @@ describe('clickable project routes', () => {
     expect(
       (await screen.findByRole('link', {name: '← 2026 projects'})).getAttribute('href'),
     ).toBe(`/years/2026/projects?${filters}`);
+  });
+
+  it('applies search changes from URL navigation without a debounce delay', async () => {
+    fetchMock.mockImplementation(async (input) => {
+      const url = requestUrl(input);
+      if (url.includes('/api/years/2026')) {
+        return json({
+          year: {
+            id: '2026',
+            votingEnabled: false,
+            submissionsClosed: false,
+            projectCount: 2,
+            ideaCount: 0,
+            groupCount: 0,
+            participantCount: 2,
+          },
+          groups: [],
+          awards: [],
+          myProjects: [],
+        });
+      }
+      const search = new URL(url, 'https://hackweek.test').searchParams.get('q');
+      return json({
+        projects: [
+          {
+            ...projectFixture,
+            id: search ? 'search-match' : 'all-projects',
+            name: search ? 'Search match' : 'All projects',
+          },
+        ],
+        nextCursor: null,
+      });
+    });
+
+    const route = renderRoute(
+      <ProjectsPage />,
+      '/years/2026/projects?q=small',
+      '/years/:yearId/projects',
+    );
+    expect(await screen.findByRole('heading', {name: 'Search match'})).toBeTruthy();
+
+    await act(async () => route.navigate('/years/2026/projects'));
+
+    const projectRequest = fetchMock.mock.calls
+      .map(([input]) => requestUrl(input))
+      .filter((url) => url.includes('/api/projects?'))
+      .at(-1);
+    expect(new URL(projectRequest!, 'https://hackweek.test').searchParams.get('q')).toBe(
+      null,
+    );
+    expect(screen.getByRole('searchbox').getAttribute('value')).toBe('');
+    expect(await screen.findByRole('heading', {name: 'All projects'})).toBeTruthy();
   });
 
   it('requests a 250-item page and focuses and announces loaded pages', async () => {
@@ -2040,14 +2092,15 @@ describe('clickable project routes', () => {
 
 function renderRoute(element: ReactNode, path: string, pattern = path) {
   const client = new QueryClient({defaultOptions: {queries: {retry: false}}});
-  const {hook} = memoryLocation({path});
-  return render(
-    <Router hook={hook}>
+  const location = memoryLocation({path});
+  const rendered = render(
+    <Router hook={location.hook}>
       <QueryClientProvider client={client}>
         <Route path={pattern}>{element}</Route>
       </QueryClientProvider>
     </Router>,
   );
+  return {...rendered, navigate: location.navigate};
 }
 
 function json<T>(value: T, status = 200) {

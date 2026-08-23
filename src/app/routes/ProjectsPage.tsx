@@ -41,8 +41,10 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
   const group = searchParams.get('group') ?? '';
   const category = searchParams.get('category') ?? '';
   const hasVideoOnly = searchParams.get('hasVideo') === 'true';
-  const searchInput = searchParams.get('q') ?? '';
-  const [search, setSearch] = useState(searchInput.trim());
+  const searchParam = searchParams.get('q') ?? '';
+  const [searchInput, setSearchInput] = useState(searchParam);
+  const previousSearchParam = useRef(searchParam);
+  const search = searchParam.trim();
   const viewParam = searchParams.get('view');
   const view: ProjectsView =
     viewParam === 'grid' || viewParam === 'list' ? viewParam : defaultView;
@@ -97,11 +99,18 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
   };
 
   useEffect(() => {
+    if (previousSearchParam.current !== searchParam) {
+      previousSearchParam.current = searchParam;
+      setSearchInput(searchParam);
+      return;
+    }
+    if (searchInput === searchParam) return;
+
     const timeout = window.setTimeout(() => {
-      setSearch(searchInput.trim());
+      setFilter('q', searchInput.trim() || undefined, {replace: true});
     }, SEARCH_DEBOUNCE_MS);
     return () => window.clearTimeout(timeout);
-  }, [searchInput]);
+  }, [searchInput, searchParam]);
 
   useEffect(() => {
     resetPagination();
@@ -188,7 +197,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                 placeholder="Search titles, descriptions, and people"
                 onChange={(event) => {
                   paginationRequestPending.current = false;
-                  setFilter('q', event.target.value || undefined, {replace: true});
+                  setSearchInput(event.target.value);
                 }}
               />
               {search && (
@@ -198,7 +207,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                   onClick={() => {
                     resetPagination();
                     setFilter('q', undefined, {replace: true});
-                    setSearch('');
+                    setSearchInput('');
                   }}
                 >
                   clear

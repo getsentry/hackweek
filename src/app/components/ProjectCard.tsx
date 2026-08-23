@@ -15,11 +15,13 @@ export function ProjectCard({
   view = 'grid',
   voteCategories = [],
   detailsSearch,
+  showHelpLabel = true,
 }: {
   project: ProjectSummary;
   view?: 'grid' | 'list';
   voteCategories?: string[];
   detailsSearch?: string;
+  showHelpLabel?: boolean;
 }) {
   const projectLink = `/years/${project.yearId}/projects/${project.id}${detailsSearch ? `?${detailsSearch}` : ''}`;
 
@@ -31,7 +33,7 @@ export function ProjectCard({
         kind={project.kind}
         groupName={project.group?.name ?? 'ungrouped'}
         members={project.members}
-        needsHelp={project.needsHelp}
+        needsHelp={showHelpLabel && project.needsHelp}
         hasVideo={project.hasVideo}
         voteCategories={voteCategories}
       />
@@ -40,7 +42,7 @@ export function ProjectCard({
 
   return (
     <article className={`projectCard projectCard--${project.kind}`}>
-      <ProjectTags project={project} className="cardMeta" />
+      <ProjectTags project={project} className="cardMeta" showHelpLabel={showHelpLabel} />
       <h2>
         <Link href={projectLink}>{project.name}</Link>
       </h2>
@@ -122,14 +124,24 @@ function ProjectVoteBadge({categories}: {categories: string[]}) {
   );
 }
 
-function ProjectTags({project, className}: {project: ProjectSummary; className: string}) {
+function ProjectTags({
+  project,
+  className,
+  showHelpLabel,
+}: {
+  project: ProjectSummary;
+  className: string;
+  showHelpLabel: boolean;
+}) {
   return (
     <div className={className}>
       <span className="tag tag--group">
         {project.kind === 'idea' ? 'open idea' : (project.group?.name ?? 'ungrouped')}
       </span>
       <ProjectVideoTag hasVideo={project.hasVideo} />
-      {project.needsHelp && <strong className="tag tag--help">looking for help</strong>}
+      {showHelpLabel && project.needsHelp && (
+        <strong className="tag tag--help">looking for help</strong>
+      )}
     </div>
   );
 }

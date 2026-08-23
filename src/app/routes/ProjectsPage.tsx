@@ -350,6 +350,7 @@ export function ProjectsPage({isAdmin = false}: {isAdmin?: boolean}) {
                   project={project}
                   view={view}
                   voteCategories={voteCategoriesByProject.get(project.id)}
+                  showHelpLabel={!year.data.year.submissionsClosed}
                   detailsSearch={searchParams.toString() || undefined}
                   key={project.id}
                 />

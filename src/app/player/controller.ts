@@ -18,6 +18,7 @@ export interface ScreeningController {
   jumpTo(index: number): Promise<void>;
   togglePause(): Promise<void>;
   seek(time: number): void;
+  setPlaybackRate(rate: number): void;
   skip(): Promise<void>;
   destroy(): void;
 }
@@ -53,6 +54,7 @@ export function createScreeningController({
   let stateError: string | null = null;
   let destroyed = false;
   let operation = 0;
+  let playbackRate = 1;
   let transitionTimer: ReturnType<typeof setTimeout> | null = null;
   let countdownTimer: ReturnType<typeof setInterval> | null = null;
   const attachments: [MediaAttachment | null, MediaAttachment | null] = [null, null];
@@ -67,6 +69,12 @@ export function createScreeningController({
       currentTime,
       durationSeconds,
     });
+
+  function applyPlaybackRate() {
+    for (const element of elements) element.playbackRate = playbackRate;
+  }
+
+  applyPlaybackRate();
 
   const endedHandlers = elements.map((_element, slot) => () => {
     if (phase === 'playing' && slot === active) void advance();
@@ -125,6 +133,7 @@ export function createScreeningController({
     }
     attachments[slot] = attachment;
     attachedVideoIds[slot] = clip.videoId;
+    applyPlaybackRate();
     audio.setGain(slot, clip.gainDb);
   }
 
@@ -251,6 +260,11 @@ export function createScreeningController({
       elements[active].currentTime = next;
       currentTime = next;
       notify();
+    },
+    setPlaybackRate(rate) {
+      if (!Number.isFinite(rate) || rate <= 0) return;
+      playbackRate = rate;
+      applyPlaybackRate();
     },
     async skip() {
       if (phase === 'idle' || phase === 'complete') return;

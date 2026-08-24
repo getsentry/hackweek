@@ -421,6 +421,33 @@ describe('voting and administration journeys', () => {
             members: [],
             voteCount: 2,
           },
+          {
+            categoryId: 'craft',
+            categoryName: 'Craft',
+            projectId: 'craft-leader',
+            projectName: 'Craft leader',
+            groupName: 'Europe',
+            members: [],
+            voteCount: 9,
+          },
+          {
+            categoryId: 'craft',
+            categoryName: 'Craft',
+            projectId: 'craft-second',
+            projectName: 'Craft second',
+            groupName: 'Europe',
+            members: [],
+            voteCount: 7,
+          },
+          {
+            categoryId: 'craft',
+            categoryName: 'Craft',
+            projectId: 'craft-third',
+            projectName: 'Craft third',
+            groupName: 'Europe',
+            members: [],
+            voteCount: 7,
+          },
         ],
       }),
     );
@@ -441,6 +468,14 @@ describe('voting and administration journeys', () => {
     expect(screen.getByText('Third project')).toBeTruthy();
     expect(screen.getAllByText('Tied for lead')).toHaveLength(3);
     expect(screen.queryByText('Fourth project')).toBeNull();
+    expect(screen.getAllByText('Tied for 2nd')).toHaveLength(2);
+
+    const runnerSections = screen
+      .getAllByRole('heading', {name: 'Runners-up'})
+      .map((heading) => heading.closest('section'));
+    if (!runnerSections[0] || !runnerSections[1]) throw new Error();
+    expect(within(runnerSections[0]).getAllByText('01')).toHaveLength(2);
+    expect(within(runnerSections[1]).getAllByText('02')).toHaveLength(2);
     expect(fetchMock).toHaveBeenCalledWith('/api/admin/analytics?year=2026', undefined);
   });
 });

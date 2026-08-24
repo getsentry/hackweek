@@ -79,12 +79,11 @@ function AwardStandings({yearId, results}: {yearId: string; results: VoteResult[
         <div className="awardSections">
           {categories.map(
             ({categoryId, categoryName, results: categoryResults}, index) => {
-              const [leader, ...runnerUps] = categoryResults.slice(0, 3);
+              const [leader, ...runnerUps] = rankResults(categoryResults).slice(0, 3);
               const totalVotes = categoryResults.reduce(
                 (total, result) => total + result.voteCount,
                 0,
               );
-              const tiedForLead = categoryResults[1]?.voteCount === leader.voteCount;
 
               return (
                 <article className="awardSection" key={categoryId}>
@@ -107,7 +106,7 @@ function AwardStandings({yearId, results}: {yearId: string; results: VoteResult[
                     <section className="awardWinner">
                       <div className="awardPlacement">
                         <span aria-hidden="true">★</span>
-                        {tiedForLead ? 'Tied for lead' : 'Winner by votes'}
+                        {leader.tied ? 'Tied for lead' : 'Winner by votes'}
                       </div>
                       <div className="awardProjectCopy">
                         <ProjectOrigin groupName={leader.groupName} />
@@ -124,10 +123,10 @@ function AwardStandings({yearId, results}: {yearId: string; results: VoteResult[
                       <h4>Runners-up</h4>
                       {runnerUps.length ? (
                         <ol>
-                          {runnerUps.map((result, runnerIndex) => (
+                          {runnerUps.map((result) => (
                             <li key={result.projectId}>
                               <span className="awardRunnerRank">
-                                {String(runnerIndex + 2).padStart(2, '0')}
+                                {String(result.rank).padStart(2, '0')}
                               </span>
                               <div>
                                 <strong>
@@ -138,8 +137,10 @@ function AwardStandings({yearId, results}: {yearId: string; results: VoteResult[
                                   </Link>
                                 </strong>
                                 <ProjectOrigin groupName={result.groupName} />
-                                {result.voteCount === leader.voteCount && (
-                                  <small className="awardTie">Tied for lead</small>
+                                {result.tied && (
+                                  <small className="awardTie">
+                                    {tieLabel(result.rank)}
+                                  </small>
                                 )}
                                 <ProjectTeam members={result.members} />
                               </div>
@@ -223,6 +224,34 @@ function groupByCategory(results: VoteResult[]) {
         left.projectName.localeCompare(right.projectName),
     ),
   }));
+}
+
+function rankResults(results: VoteResult[]) {
+  let rank = 0;
+
+  return results.map((result, index) => {
+    if (index === 0 || result.voteCount !== results[index - 1].voteCount) {
+      rank = index + 1;
+    }
+    const tied =
+      results[index - 1]?.voteCount === result.voteCount ||
+      results[index + 1]?.voteCount === result.voteCount;
+    return {...result, rank, tied};
+  });
+}
+
+function tieLabel(rank: number) {
+  if (rank === 1) return 'Tied for lead';
+  return `Tied for ${ordinal(rank)}`;
+}
+
+function ordinal(value: number) {
+  const remainder = value % 100;
+  if (remainder >= 11 && remainder <= 13) return `${value}th`;
+  if (value % 10 === 1) return `${value}st`;
+  if (value % 10 === 2) return `${value}nd`;
+  if (value % 10 === 3) return `${value}rd`;
+  return `${value}th`;
 }
 
 function voteLabel(count: number) {

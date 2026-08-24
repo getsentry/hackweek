@@ -1,6 +1,8 @@
 import {Link, useSearch} from 'wouter';
 
+import type {VoteResult} from '../../shared/administration';
 import {QueryState} from '../components/AppLayout';
+import {UserAvatar} from '../components/UserAvatar';
 import {useAnalytics} from '../queries/administration';
 
 export function AdminAnalyticsPage() {
@@ -50,38 +52,208 @@ export function AdminAnalyticsPage() {
               ))}
             </section>
             {yearId && (
-              <section className="resultsTable">
-                <p className="kicker">{yearId} vote distribution</p>
-                <h2>Category results</h2>
-                {!query.data.voteResults.length ? (
-                  <p>No votes have been recorded.</p>
-                ) : (
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Category</th>
-                        <th>Project</th>
-                        <th>Group</th>
-                        <th>Votes</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {query.data.voteResults.map((row) => (
-                        <tr key={`${row.categoryId}:${row.projectId}`}>
-                          <td>{row.categoryName}</td>
-                          <td>{row.projectName}</td>
-                          <td>{row.groupName ?? '—'}</td>
-                          <td>{row.voteCount}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </section>
+              <AwardStandings yearId={yearId} results={query.data.voteResults} />
             )}
           </>
         )}
       </QueryState>
     </main>
   );
+}
+
+function AwardStandings({yearId, results}: {yearId: string; results: VoteResult[]}) {
+  const categories = groupByCategory(results);
+
+  return (
+    <section className="awardStandings">
+      <header className="awardStandingsHeader">
+        <div>
+          <p className="kicker">{yearId} vote distribution</p>
+          <h2>Award standings</h2>
+        </div>
+        <p>The leading project and two runners-up in every category.</p>
+      </header>
+      {!categories.length ? (
+        <p className="awardStandingsEmpty">No votes have been recorded.</p>
+      ) : (
+        <div className="awardSections">
+          {categories.map(
+            ({categoryId, categoryName, results: categoryResults}, index) => {
+              const [leader, ...runnerUps] = rankResults(categoryResults).slice(0, 3);
+              const totalVotes = categoryResults.reduce(
+                (total, result) => total + result.voteCount,
+                0,
+              );
+
+              return (
+                <article className="awardSection" key={categoryId}>
+                  <header className="awardSectionHeader">
+                    <div className="awardNumber" aria-hidden="true">
+                      {String(index + 1).padStart(2, '0')}
+                    </div>
+                    <div>
+                      <p>Award category</p>
+                      <h3>{categoryName}</h3>
+                    </div>
+                    <p className="awardTally">
+                      <strong>{totalVotes}</strong> {voteLabel(totalVotes)}
+                      <span aria-hidden="true">·</span>
+                      <strong>{categoryResults.length}</strong>{' '}
+                      {categoryResults.length === 1 ? 'project' : 'projects'}
+                    </p>
+                  </header>
+                  <div className="awardPodium">
+                    <section className="awardWinner">
+                      <div className="awardPlacement">
+                        <span aria-hidden="true">★</span>
+                        {leader.tied ? 'Tied for lead' : 'Winner by votes'}
+                      </div>
+                      <div className="awardProjectCopy">
+                        <ProjectOrigin groupName={leader.groupName} />
+                        <h4>
+                          <Link href={`/years/${yearId}/projects/${leader.projectId}`}>
+                            {leader.projectName}
+                          </Link>
+                        </h4>
+                        <ProjectTeam members={leader.members} />
+                      </div>
+                      <VoteCount count={leader.voteCount} />
+                    </section>
+                    <section className="awardRunnerUps">
+                      <h4>Runners-up</h4>
+                      {runnerUps.length ? (
+                        <ol>
+                          {runnerUps.map((result) => (
+                            <li key={result.projectId}>
+                              <span className="awardRunnerRank">
+                                {String(result.rank).padStart(2, '0')}
+                              </span>
+                              <div>
+                                <strong>
+                                  <Link
+                                    href={`/years/${yearId}/projects/${result.projectId}`}
+                                  >
+                                    {result.projectName}
+                                  </Link>
+                                </strong>
+                                <ProjectOrigin groupName={result.groupName} />
+                                {result.tied && (
+                                  <small className="awardTie">
+                                    {tieLabel(result.rank)}
+                                  </small>
+                                )}
+                                <ProjectTeam members={result.members} />
+                              </div>
+                              <VoteCount count={result.voteCount} />
+                            </li>
+                          ))}
+                        </ol>
+                      ) : (
+                        <p className="awardRunnerUpsEmpty">No runner-ups yet.</p>
+                      )}
+                    </section>
+                  </div>
+                </article>
+              );
+            },
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function ProjectOrigin({groupName}: {groupName: string | null}) {
+  return (
+    <p className="awardOrigin">
+      <span>From</span> {groupName ?? 'an independent team'}
+    </p>
+  );
+}
+
+function ProjectTeam({members}: {members: VoteResult['members']}) {
+  if (!members.length) return <p className="awardTeamEmpty">Team not listed</p>;
+
+  return (
+    <ul className="awardTeam" aria-label="Project team">
+      {members.map((member) => (
+        <li key={member.id}>
+          <Link
+            href={`/users/${member.id}`}
+            aria-label={`View ${member.displayName}'s Hackweek profile`}
+          >
+            <UserAvatar user={member} />
+            <span>{member.displayName}</span>
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function VoteCount({count}: {count: number}) {
+  return (
+    <p className="awardVoteCount" aria-label={`${count} ${voteLabel(count)}`}>
+      <strong>{count}</strong>
+      <span>{voteLabel(count)}</span>
+    </p>
+  );
+}
+
+function groupByCategory(results: VoteResult[]) {
+  const categories = new Map<
+    string,
+    {categoryId: string; categoryName: string; results: VoteResult[]}
+  >();
+
+  for (const result of results) {
+    const category = categories.get(result.categoryId) ?? {
+      categoryId: result.categoryId,
+      categoryName: result.categoryName,
+      results: [],
+    };
+    category.results.push(result);
+    categories.set(result.categoryId, category);
+  }
+
+  return [...categories.values()].map((category) => ({
+    ...category,
+    results: [...category.results].sort(
+      (left, right) =>
+        right.voteCount - left.voteCount ||
+        left.projectName.localeCompare(right.projectName),
+    ),
+  }));
+}
+
+function rankResults(results: VoteResult[]) {
+  let rank = 0;
+
+  return results.map((result, index) => {
+    if (index === 0 || result.voteCount !== results[index - 1].voteCount) {
+      rank = index + 1;
+    }
+    const tied =
+      results[index - 1]?.voteCount === result.voteCount ||
+      results[index + 1]?.voteCount === result.voteCount;
+    return {...result, rank, tied};
+  });
+}
+
+function tieLabel(rank: number) {
+  if (rank === 1) return 'Tied for lead';
+  return `Tied for ${ordinal(rank)}`;
+}
+
+function ordinal(value: number) {
+  const remainder = value % 100;
+  if (remainder >= 11 && remainder <= 13) return `${value}th`;
+  if (value % 10 === 1) return `${value}st`;
+  if (value % 10 === 2) return `${value}nd`;
+  if (value % 10 === 3) return `${value}rd`;
+  return `${value}th`;
+}
+
+function voteLabel(count: number) {
+  return count === 1 ? 'vote' : 'votes';
 }

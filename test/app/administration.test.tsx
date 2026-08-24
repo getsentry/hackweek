@@ -385,7 +385,68 @@ describe('voting and administration journeys', () => {
             projectId: 'project',
             projectName: 'First project',
             groupName: 'Orbital',
+            members: [
+              {
+                id: 'alice',
+                displayName: 'Alice Example',
+                avatarUrl: 'https://example.com/alice.jpg',
+              },
+            ],
             voteCount: 8,
+          },
+          {
+            categoryId: 'cat',
+            categoryName: 'Delight',
+            projectId: 'second-project',
+            projectName: 'Second project',
+            groupName: 'Orbital',
+            members: [{id: 'bob', displayName: 'Bob Example', avatarUrl: null}],
+            voteCount: 8,
+          },
+          {
+            categoryId: 'cat',
+            categoryName: 'Delight',
+            projectId: 'third-project',
+            projectName: 'Third project',
+            groupName: null,
+            members: [],
+            voteCount: 8,
+          },
+          {
+            categoryId: 'cat',
+            categoryName: 'Delight',
+            projectId: 'fourth-project',
+            projectName: 'Fourth project',
+            groupName: null,
+            members: [],
+            voteCount: 2,
+          },
+          {
+            categoryId: 'craft',
+            categoryName: 'Craft',
+            projectId: 'craft-leader',
+            projectName: 'Craft leader',
+            groupName: 'Europe',
+            members: [],
+            voteCount: 9,
+          },
+          {
+            categoryId: 'craft',
+            categoryName: 'Craft',
+            projectId: 'craft-second',
+            projectName: 'Craft second',
+            groupName: 'Europe',
+            members: [],
+            voteCount: 7,
+          },
+          {
+            categoryId: 'craft',
+            categoryName: 'Craft',
+            projectId: 'craft-third',
+            projectName: 'Craft third',
+            groupName: 'Europe',
+            members: [],
+            voteCount: 7,
           },
         ],
       }),
@@ -394,7 +455,27 @@ describe('voting and administration journeys', () => {
 
     expect(await screen.findByText('Active voters')).toBeTruthy();
     expect(screen.getByText('14')).toBeTruthy();
-    expect(screen.getByRole('cell', {name: 'First project'})).toBeTruthy();
+    expect(screen.getByRole('heading', {name: 'Award standings'})).toBeTruthy();
+    expect(screen.getByRole('heading', {name: 'Delight'})).toBeTruthy();
+    expect(screen.getByRole('heading', {name: 'First project'})).toBeTruthy();
+    expect(screen.getByRole('link', {name: 'First project'}).getAttribute('href')).toBe(
+      '/years/2026/projects/project',
+    );
+    expect(screen.getAllByText(/Orbital/)).toHaveLength(2);
+    expect(screen.getByText('Alice Example')).toBeTruthy();
+    expect(screen.getByText('Second project')).toBeTruthy();
+    expect(screen.getByText('Bob Example')).toBeTruthy();
+    expect(screen.getByText('Third project')).toBeTruthy();
+    expect(screen.getAllByText('Tied for lead')).toHaveLength(3);
+    expect(screen.queryByText('Fourth project')).toBeNull();
+    expect(screen.getAllByText('Tied for 2nd')).toHaveLength(2);
+
+    const runnerSections = screen
+      .getAllByRole('heading', {name: 'Runners-up'})
+      .map((heading) => heading.closest('section'));
+    if (!runnerSections[0] || !runnerSections[1]) throw new Error();
+    expect(within(runnerSections[0]).getAllByText('01')).toHaveLength(2);
+    expect(within(runnerSections[1]).getAllByText('02')).toHaveLength(2);
     expect(fetchMock).toHaveBeenCalledWith('/api/admin/analytics?year=2026', undefined);
   });
 });

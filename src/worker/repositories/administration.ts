@@ -383,7 +383,7 @@ export async function getAnalytics(
   selectedYear?: string,
 ): Promise<AnalyticsResponse> {
   if (selectedYear) await getYear(db, selectedYear);
-  const [yearsResult, votesResult] = await Promise.all([
+  const [yearsResult, votesResult, membersResult] = await Promise.all([
     db
       .prepare(
         `SELECT y.id year_id,
@@ -430,7 +430,40 @@ export async function getAnalytics(
             vote_count: number;
           }>()
       : Promise.resolve({results: []}),
+    selectedYear
+      ? db
+          .prepare(
+            `SELECT pm.project_id, u.id, u.display_name, u.avatar_url
+             FROM project_members pm JOIN users u ON u.id = pm.user_id
+             WHERE EXISTS (
+               SELECT 1 FROM votes v
+               WHERE v.project_id = pm.project_id AND v.year_id = ?
+             )
+             ORDER BY pm.project_id, u.display_name COLLATE NOCASE, u.id`,
+          )
+          .bind(selectedYear)
+          .all<{
+            project_id: string;
+            id: string;
+            display_name: string;
+            avatar_url: string | null;
+          }>()
+      : Promise.resolve({results: []}),
   ]);
+  const membersByProject = new Map<
+    string,
+    {id: string; displayName: string; avatarUrl: string | null}[]
+  >();
+  for (const row of membersResult.results) {
+    const members = membersByProject.get(row.project_id) ?? [];
+    members.push({
+      id: row.id,
+      displayName: row.display_name,
+      avatarUrl: row.avatar_url,
+    });
+    membersByProject.set(row.project_id, members);
+  }
+
   return {
     years: yearsResult.results.map((row) => ({
       yearId: row.year_id,
@@ -447,6 +480,7 @@ export async function getAnalytics(
       projectId: row.project_id,
       projectName: row.project_name,
       groupName: row.group_name,
+      members: membersByProject.get(row.project_id) ?? [],
       voteCount: row.vote_count,
     })),
   };

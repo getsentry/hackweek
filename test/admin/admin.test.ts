@@ -205,9 +205,12 @@ describe('year and award administration', () => {
 
   it('serves aggregate year and vote analytics rather than raw records', async () => {
     const category = await createCategory('Data');
-    await env.DB.prepare('UPDATE years SET voting_enabled = 1 WHERE id = ?')
-      .bind(yearId)
-      .run();
+    await env.DB.batch([
+      env.DB.prepare('UPDATE years SET voting_enabled = 1 WHERE id = ?').bind(yearId),
+      env.DB.prepare(
+        'INSERT INTO project_members (project_id, user_id) VALUES (?, ?)',
+      ).bind(projectId, adminId),
+    ]);
     const vote = await api('/votes', memberToken, {
       method: 'POST',
       body: {yearId, projectId, categoryId: category.id},
@@ -224,7 +227,12 @@ describe('year and award administration', () => {
       }),
     );
     expect(analytics.body.voteResults).toEqual([
-      expect.objectContaining({projectId, categoryId: category.id, voteCount: 1}),
+      expect.objectContaining({
+        projectId,
+        categoryId: category.id,
+        voteCount: 1,
+        members: [expect.objectContaining({id: adminId, displayName: 'admin'})],
+      }),
     ]);
     expect(JSON.stringify(analytics.body)).not.toContain('creatorId');
   });

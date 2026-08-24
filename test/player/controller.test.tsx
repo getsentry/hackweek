@@ -58,6 +58,10 @@ describe('dual screening controller', () => {
     expect(videos[0].currentTime).toBe(4.5);
     expect(states.at(-1)).toMatchObject({currentTime: 4.5, durationSeconds: 10});
 
+    controller.setPlaybackRate(1.5);
+    expect(videos[0].playbackRate).toBe(1.5);
+    expect(videos[1].playbackRate).toBe(1.5);
+
     videos[1].dispatchEvent(new Event('ended'));
     await Promise.resolve();
     expect(states.at(-1)?.index).toBe(0);
@@ -67,8 +71,11 @@ describe('dual screening controller', () => {
     expect(audio.resume).toHaveBeenCalledTimes(2);
     expect(states.at(-1)?.phase).toBe('title');
     expect(states.at(-1)?.index).toBe(1);
+    expect(videos[0].playbackRate).toBe(1.5);
+    expect(videos[1].playbackRate).toBe(1.5);
     await vi.advanceTimersByTimeAsync(5_000);
     expect(vi.mocked(videos[1].play).mock.calls).toHaveLength(1);
+    expect(videos[1].playbackRate).toBe(1.5);
 
     videos[1].dispatchEvent(new Event('ended'));
     await Promise.resolve();

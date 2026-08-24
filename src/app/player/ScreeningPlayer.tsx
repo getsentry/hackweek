@@ -21,6 +21,9 @@ export interface ScreeningPlayerHandle {
   playFrom(videoId: string): void;
 }
 
+/** Supported reel playback speeds, including normal rate as the default. */
+export const SCREENING_PLAYBACK_RATES = [1, 1.15, 1.25, 1.5, 2] as const;
+
 const initialState = (index: number, durationSeconds: number): PlayerState => ({
   phase: 'idle',
   index,
@@ -50,11 +53,13 @@ export const ScreeningPlayer = forwardRef<
   ] as const;
   const controller = useRef<ScreeningController | null>(null);
   const announcedVideoId = useRef<string | null>(null);
+  const playbackRateRef = useRef(1);
   const requestedIndex = playlist.findIndex((clip) => clip.videoId === initialVideoId);
   const initialIndex = Math.max(0, requestedIndex);
   const [state, setState] = useState(
     initialState(initialIndex, playlist[initialIndex]?.durationSeconds ?? 0),
   );
+  const [playbackRate, setPlaybackRate] = useState(1);
 
   const publishState = useCallback(
     (next: PlayerState) => {
@@ -81,8 +86,21 @@ export const ScreeningPlayer = forwardRef<
       getPlayback,
       onState: publishState,
     });
+    controller.current.setPlaybackRate(playbackRateRef.current);
     return controller.current;
   }, [getPlayback, playlist, publishState, videos]);
+
+  const updatePlaybackRate = useCallback(
+    (rate: number) => {
+      playbackRateRef.current = rate;
+      setPlaybackRate(rate);
+      controller.current?.setPlaybackRate(rate);
+      for (const element of videos) {
+        if (element.current) element.current.playbackRate = rate;
+      }
+    },
+    [videos],
+  );
 
   useImperativeHandle(
     ref,
@@ -272,6 +290,20 @@ export const ScreeningPlayer = forwardRef<
             {activeIndex + 1} of {playlist.length}
           </span>
         </div>
+        <label className="playbackSpeed">
+          <span className="sr-only">playback speed</span>
+          <select
+            aria-label="playback speed"
+            value={String(playbackRate)}
+            onChange={(event) => updatePlaybackRate(Number(event.currentTarget.value))}
+          >
+            {SCREENING_PLAYBACK_RATES.map((rate) => (
+              <option key={rate} value={rate}>
+                {formatPlaybackRate(rate)}
+              </option>
+            ))}
+          </select>
+        </label>
         <button
           disabled={state.phase === 'idle' || state.phase === 'complete'}
           onClick={() => void controller.current?.skip()}
@@ -293,13 +325,18 @@ function formatPlaybackTime(value: number) {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
+function formatPlaybackRate(rate: number) {
+  return `${rate}x`;
+}
+
 export function handleScreeningShortcut(
   event: Pick<KeyboardEvent, 'code' | 'key' | 'target' | 'preventDefault'>,
   actions: {togglePause(): void; skip(): void; fullscreen(): void},
 ) {
   if (
     event.target instanceof HTMLInputElement ||
-    event.target instanceof HTMLTextAreaElement
+    event.target instanceof HTMLTextAreaElement ||
+    event.target instanceof HTMLSelectElement
   )
     return;
   if (event.code === 'Space') actions.togglePause();

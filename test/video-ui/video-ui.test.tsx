@@ -380,6 +380,16 @@ describe('video user experience', () => {
     expect(actions.togglePause).toHaveBeenCalledOnce();
     expect(actions.skip).toHaveBeenCalledOnce();
     expect(actions.fullscreen).toHaveBeenCalledOnce();
+    handleScreeningShortcut(
+      {
+        code: 'Space',
+        key: ' ',
+        target: document.createElement('select'),
+        preventDefault: vi.fn(),
+      },
+      actions,
+    );
+    expect(actions.togglePause).toHaveBeenCalledOnce();
 
     const requestFullscreen = vi.fn(async () => undefined);
     Object.defineProperty(HTMLElement.prototype, 'requestFullscreen', {
@@ -398,6 +408,18 @@ describe('video user experience', () => {
     expect(screen.getByRole('button', {name: /skip/}).hasAttribute('disabled')).toBe(
       true,
     );
+    const speed = screen.getByRole('combobox', {name: 'playback speed'});
+    expect(speed).toBeInstanceOf(HTMLSelectElement);
+    expect(
+      [...speed.querySelectorAll('option')].map((option) => option.getAttribute('value')),
+    ).toEqual(['1', '1.15', '1.25', '1.5', '2']);
+    await userEvent.selectOptions(speed, '1.5');
+    expect(speed).toHaveProperty('value', '1.5');
+    expect(
+      [...document.querySelectorAll('video')].every(
+        (video) => video.playbackRate === 1.5,
+      ),
+    ).toBe(true);
     await userEvent.click(screen.getByRole('button', {name: /fullscreen/}));
     expect(requestFullscreen).toHaveBeenCalledOnce();
   });

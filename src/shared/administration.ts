@@ -93,12 +93,19 @@ export interface AnalyticsYear {
   awardCount: number;
 }
 
+export interface VoteResultMember {
+  id: string;
+  displayName: string;
+  avatarUrl: string | null;
+}
+
 export interface VoteResult {
   categoryId: string;
   categoryName: string;
   projectId: string;
   projectName: string;
   groupName: string | null;
+  members: VoteResultMember[];
   voteCount: number;
 }
 

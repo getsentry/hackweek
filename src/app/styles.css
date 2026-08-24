@@ -1895,7 +1895,7 @@ main {
 .teamPanel h2,
 .mediaSection h2,
 .controlPanel h2,
-.resultsTable h2 {
+.awardStandings h2 {
   margin: 0 0 1.25rem;
   font-size: clamp(1.6rem, 3vw, 2.4rem);
   line-height: 1.15;
@@ -2895,23 +2895,354 @@ main {
   margin: 0;
   font-weight: 600;
 }
-.resultsTable {
-  margin-top: 4rem;
-  overflow-x: auto;
+.awardStandings {
+  margin-top: clamp(4rem, 8vw, 6rem);
 }
-.resultsTable table {
-  width: 100%;
-  border-collapse: collapse;
+.awardStandingsHeader {
+  display: flex;
+  gap: 2rem;
+  align-items: end;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
 }
-.resultsTable th,
-.resultsTable td {
-  padding: 0.85rem;
-  text-align: left;
+.awardStandingsHeader h2 {
+  margin-bottom: 0;
+}
+.awardStandingsHeader > p {
+  max-width: 23rem;
+  margin: 0 0 0.2rem;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.55;
+  text-align: right;
+}
+.awardStandingsEmpty {
+  padding: 2rem;
+  color: var(--muted);
+  text-align: center;
+  border: 1px dashed #c9c3d1;
+  border-radius: 0.85rem;
+  background: var(--soft);
+}
+.awardSections {
+  display: grid;
+  gap: 1.5rem;
+}
+.awardSection {
+  --award-accent: var(--green);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background: #fff;
+  box-shadow: 0 12px 35px rgba(29, 17, 39, 0.08);
+  animation: rise 0.35s ease-out both;
+}
+.awardSection:nth-child(3n + 2) {
+  --award-accent: var(--pink);
+}
+.awardSection:nth-child(3n) {
+  --award-accent: var(--yellow);
+}
+.awardSectionHeader {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
   border-bottom: 1px solid var(--line);
+  background: var(--soft);
 }
-.resultsTable th {
+.awardNumber {
+  display: grid;
+  width: 2.8rem;
+  height: 2.8rem;
+  place-items: center;
   color: var(--dark-blurple);
-  font-size: 0.78rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: 1px solid #d2bfff;
+  border-radius: 50%;
+  background: #fff;
+}
+.awardSectionHeader p {
+  margin: 0;
+}
+.awardSectionHeader > div:nth-child(2) > p {
+  margin-bottom: 0.25rem;
+  color: var(--blurple);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+.awardSectionHeader h3 {
+  margin: 0;
+  font-size: clamp(1.25rem, 3vw, 1.75rem);
+  line-height: 1.1;
+  letter-spacing: -0.035em;
+}
+.awardTally {
+  display: flex;
+  gap: 0.3rem;
+  align-items: baseline;
+  color: var(--muted);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+.awardTally strong {
+  color: var(--ink);
+  font-size: 0.82rem;
+}
+.awardTally span {
+  margin-inline: 0.2rem;
+  color: #b0a7ba;
+}
+.awardPodium {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(0, 0.92fr);
+  min-height: 14rem;
+}
+.awardWinner {
+  display: grid;
+  position: relative;
+  gap: 1.5rem;
+  min-width: 0;
+  padding: clamp(1.5rem, 4vw, 2.25rem);
+  overflow: hidden;
+  color: #fff;
+  background: var(--dark-blurple);
+}
+.awardWinner::after {
+  position: absolute;
+  right: -3rem;
+  bottom: -4.5rem;
+  width: 10rem;
+  height: 10rem;
+  content: '';
+  border: 1.5rem solid rgba(255, 255, 255, 0.07);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.awardPlacement {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+  width: fit-content;
+  color: var(--award-accent);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.awardPlacement span {
+  font-size: 0.85rem;
+}
+.awardProjectCopy {
+  position: relative;
+  z-index: 1;
+  align-self: end;
+  padding-right: 4.5rem;
+}
+.awardOrigin {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1.3;
+}
+.awardOrigin span {
+  color: var(--blurple);
+  font-weight: 600;
+}
+.awardProjectCopy .awardOrigin {
+  margin-bottom: 0.45rem;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 0.75rem;
+}
+.awardProjectCopy .awardOrigin span {
+  color: var(--award-accent);
+}
+.awardProjectCopy h4 {
+  max-width: 22ch;
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: clamp(1.5rem, 4vw, 2.25rem);
+  line-height: 1.05;
+  letter-spacing: -0.045em;
+}
+.awardProjectCopy h4 a,
+.awardRunnerUps li strong a {
+  color: inherit;
+  text-decoration-thickness: 0.06em;
+  transition: color 100ms ease;
+}
+.awardProjectCopy h4 a:hover {
+  color: var(--award-accent);
+}
+.awardRunnerUps li strong a:hover {
+  color: var(--blurple);
+}
+.awardTeam {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.65rem;
+  padding: 0;
+  margin: 0.85rem 0 0;
+  list-style: none;
+}
+.awardTeam li,
+.awardRunnerUps .awardTeam li {
+  display: block;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+}
+.awardTeam a {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+  color: inherit;
+  font-size: 0.7rem;
+  line-height: 1.2;
+  text-decoration: none;
+}
+.awardTeam a:hover span:last-child {
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+.awardTeam .userAvatar {
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: 0 0 1.25rem;
+  color: var(--dark-blurple);
+  font-size: 0.42rem;
+  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 50%;
+  background: var(--pink);
+}
+.awardRunnerUps .awardTeam {
+  gap: 0.25rem 0.55rem;
+  margin-top: 0.4rem;
+}
+.awardRunnerUps .awardTeam a {
+  color: var(--muted);
+  font-size: 0.65rem;
+}
+.awardRunnerUps .awardTeam .userAvatar {
+  width: 1rem;
+  height: 1rem;
+  flex-basis: 1rem;
+  font-size: 0.36rem;
+  border-color: var(--line);
+  background: var(--lavender);
+}
+.awardTeamEmpty {
+  margin: 0.75rem 0 0;
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 0.68rem;
+}
+.awardRunnerUps .awardTeamEmpty {
+  margin-top: 0.35rem;
+  color: var(--muted);
+}
+.awardVoteCount {
+  display: flex;
+  gap: 0.35rem;
+  align-items: baseline;
+  width: fit-content;
+  margin: 0;
+}
+.awardVoteCount strong {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+.awardVoteCount span {
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  opacity: 0.64;
+  text-transform: uppercase;
+}
+.awardWinner > .awardVoteCount {
+  position: absolute;
+  z-index: 1;
+  right: clamp(1.5rem, 4vw, 2.25rem);
+  bottom: clamp(1.5rem, 4vw, 2.25rem);
+  flex-direction: column;
+  gap: 0.15rem;
+  align-items: flex-end;
+}
+.awardWinner > .awardVoteCount strong {
+  color: var(--award-accent);
+  font-size: 3rem;
+  letter-spacing: -0.06em;
+}
+.awardRunnerUps {
+  min-width: 0;
+  padding: clamp(1.5rem, 4vw, 2.25rem);
+  background: #fff;
+}
+.awardRunnerUps > h4 {
+  margin: 0 0 0.65rem;
+  color: var(--muted);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+.awardRunnerUps ol {
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.awardRunnerUps > ol > li {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
+  gap: 0.8rem;
+  align-items: center;
+  min-height: 4.7rem;
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--line);
+}
+.awardRunnerRank {
+  color: var(--blurple);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+.awardRunnerUps > ol > li > div {
+  display: grid;
+  gap: 0.28rem;
+  min-width: 0;
+}
+.awardRunnerUps > ol > li > div > strong {
+  overflow-wrap: anywhere;
+  font-size: 0.9rem;
+  line-height: 1.3;
+}
+.awardTie {
+  width: fit-content;
+  padding: 0.17rem 0.35rem;
+  color: var(--dark-blurple);
+  font-size: 0.58rem;
+  font-weight: 700;
+  line-height: 1;
+  border-radius: 999px;
+  background: var(--lavender);
+  text-transform: uppercase;
+}
+.awardRunnerUps > ol > li > .awardVoteCount {
+  min-width: 3rem;
+  justify-content: flex-end;
+}
+.awardRunnerUps > ol > li > .awardVoteCount strong {
+  font-size: 1.3rem;
+}
+.awardRunnerUpsEmpty {
+  padding: 1.25rem 0;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  border-top: 1px solid var(--line);
 }
 .yearCreateForm {
   display: flex;
@@ -3789,6 +4120,28 @@ kbd {
   }
   .controlPanel--wide {
     grid-column: auto;
+  }
+  .awardStandingsHeader {
+    gap: 0.75rem;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .awardStandingsHeader > p {
+    text-align: left;
+  }
+  .awardSectionHeader {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .awardTally {
+    grid-column: 2;
+    flex-wrap: wrap;
+    white-space: normal;
+  }
+  .awardPodium {
+    grid-template-columns: 1fr;
+  }
+  .awardWinner {
+    min-height: 14rem;
   }
   .detailHero,
   .ballotOverview,

@@ -385,7 +385,41 @@ describe('voting and administration journeys', () => {
             projectId: 'project',
             projectName: 'First project',
             groupName: 'Orbital',
+            members: [
+              {
+                id: 'alice',
+                displayName: 'Alice Example',
+                avatarUrl: 'https://example.com/alice.jpg',
+              },
+            ],
             voteCount: 8,
+          },
+          {
+            categoryId: 'cat',
+            categoryName: 'Delight',
+            projectId: 'second-project',
+            projectName: 'Second project',
+            groupName: 'Orbital',
+            members: [{id: 'bob', displayName: 'Bob Example', avatarUrl: null}],
+            voteCount: 8,
+          },
+          {
+            categoryId: 'cat',
+            categoryName: 'Delight',
+            projectId: 'third-project',
+            projectName: 'Third project',
+            groupName: null,
+            members: [],
+            voteCount: 8,
+          },
+          {
+            categoryId: 'cat',
+            categoryName: 'Delight',
+            projectId: 'fourth-project',
+            projectName: 'Fourth project',
+            groupName: null,
+            members: [],
+            voteCount: 2,
           },
         ],
       }),
@@ -394,7 +428,19 @@ describe('voting and administration journeys', () => {
 
     expect(await screen.findByText('Active voters')).toBeTruthy();
     expect(screen.getByText('14')).toBeTruthy();
-    expect(screen.getByRole('cell', {name: 'First project'})).toBeTruthy();
+    expect(screen.getByRole('heading', {name: 'Award standings'})).toBeTruthy();
+    expect(screen.getByRole('heading', {name: 'Delight'})).toBeTruthy();
+    expect(screen.getByRole('heading', {name: 'First project'})).toBeTruthy();
+    expect(screen.getByRole('link', {name: 'First project'}).getAttribute('href')).toBe(
+      '/years/2026/projects/project',
+    );
+    expect(screen.getAllByText(/Orbital/)).toHaveLength(2);
+    expect(screen.getByText('Alice Example')).toBeTruthy();
+    expect(screen.getByText('Second project')).toBeTruthy();
+    expect(screen.getByText('Bob Example')).toBeTruthy();
+    expect(screen.getByText('Third project')).toBeTruthy();
+    expect(screen.getAllByText('Tied for lead')).toHaveLength(3);
+    expect(screen.queryByText('Fourth project')).toBeNull();
     expect(fetchMock).toHaveBeenCalledWith('/api/admin/analytics?year=2026', undefined);
   });
 });

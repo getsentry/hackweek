@@ -3410,12 +3410,12 @@ main {
   color: #fff;
   border: 1px solid #5e4a6c;
   border-radius: 0.5rem;
-  background: #281b32;
+  background-color: #281b32;
 }
 .screeningControls button:hover:not(:disabled),
 .screeningControls .playbackSpeed select:hover {
   border-color: #9f77ff;
-  background: #382748;
+  background-color: #382748;
 }
 .screeningControls .playbackSpeed {
   display: grid;

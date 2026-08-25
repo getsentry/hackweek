@@ -1652,8 +1652,7 @@ main {
   border: 1px solid var(--warning-border);
   border-radius: 0.8rem;
   background:
-    linear-gradient(135deg, rgba(253, 184, 27, 0.14), transparent 55%),
-    var(--surface-raised) 9df;
+    linear-gradient(135deg, rgba(253, 184, 27, 0.14), transparent 55%), var(--warning-bg);
   box-shadow: 0 12px 28px rgba(118, 82, 7, 0.08);
   animation: rise 0.35s ease-out both;
 }

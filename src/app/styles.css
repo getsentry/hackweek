@@ -1676,7 +1676,7 @@ main {
   padding: 0.85rem 1rem;
   border: 1px solid rgba(118, 82, 7, 0.18);
   border-radius: 0.65rem;
-  background: rgba(255, 255, 255, 0.78);
+  background: color-mix(in srgb, var(--surface-raised) 78%, transparent);
 }
 .projectAwards li > span {
   display: grid;
@@ -1803,7 +1803,7 @@ main {
   border-right: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
   border-left: 4px solid transparent;
-  background: rgba(255, 255, 255, 0.82);
+  background: color-mix(in srgb, var(--surface-raised) 82%, transparent);
   transition:
     border-color 120ms ease,
     background 120ms ease;

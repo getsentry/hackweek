@@ -44,7 +44,7 @@ describe('clickable project routes', () => {
 
     const wordmark = screen.getByRole('link', {name: 'Sentry Hackweek archives'});
     expect(wordmark.textContent).toBe('#HACKWEEK');
-    expect(wordmark.querySelector('img')?.getAttribute('alt')).toBe('');
+    expect(wordmark.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
     expect(screen.getByRole('navigation', {name: 'Primary navigation'})).toBeTruthy();
     expect(screen.getByLabelText('signed in as Member One, admin')).toBeTruthy();
     expect(screen.getByRole('button', {name: 'switch to user view'})).toBeTruthy();

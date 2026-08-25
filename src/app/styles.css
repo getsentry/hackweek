@@ -543,7 +543,7 @@ main {
   font-weight: 600;
   text-decoration: none;
   border-radius: 0.65rem;
-  background: var(--surface-raised);
+  background: var(--on-accent);
   transition:
     color 100ms ease,
     transform 100ms ease;
@@ -994,6 +994,7 @@ main {
 }
 .segmented button.active span {
   color: var(--blurple);
+  background: var(--on-accent);
 }
 .projectControlActions {
   display: flex;

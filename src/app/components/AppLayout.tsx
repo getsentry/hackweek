@@ -2,7 +2,7 @@ import {useState, type ReactNode} from 'react';
 import {Link, useRoute} from 'wouter';
 
 import type {SessionUser, SessionViewMode} from '../../shared/api';
-import sentrySymbol from '../../assets/logos/logo-sentry-symbol.svg';
+import {SentrySymbol} from './SentrySymbol';
 import {UserAvatar} from './UserAvatar';
 
 export function AppLayout({
@@ -38,7 +38,7 @@ export function AppLayout({
           href="/years"
           aria-label="Sentry Hackweek archives"
         >
-          <img src={sentrySymbol} alt="" />
+          <SentrySymbol />
           <strong>#HACKWEEK</strong>
         </Link>
         <nav aria-label="Primary navigation">
@@ -88,7 +88,7 @@ export function AppLayout({
       {children}
       <footer className="siteFooter">
         <Link className="footerWordmark" href="/years">
-          <img src={sentrySymbol} alt="" />
+          <SentrySymbol />
           <span>#HACKWEEK</span>
         </Link>
         <span>made at Sentry</span>

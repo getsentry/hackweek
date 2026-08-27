@@ -19,10 +19,6 @@ export function applyTheme(theme: Theme) {
   document.documentElement.dataset.theme = theme;
 }
 
-export function initializeTheme() {
-  applyTheme(getStoredTheme() ?? getSystemTheme());
-}
-
 export function storeTheme(theme: Theme) {
   try {
     window.localStorage.setItem(THEME_STORAGE_KEY, theme);

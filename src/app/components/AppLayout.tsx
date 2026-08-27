@@ -3,6 +3,7 @@ import {Link, useRoute} from 'wouter';
 
 import type {SessionUser, SessionViewMode} from '../../shared/api';
 import {SentrySymbol} from './SentrySymbol';
+import {ThemeToggle} from './ThemeToggle';
 import {UserAvatar} from './UserAvatar';
 
 export function AppLayout({
@@ -52,6 +53,7 @@ export function AppLayout({
           )}
         </nav>
         <div className="identityActions">
+          <ThemeToggle />
           {user.actualRole === 'admin' && (
             <div className="viewModeSwitch">
               <span>viewing as {user.role === 'admin' ? 'admin' : 'user'}</span>

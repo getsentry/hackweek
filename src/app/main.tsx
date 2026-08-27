@@ -4,7 +4,10 @@ import {createRoot} from 'react-dom/client';
 
 import {App} from './App';
 import {SessionProvider} from './session';
+import {initializeTheme} from './theme';
 import './styles.css';
+
+initializeTheme();
 
 const root = document.getElementById('root');
 

@@ -53,50 +53,48 @@
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    --ink: #f3eef8;
-    --muted: #b3a7bf;
-    --paper: #130f1c;
-    --soft: #1a1524;
-    --lavender: #241c33;
-    --line: #3a314a;
-    --border-strong: #4a415c;
-    --surface-raised: #1c1728;
-    --surface-tint: #221b31;
-    --surface-tint-strong: #2a2140;
-    --surface-tint-hover: #32274b;
-    --header-bg: rgba(19, 15, 28, 0.92);
-    --header-border: rgba(58, 49, 74, 0.9);
-    --on-accent: #fff;
-    --shadow-ink: 0, 0, 0;
-    --blurple: #9b82ff;
-    --dark-blurple: #6b45c8;
-    --pink: #ff8acc;
-    --green: #a8e84a;
-    --yellow: #ffc94a;
-    --danger: #ff6b7d;
-    --success-ink: #d4f59a;
-    --success-border: #5f8a2a;
-    --success-bg: #1f2e12;
-    --warning-ink: #ffd88a;
-    --warning-ink-strong: #ffe3a8;
-    --warning-border: #8a6a1e;
-    --warning-bg: #2f2612;
-    --danger-ink: #ffb3bc;
-    --danger-border: #8a3a46;
-    --danger-bg: #2f151a;
-    --pink-ink: #ffb3db;
-    --pink-border: #8a3a66;
-    --pink-bg: #2f1524;
-    --pink-bg-strong: #3d1c30;
-    --violet-border: #5b4a8a;
-    --violet-border-strong: #6a58a0;
-    --violet-border-hot: #7d6bb8;
-    --violet-bg: #2d2348;
-    --neutral-border: #5a5168;
-  }
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --ink: #f3eef8;
+  --muted: #b3a7bf;
+  --paper: #130f1c;
+  --soft: #1a1524;
+  --lavender: #241c33;
+  --line: #3a314a;
+  --border-strong: #4a415c;
+  --surface-raised: #1c1728;
+  --surface-tint: #221b31;
+  --surface-tint-strong: #2a2140;
+  --surface-tint-hover: #32274b;
+  --header-bg: rgba(19, 15, 28, 0.92);
+  --header-border: rgba(58, 49, 74, 0.9);
+  --on-accent: #fff;
+  --shadow-ink: 0, 0, 0;
+  --blurple: #9b82ff;
+  --dark-blurple: #6b45c8;
+  --pink: #ff8acc;
+  --green: #a8e84a;
+  --yellow: #ffc94a;
+  --danger: #ff6b7d;
+  --success-ink: #d4f59a;
+  --success-border: #5f8a2a;
+  --success-bg: #1f2e12;
+  --warning-ink: #ffd88a;
+  --warning-ink-strong: #ffe3a8;
+  --warning-border: #8a6a1e;
+  --warning-bg: #2f2612;
+  --danger-ink: #ffb3bc;
+  --danger-border: #8a3a46;
+  --danger-bg: #2f151a;
+  --pink-ink: #ffb3db;
+  --pink-border: #8a3a66;
+  --pink-bg: #2f1524;
+  --pink-bg-strong: #3d1c30;
+  --violet-border: #5b4a8a;
+  --violet-border-strong: #6a58a0;
+  --violet-border-hot: #7d6bb8;
+  --violet-bg: #2d2348;
+  --neutral-border: #5a5168;
 }
 
 * {
@@ -281,6 +279,55 @@ input:disabled {
 }
 .textButton:hover {
   color: var(--blurple);
+}
+.themeToggle {
+  position: relative;
+  display: grid;
+  width: 3rem;
+  height: 1.65rem;
+  flex: 0 0 3rem;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  padding: 0 0.22rem;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--soft);
+  transition:
+    border-color 120ms ease,
+    background 120ms ease;
+}
+.themeToggle:hover {
+  color: var(--ink);
+  border-color: var(--blurple);
+}
+.themeToggleSun,
+.themeToggleMoon {
+  position: relative;
+  z-index: 1;
+  font-size: 0.7rem;
+  line-height: 1;
+  text-align: center;
+}
+.themeToggleThumb {
+  position: absolute;
+  top: 0.17rem;
+  left: 0.17rem;
+  width: 1.18rem;
+  height: 1.18rem;
+  border-radius: 50%;
+  background: var(--surface-raised);
+  box-shadow: 0 1px 3px rgba(var(--shadow-ink), 0.24);
+  transition: transform 160ms ease;
+}
+:root[data-theme='dark'] .themeToggleThumb {
+  transform: translateX(1.41rem);
+}
+.authThemeToggle {
+  position: fixed;
+  top: 1.25rem;
+  right: 1.25rem;
+  z-index: 1;
 }
 .identityCopy,
 .identityCopy > span,
@@ -2727,10 +2774,6 @@ main {
 }
 .authShell--loading {
   overflow: hidden;
-  background:
-    radial-gradient(circle at 20% 15%, rgba(255, 112, 188, 0.14), transparent 28rem),
-    radial-gradient(circle at 82% 78%, rgba(117, 83, 255, 0.14), transparent 32rem),
-    var(--soft);
 }
 .pageState,
 .authState {
@@ -2767,26 +2810,15 @@ main {
   line-height: 1.7;
 }
 .authState--loading {
+  overflow: hidden;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
   animation: loadingStateIn 400ms ease-out both;
 }
 .pageState--loading {
+  background: transparent;
   animation: loadingStateIn 400ms ease-out 200ms both;
-}
-.authState--loading {
-  overflow: hidden;
-  border-color: rgba(117, 83, 255, 0.18);
-  box-shadow: 0 24px 70px rgba(78, 42, 154, 0.1);
-}
-.authState--loading::before {
-  position: absolute;
-  top: -8rem;
-  left: 50%;
-  width: 24rem;
-  height: 14rem;
-  content: '';
-  background: radial-gradient(circle, rgba(117, 83, 255, 0.1), transparent 70%);
-  transform: translateX(-50%);
-  pointer-events: none;
 }
 .hackweekLoader {
   position: relative;

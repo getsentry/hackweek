@@ -2,6 +2,7 @@ import {Redirect, Route, Switch} from 'wouter';
 
 import {AppLayout, HackweekLoader, PageState} from './components/AppLayout';
 import {GoogleIcon} from './components/GoogleIcon';
+import {ThemeToggle} from './components/ThemeToggle';
 import {AdminAnalyticsPage} from './routes/AdminAnalyticsPage';
 import {AdminPage} from './routes/AdminPage';
 import {EditProjectPage, NewProjectPage} from './routes/ProjectEditorPage';
@@ -116,6 +117,7 @@ function AuthState({
 }) {
   return (
     <main className={`authShell${loading ? ' authShell--loading' : ''}`}>
+      <ThemeToggle className="authThemeToggle" />
       <section
         className={`authState${loading ? ' authState--loading' : ''}`}
         aria-busy={loading || undefined}

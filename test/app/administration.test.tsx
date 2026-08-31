@@ -454,6 +454,7 @@ describe('voting and administration journeys', () => {
     renderRoute(<AdminAnalyticsPage />, '/admin/analytics?year=2026', '/admin/analytics');
 
     expect(await screen.findByText('Active voters')).toBeTruthy();
+    expect(screen.getByRole('button', {name: 'Export ready videos CSV'})).toBeTruthy();
     expect(screen.getByText('14')).toBeTruthy();
     expect(screen.getByRole('heading', {name: 'Award standings'})).toBeTruthy();
     expect(screen.getByRole('heading', {name: 'Delight'})).toBeTruthy();

@@ -113,3 +113,20 @@ export interface AnalyticsResponse {
   years: AnalyticsYear[];
   voteResults: VoteResult[];
 }
+
+/** One ready-video project row for the admin analytics CSV export. */
+export interface AnalyticsVideoExportRow {
+  voteRank: number;
+  totalVotes: number;
+  projectId: string;
+  projectName: string;
+  projectUrl: string;
+  videoId: string;
+  videoUrl: string;
+  originalName: string;
+  durationSeconds: number | null;
+  description: string;
+  teamMembers: string;
+  awards: string;
+  categoryVotes: string;
+}

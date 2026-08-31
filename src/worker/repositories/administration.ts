@@ -1,6 +1,7 @@
 import type {
   AdminYearResponse,
   AnalyticsResponse,
+  AnalyticsVideoExportRow,
   AwardCategorySummary,
   AwardSummary,
   AwardWriteRequest,
@@ -9,6 +10,10 @@ import type {
   ScreeningOrderItem,
   VoteSummary,
 } from '../../shared/administration';
+import {
+  buildAnalyticsVideoExportRows,
+  type AnalyticsVideoExportSource,
+} from '../../shared/analytics-export';
 import {ServiceError} from '../services/errors';
 import {getYear} from './projects';
 import {getEffectiveYearFlags} from './years';
@@ -484,6 +489,112 @@ export async function getAnalytics(
       voteCount: row.vote_count,
     })),
   };
+}
+
+/** Ready-video projects for offline curation: ceremony, supercut, retrospectives. */
+export async function getAnalyticsVideoExport(
+  db: D1Database,
+  yearId: string,
+): Promise<AnalyticsVideoExportRow[]> {
+  await getYear(db, yearId);
+
+  const [projectsResult, votesResult, membersResult, awardsResult] = await Promise.all([
+    db
+      .prepare(
+        `SELECT p.id project_id, p.name project_name, p.summary,
+          pv.id video_id, pv.original_name, pv.duration_seconds
+         FROM projects p
+         JOIN video_submissions pv ON pv.project_id = p.id
+         WHERE p.year_id = ? AND p.status = 'active' AND p.kind = 'project'
+           AND pv.status = 'ready' AND pv.retired_at IS NULL
+         ORDER BY p.name COLLATE NOCASE, p.id`,
+      )
+      .bind(yearId)
+      .all<{
+        project_id: string;
+        project_name: string;
+        summary: string | null;
+        video_id: string;
+        original_name: string;
+        duration_seconds: number | null;
+      }>(),
+    db
+      .prepare(
+        `SELECT v.project_id, c.name category_name, COUNT(v.id) vote_count
+         FROM votes v
+         JOIN award_categories c ON c.id = v.award_category_id
+         WHERE v.year_id = ?
+         GROUP BY v.project_id, c.id
+         ORDER BY v.project_id, vote_count DESC, c.name COLLATE NOCASE`,
+      )
+      .bind(yearId)
+      .all<{project_id: string; category_name: string; vote_count: number}>(),
+    db
+      .prepare(
+        `SELECT pm.project_id, u.display_name
+         FROM project_members pm
+         JOIN users u ON u.id = pm.user_id
+         JOIN projects p ON p.id = pm.project_id
+         JOIN video_submissions pv ON pv.project_id = p.id
+         WHERE p.year_id = ? AND p.status = 'active' AND p.kind = 'project'
+           AND pv.status = 'ready' AND pv.retired_at IS NULL
+         ORDER BY pm.project_id, u.display_name COLLATE NOCASE, u.id`,
+      )
+      .bind(yearId)
+      .all<{project_id: string; display_name: string}>(),
+    db
+      .prepare(
+        `SELECT a.project_id, c.name category_name, a.name award_name
+         FROM awards a
+         JOIN award_categories c ON c.id = a.category_id
+         WHERE a.year_id = ?
+         ORDER BY a.project_id, c.name COLLATE NOCASE, a.name COLLATE NOCASE`,
+      )
+      .bind(yearId)
+      .all<{project_id: string; category_name: string; award_name: string}>(),
+  ]);
+
+  const membersByProject = new Map<string, string[]>();
+  for (const row of membersResult.results) {
+    const members = membersByProject.get(row.project_id) ?? [];
+    members.push(row.display_name);
+    membersByProject.set(row.project_id, members);
+  }
+
+  const votesByProject = new Map<
+    string,
+    Array<{categoryName: string; voteCount: number}>
+  >();
+  for (const row of votesResult.results) {
+    const votes = votesByProject.get(row.project_id) ?? [];
+    votes.push({categoryName: row.category_name, voteCount: row.vote_count});
+    votesByProject.set(row.project_id, votes);
+  }
+
+  const awardsByProject = new Map<string, string[]>();
+  for (const row of awardsResult.results) {
+    const awards = awardsByProject.get(row.project_id) ?? [];
+    const label =
+      row.award_name.trim().toLowerCase() === row.category_name.trim().toLowerCase()
+        ? row.category_name
+        : `${row.category_name}: ${row.award_name}`;
+    awards.push(label);
+    awardsByProject.set(row.project_id, awards);
+  }
+
+  const sources: AnalyticsVideoExportSource[] = projectsResult.results.map((row) => ({
+    projectId: row.project_id,
+    projectName: row.project_name,
+    summary: row.summary,
+    videoId: row.video_id,
+    originalName: row.original_name,
+    durationSeconds: row.duration_seconds,
+    teamMembers: membersByProject.get(row.project_id) ?? [],
+    awards: awardsByProject.get(row.project_id) ?? [],
+    categoryVotes: votesByProject.get(row.project_id) ?? [],
+  }));
+
+  return buildAnalyticsVideoExportRows(yearId, sources);
 }
 
 async function assertVotingEnabled(db: D1Database, yearId: string) {

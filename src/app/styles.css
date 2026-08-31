@@ -440,12 +440,19 @@ main {
 .archiveHero p:last-child,
 .projectsHero > div > p:last-of-type,
 .editorPage > header > p:last-child,
-.operationsHero > p {
+.operationsHero > p,
+.analyticsHeroActions > p {
   max-width: 34rem;
   margin: 0;
   color: var(--muted);
   font-size: 1rem;
   line-height: 1.75;
+}
+.analyticsHeroActions {
+  display: grid;
+  gap: 1rem;
+  justify-items: start;
+  align-content: end;
 }
 .myProjects {
   margin-top: 1.5rem;

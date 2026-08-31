@@ -45,6 +45,7 @@ describe('year and award administration', () => {
     const responses = await Promise.all([
       api(`/admin/years/${yearId}`, memberToken),
       api(`/admin/analytics?year=${yearId}`, memberToken),
+      api(`/admin/analytics/export?year=${yearId}`, memberToken, {raw: true}),
       api(`/admin/years/${yearId}/categories`, memberToken, {
         method: 'POST',
         body: {name: 'No'},
@@ -54,7 +55,7 @@ describe('year and award administration', () => {
         body: {name: 'No', projectId, categoryId: 'no'},
       }),
     ]);
-    expect(responses.map(({status}) => status)).toEqual([403, 403, 403, 403]);
+    expect(responses.map(({status}) => status)).toEqual([403, 403, 403, 403, 403]);
   });
 
   it('manages year state and categories through the centralized admin role', async () => {
@@ -236,6 +237,134 @@ describe('year and award administration', () => {
     ]);
     expect(JSON.stringify(analytics.body)).not.toContain('creatorId');
   });
+
+  it('exports ready-video CSV ranked by total votes for offline curation', async () => {
+    const category = await createCategory('Delight');
+    const secondCategory = await createCategory('Craft');
+    const secondVoterToken = await extraVoterToken('second');
+    const thirdVoterToken = await extraVoterToken('third');
+    const zeroVoteId = `admin-project-zero-${sequence}`;
+    const failedVideoProjectId = `admin-project-failed-${sequence}`;
+    await env.DB.batch([
+      env.DB.prepare('UPDATE years SET voting_enabled = 1 WHERE id = ?').bind(yearId),
+      env.DB.prepare(`UPDATE projects SET summary = ? WHERE id = ?`).bind(
+        'A punchy demo, with commas',
+        projectId,
+      ),
+      env.DB.prepare(
+        `INSERT INTO projects (id, source_id, year_id, creator_id, name, summary)
+         VALUES (?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?)`,
+      ).bind(
+        zeroVoteId,
+        zeroVoteId,
+        yearId,
+        adminId,
+        'Zero votes ready',
+        'Still useful archive material',
+        failedVideoProjectId,
+        failedVideoProjectId,
+        yearId,
+        adminId,
+        'Failed video project',
+        'Should not export',
+      ),
+      env.DB.prepare(
+        'INSERT INTO project_members (project_id, user_id) VALUES (?, ?), (?, ?)',
+      ).bind(projectId, adminId, projectTwoId, adminId),
+      env.DB.prepare(
+        `INSERT INTO video_submissions (
+          id, project_id, original_name, size_bytes, original_r2_key,
+          processed_r2_key, status, duration_seconds
+        ) VALUES
+          (?, ?, 'first.mp4', 100, ?, ?, 'ready', 42.5),
+          (?, ?, 'second.mp4', 100, ?, ?, 'ready', 18),
+          (?, ?, 'zero.mp4', 100, ?, ?, 'ready', 9),
+          (?, ?, 'failed.mp4', 100, ?, NULL, 'failed', NULL)`,
+      ).bind(
+        `ready-video-1-${sequence}`,
+        projectId,
+        `ready-original-1-${sequence}`,
+        `ready-processed-1-${sequence}`,
+        `ready-video-2-${sequence}`,
+        projectTwoId,
+        `ready-original-2-${sequence}`,
+        `ready-processed-2-${sequence}`,
+        `ready-video-zero-${sequence}`,
+        zeroVoteId,
+        `ready-original-zero-${sequence}`,
+        `ready-processed-zero-${sequence}`,
+        `failed-video-${sequence}`,
+        failedVideoProjectId,
+        `failed-original-${sequence}`,
+      ),
+    ]);
+
+    // Distinct non-members cast votes so ownership and one-vote-per-category rules hold.
+    const votes = await Promise.all([
+      api('/votes', memberToken, {
+        method: 'POST',
+        body: {yearId, projectId, categoryId: category.id},
+      }),
+      api('/votes', secondVoterToken, {
+        method: 'POST',
+        body: {yearId, projectId, categoryId: secondCategory.id},
+      }),
+      api('/votes', thirdVoterToken, {
+        method: 'POST',
+        body: {yearId, projectId: projectTwoId, categoryId: category.id},
+      }),
+    ]);
+    expect(votes.map(({status}) => status)).toEqual([201, 201, 201]);
+
+    const award = await api(`/admin/awards/years/${yearId}`, adminToken, {
+      method: 'POST',
+      body: {name: 'People’s choice', projectId, categoryId: category.id},
+    });
+    expect(award.status).toBe(201);
+
+    const missingYear = await api('/admin/analytics/export', adminToken, {raw: true});
+    expect(missingYear.status).toBe(400);
+
+    const exported = await api(`/admin/analytics/export?year=${yearId}`, adminToken, {
+      raw: true,
+    });
+    expect(exported.status).toBe(200);
+    expect(exported.headers.get('Content-Type')).toContain('text/csv');
+    expect(exported.headers.get('Content-Disposition')).toContain(
+      `filename="hackweek-${yearId}-ready-videos.csv"`,
+    );
+
+    // SAFETY: raw CSV responses return text bodies; JSON error payloads fail the status check above.
+    const body = exported.body as string;
+    const lines = body.trim().split(/\r?\n/);
+    expect(lines[0]).toBe(
+      [
+        'vote_rank',
+        'total_votes',
+        'project_name',
+        'project_url',
+        'video_url',
+        'video_id',
+        'original_name',
+        'duration_seconds',
+        'description',
+        'team_members',
+        'awards',
+        'category_votes',
+      ].join(','),
+    );
+    expect(lines).toHaveLength(4);
+    expect(lines[1]).toContain('First screening');
+    expect(lines[1]).toContain('"A punchy demo, with commas"');
+    expect(lines[1]).toContain('Delight: People’s choice');
+    expect(lines[1]).toMatch(/^1,2,/);
+    expect(lines[2]).toMatch(/^2,1,/);
+    expect(lines[3]).toMatch(/^3,0,/);
+    expect(body).toContain(`/years/${yearId}/projects/${projectId}`);
+    expect(body).toContain(`/years/${yearId}/watch/ready-video-1-${sequence}`);
+    expect(body).not.toContain('Failed video project');
+    expect(body).not.toContain('creatorId');
+  });
 });
 
 async function createCategory(name: string) {
@@ -263,10 +392,21 @@ async function tokenAndSession(kind: 'admin' | 'member') {
   return token;
 }
 
+async function extraVoterToken(label: string) {
+  const subject = `admin-voter-${label}-${sequence}`;
+  const token = await createSessionCookie({
+    sub: subject,
+    email: `${subject}@sentry.io`,
+    name: label,
+  });
+  await SELF.fetch(`${base}/session`, {headers: {Cookie: token}});
+  return token;
+}
+
 async function api(
   path: string,
   token: string,
-  options: {method?: string; body?: unknown} = {},
+  options: {method?: string; body?: unknown; raw?: boolean} = {},
 ) {
   const headers = new Headers({Cookie: token});
   if (options.method && options.method !== 'GET') {
@@ -278,8 +418,15 @@ async function api(
     headers,
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
   });
+  const body =
+    response.status === 204
+      ? null
+      : options.raw && !response.headers.get('Content-Type')?.includes('application/json')
+        ? await response.text()
+        : await response.json<any>();
   return {
     status: response.status,
-    body: response.status === 204 ? null : await response.json<any>(),
+    headers: response.headers,
+    body,
   };
 }

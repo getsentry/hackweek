@@ -115,20 +115,6 @@ export async function revokeSessionByTokenHash(
     .run();
 }
 
-export async function revokeUserSessions(
-  db: D1Database,
-  userId: string,
-  now = nowSeconds(),
-) {
-  await db
-    .prepare(
-      `UPDATE user_sessions SET revoked_at = ?
-       WHERE user_id = ? AND revoked_at IS NULL`,
-    )
-    .bind(now, userId)
-    .run();
-}
-
 export async function cleanupExpiredAuthRecords(db: D1Database, now = nowSeconds()) {
   await db.batch([
     db

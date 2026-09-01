@@ -45,6 +45,7 @@ describe('year and award administration', () => {
     const responses = await Promise.all([
       api(`/admin/years/${yearId}`, memberToken),
       api(`/admin/analytics?year=${yearId}`, memberToken),
+      api('/admin/analytics/export', memberToken, {raw: true}),
       api(`/admin/analytics/export?year=${yearId}`, memberToken, {raw: true}),
       api(`/admin/years/${yearId}/categories`, memberToken, {
         method: 'POST',
@@ -55,7 +56,7 @@ describe('year and award administration', () => {
         body: {name: 'No', projectId, categoryId: 'no'},
       }),
     ]);
-    expect(responses.map(({status}) => status)).toEqual([403, 403, 403, 403, 403]);
+    expect(responses.map(({status}) => status)).toEqual([403, 403, 403, 403, 403, 403]);
   });
 
   it('manages year state and categories through the centralized admin role', async () => {
@@ -238,13 +239,14 @@ describe('year and award administration', () => {
     expect(JSON.stringify(analytics.body)).not.toContain('creatorId');
   });
 
-  it('exports ready-video CSV ranked by total votes for offline curation', async () => {
+  it('exports year metrics and project analytics CSVs without requiring ready videos', async () => {
     const category = await createCategory('Delight');
     const secondCategory = await createCategory('Craft');
     const secondVoterToken = await extraVoterToken('second');
     const thirdVoterToken = await extraVoterToken('third');
-    const zeroVoteId = `admin-project-zero-${sequence}`;
+    const noVideoId = `admin-project-novid-${sequence}`;
     const failedVideoProjectId = `admin-project-failed-${sequence}`;
+    const ideaId = `admin-idea-${sequence}`;
     await env.DB.batch([
       env.DB.prepare('UPDATE years SET voting_enabled = 1 WHERE id = ?').bind(yearId),
       env.DB.prepare(`UPDATE projects SET summary = ? WHERE id = ?`).bind(
@@ -252,25 +254,32 @@ describe('year and award administration', () => {
         projectId,
       ),
       env.DB.prepare(
-        `INSERT INTO projects (id, source_id, year_id, creator_id, name, summary)
-         VALUES (?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO projects (id, source_id, year_id, creator_id, name, summary, kind)
+         VALUES (?, ?, ?, ?, ?, ?, 'project'), (?, ?, ?, ?, ?, ?, 'project'),
+                (?, ?, ?, ?, ?, ?, 'idea')`,
       ).bind(
-        zeroVoteId,
-        zeroVoteId,
+        noVideoId,
+        noVideoId,
         yearId,
         adminId,
-        'Zero votes ready',
+        'No ready video',
         'Still useful archive material',
         failedVideoProjectId,
         failedVideoProjectId,
         yearId,
         adminId,
         'Failed video project',
-        'Should not export',
+        'Failed media only',
+        ideaId,
+        ideaId,
+        yearId,
+        adminId,
+        'Floating idea',
+        'Idea without a demo',
       ),
       env.DB.prepare(
-        'INSERT INTO project_members (project_id, user_id) VALUES (?, ?), (?, ?)',
-      ).bind(projectId, adminId, projectTwoId, adminId),
+        'INSERT INTO project_members (project_id, user_id) VALUES (?, ?), (?, ?), (?, ?)',
+      ).bind(projectId, adminId, projectTwoId, adminId, noVideoId, adminId),
       env.DB.prepare(
         `INSERT INTO video_submissions (
           id, project_id, original_name, size_bytes, original_r2_key,
@@ -278,7 +287,6 @@ describe('year and award administration', () => {
         ) VALUES
           (?, ?, 'first.mp4', 100, ?, ?, 'ready', 42.5),
           (?, ?, 'second.mp4', 100, ?, ?, 'ready', 18),
-          (?, ?, 'zero.mp4', 100, ?, ?, 'ready', 9),
           (?, ?, 'failed.mp4', 100, ?, NULL, 'failed', NULL)`,
       ).bind(
         `ready-video-1-${sequence}`,
@@ -289,17 +297,12 @@ describe('year and award administration', () => {
         projectTwoId,
         `ready-original-2-${sequence}`,
         `ready-processed-2-${sequence}`,
-        `ready-video-zero-${sequence}`,
-        zeroVoteId,
-        `ready-original-zero-${sequence}`,
-        `ready-processed-zero-${sequence}`,
         `failed-video-${sequence}`,
         failedVideoProjectId,
         `failed-original-${sequence}`,
       ),
     ]);
 
-    // Distinct non-members cast votes so ownership and one-vote-per-category rules hold.
     const votes = await Promise.all([
       api('/votes', memberToken, {
         method: 'POST',
@@ -322,20 +325,34 @@ describe('year and award administration', () => {
     });
     expect(award.status).toBe(201);
 
-    const missingYear = await api('/admin/analytics/export', adminToken, {raw: true});
-    expect(missingYear.status).toBe(400);
+    const yearsExport = await api('/admin/analytics/export', adminToken, {raw: true});
+    expect(yearsExport.status).toBe(200);
+    expect(yearsExport.headers.get('Content-Type')).toContain('text/csv');
+    expect(yearsExport.headers.get('Content-Disposition')).toContain(
+      'filename="hackweek-year-metrics.csv"',
+    );
+    // SAFETY: raw CSV responses return text bodies; JSON error payloads fail the status check above.
+    const yearsBody = yearsExport.body as string;
+    expect(
+      yearsBody.startsWith('year,active_voters,votes,projects,ideas,participants,'),
+    ).toBe(true);
+    expect(yearsBody).toContain(`${yearId},`);
+    expect(yearsBody).toMatch(new RegExp(`${yearId},3,3,4,1,1,2,2,1`));
 
-    const exported = await api(`/admin/analytics/export?year=${yearId}`, adminToken, {
-      raw: true,
-    });
-    expect(exported.status).toBe(200);
-    expect(exported.headers.get('Content-Type')).toContain('text/csv');
-    expect(exported.headers.get('Content-Disposition')).toContain(
-      `filename="hackweek-${yearId}-ready-videos.csv"`,
+    const projectsExport = await api(
+      `/admin/analytics/export?year=${yearId}`,
+      adminToken,
+      {
+        raw: true,
+      },
+    );
+    expect(projectsExport.status).toBe(200);
+    expect(projectsExport.headers.get('Content-Disposition')).toContain(
+      `filename="hackweek-${yearId}-projects.csv"`,
     );
 
     // SAFETY: raw CSV responses return text bodies; JSON error payloads fail the status check above.
-    const body = exported.body as string;
+    const body = projectsExport.body as string;
     const lines = body.trim().split(/\r?\n/);
     expect(lines[0]).toBe(
       [
@@ -343,26 +360,31 @@ describe('year and award administration', () => {
         'total_votes',
         'project_name',
         'project_url',
-        'video_url',
-        'video_id',
-        'original_name',
-        'duration_seconds',
+        'kind',
+        'group_name',
         'description',
         'team_members',
         'awards',
         'category_votes',
+        'has_ready_video',
+        'video_id',
+        'video_url',
+        'original_name',
+        'duration_seconds',
       ].join(','),
     );
-    expect(lines).toHaveLength(4);
+    expect(lines).toHaveLength(6);
     expect(lines[1]).toContain('First screening');
     expect(lines[1]).toContain('"A punchy demo, with commas"');
     expect(lines[1]).toContain('Delight: People’s choice');
     expect(lines[1]).toMatch(/^1,2,/);
-    expect(lines[2]).toMatch(/^2,1,/);
-    expect(lines[3]).toMatch(/^3,0,/);
+    expect(lines[1]).toContain(',yes,');
+    expect(body).toContain('No ready video');
+    expect(body).toContain(',no,,,');
+    expect(body).toContain('Floating idea');
     expect(body).toContain(`/years/${yearId}/projects/${projectId}`);
     expect(body).toContain(`/years/${yearId}/watch/ready-video-1-${sequence}`);
-    expect(body).not.toContain('Failed video project');
+    expect(body).toContain('Failed video project');
     expect(body).not.toContain('creatorId');
   });
 });

@@ -1,7 +1,8 @@
 import type {
   AdminYearResponse,
+  AnalyticsProjectExportRow,
   AnalyticsResponse,
-  AnalyticsVideoExportRow,
+  AnalyticsYearExportRow,
   AwardCategorySummary,
   AwardSummary,
   AwardWriteRequest,
@@ -11,8 +12,10 @@ import type {
   VoteSummary,
 } from '../../shared/administration';
 import {
-  buildAnalyticsVideoExportRows,
-  type AnalyticsVideoExportSource,
+  buildAnalyticsProjectExportRows,
+  buildAnalyticsYearExportRows,
+  type AnalyticsProjectExportSource,
+  type AnalyticsYearExportSource,
 } from '../../shared/analytics-export';
 import {ServiceError} from '../services/errors';
 import {getYear} from './projects';
@@ -491,31 +494,98 @@ export async function getAnalytics(
   };
 }
 
-/** Ready-video projects for offline curation: ceremony, supercut, retrospectives. */
-export async function getAnalyticsVideoExport(
+/** Multi-year participation metrics for retrospective comparisons. */
+export async function getAnalyticsYearExport(
+  db: D1Database,
+): Promise<AnalyticsYearExportRow[]> {
+  const {results} = await db
+    .prepare(
+      `SELECT y.id year_id,
+        (SELECT COUNT(DISTINCT v.creator_id) FROM votes v WHERE v.year_id = y.id)
+          active_voters,
+        (SELECT COUNT(*) FROM votes v WHERE v.year_id = y.id) vote_count,
+        (SELECT COUNT(*) FROM projects p
+          WHERE p.year_id = y.id AND p.kind = 'project' AND p.status = 'active')
+          project_count,
+        (SELECT COUNT(*) FROM projects p
+          WHERE p.year_id = y.id AND p.kind = 'idea' AND p.status = 'active')
+          idea_count,
+        (SELECT COUNT(DISTINCT pm.user_id)
+          FROM project_members pm
+          JOIN projects p ON p.id = pm.project_id
+          WHERE p.year_id = y.id AND p.status = 'active') participant_count,
+        (SELECT COUNT(*)
+          FROM video_submissions pv
+          JOIN projects p ON p.id = pv.project_id
+          WHERE p.year_id = y.id AND p.kind = 'project' AND p.status = 'active'
+            AND pv.status = 'ready' AND pv.retired_at IS NULL) ready_video_count,
+        (SELECT COUNT(*) FROM award_categories c WHERE c.year_id = y.id)
+          category_count,
+        (SELECT COUNT(*) FROM awards a WHERE a.year_id = y.id) award_count
+       FROM years y
+       ORDER BY y.id`,
+    )
+    .all<{
+      year_id: string;
+      active_voters: number;
+      vote_count: number;
+      project_count: number;
+      idea_count: number;
+      participant_count: number;
+      ready_video_count: number;
+      category_count: number;
+      award_count: number;
+    }>();
+
+  const sources: AnalyticsYearExportSource[] = results.map((row) => ({
+    yearId: row.year_id,
+    activeVoters: row.active_voters,
+    voteCount: row.vote_count,
+    projectCount: row.project_count,
+    ideaCount: row.idea_count,
+    participantCount: row.participant_count,
+    readyVideoCount: row.ready_video_count,
+    categoryCount: row.category_count,
+    awardCount: row.award_count,
+  }));
+
+  return buildAnalyticsYearExportRows(sources);
+}
+
+/**
+ * Year-scoped project analytics for retros, ceremony prep, and optional media harvest.
+ * Includes active projects/ideas even when no ready video exists.
+ */
+export async function getAnalyticsProjectExport(
   db: D1Database,
   yearId: string,
-): Promise<AnalyticsVideoExportRow[]> {
+): Promise<AnalyticsProjectExportRow[]> {
   await getYear(db, yearId);
 
   const [projectsResult, votesResult, membersResult, awardsResult] = await Promise.all([
     db
       .prepare(
-        `SELECT p.id project_id, p.name project_name, p.summary,
+        `SELECT p.id project_id, p.name project_name, p.kind, p.summary,
+          g.name group_name,
           pv.id video_id, pv.original_name, pv.duration_seconds
          FROM projects p
-         JOIN video_submissions pv ON pv.project_id = p.id
-         WHERE p.year_id = ? AND p.status = 'active' AND p.kind = 'project'
-           AND pv.status = 'ready' AND pv.retired_at IS NULL
+         LEFT JOIN groups g ON g.id = p.group_id
+         LEFT JOIN video_submissions pv
+           ON pv.project_id = p.id
+          AND pv.status = 'ready'
+          AND pv.retired_at IS NULL
+         WHERE p.year_id = ? AND p.status = 'active'
          ORDER BY p.name COLLATE NOCASE, p.id`,
       )
       .bind(yearId)
       .all<{
         project_id: string;
         project_name: string;
+        kind: 'project' | 'idea';
         summary: string | null;
-        video_id: string;
-        original_name: string;
+        group_name: string | null;
+        video_id: string | null;
+        original_name: string | null;
         duration_seconds: number | null;
       }>(),
     db
@@ -535,9 +605,7 @@ export async function getAnalyticsVideoExport(
          FROM project_members pm
          JOIN users u ON u.id = pm.user_id
          JOIN projects p ON p.id = pm.project_id
-         JOIN video_submissions pv ON pv.project_id = p.id
-         WHERE p.year_id = ? AND p.status = 'active' AND p.kind = 'project'
-           AND pv.status = 'ready' AND pv.retired_at IS NULL
+         WHERE p.year_id = ? AND p.status = 'active'
          ORDER BY pm.project_id, u.display_name COLLATE NOCASE, u.id`,
       )
       .bind(yearId)
@@ -582,19 +650,21 @@ export async function getAnalyticsVideoExport(
     awardsByProject.set(row.project_id, awards);
   }
 
-  const sources: AnalyticsVideoExportSource[] = projectsResult.results.map((row) => ({
+  const sources: AnalyticsProjectExportSource[] = projectsResult.results.map((row) => ({
     projectId: row.project_id,
     projectName: row.project_name,
+    kind: row.kind,
+    groupName: row.group_name,
     summary: row.summary,
-    videoId: row.video_id,
-    originalName: row.original_name,
-    durationSeconds: row.duration_seconds,
     teamMembers: membersByProject.get(row.project_id) ?? [],
     awards: awardsByProject.get(row.project_id) ?? [],
     categoryVotes: votesByProject.get(row.project_id) ?? [],
+    videoId: row.video_id,
+    originalName: row.original_name,
+    durationSeconds: row.duration_seconds,
   }));
 
-  return buildAnalyticsVideoExportRows(yearId, sources);
+  return buildAnalyticsProjectExportRows(yearId, sources);
 }
 
 async function assertVotingEnabled(db: D1Database, yearId: string) {

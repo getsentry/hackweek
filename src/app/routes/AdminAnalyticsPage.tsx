@@ -2,7 +2,10 @@ import {useState} from 'react';
 import {Link, useSearch} from 'wouter';
 
 import type {VoteResult} from '../../shared/administration';
-import {analyticsVideoExportFilename} from '../../shared/analytics-export';
+import {
+  analyticsProjectExportFilename,
+  analyticsYearExportFilename,
+} from '../../shared/analytics-export';
 import {QueryState} from '../components/AppLayout';
 import {UserAvatar} from '../components/UserAvatar';
 import {ApiError, apiResponseError} from '../queries/api';
@@ -13,21 +16,27 @@ export function AdminAnalyticsPage() {
   const query = useAnalytics(yearId);
   const [exportError, setExportError] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const exportScope = yearId ? 'projects' : 'years';
 
-  async function downloadReadyVideoCsv() {
-    if (!yearId || exporting) return;
+  async function downloadCsv() {
+    if (exporting) return;
     setExporting(true);
     setExportError(null);
     try {
-      const response = await fetch(
-        `/api/admin/analytics/export?year=${encodeURIComponent(yearId)}`,
-      );
+      const path =
+        exportScope === 'years'
+          ? '/api/admin/analytics/export'
+          : `/api/admin/analytics/export?year=${encodeURIComponent(yearId!)}`;
+      const response = await fetch(path);
       if (!response.ok) throw await apiResponseError(response);
       const blob = await response.blob();
       const objectUrl = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
       anchor.href = objectUrl;
-      anchor.download = analyticsVideoExportFilename(yearId);
+      anchor.download =
+        exportScope === 'years'
+          ? analyticsYearExportFilename()
+          : analyticsProjectExportFilename(yearId!);
       document.body.append(anchor);
       anchor.click();
       anchor.remove();
@@ -36,7 +45,7 @@ export function AdminAnalyticsPage() {
       setExportError(
         error instanceof ApiError
           ? error.message
-          : 'Ready-video CSV could not be downloaded',
+          : 'Analytics CSV could not be downloaded',
       );
     } finally {
       setExporting(false);
@@ -55,21 +64,23 @@ export function AdminAnalyticsPage() {
         </div>
         <div className="analyticsHeroActions">
           <p>
-            D1 computes these totals server-side. No raw historical database is sent to
-            this page.
+            D1 computes these totals server-side. Export year metrics for retros, or open
+            a year for project rows with optional ready-video fields.
           </p>
-          {yearId && (
-            <button
-              type="button"
-              className="primaryAction"
-              disabled={exporting || query.isLoading}
-              onClick={() => {
-                void downloadReadyVideoCsv();
-              }}
-            >
-              {exporting ? 'Exporting…' : 'Export ready videos CSV'}
-            </button>
-          )}
+          <button
+            type="button"
+            className="primaryAction"
+            disabled={exporting || query.isLoading}
+            onClick={() => {
+              void downloadCsv();
+            }}
+          >
+            {exporting
+              ? 'Exporting…'
+              : yearId
+                ? `Export ${yearId} projects CSV`
+                : 'Export year metrics CSV'}
+          </button>
           {exportError && <p className="formError">{exportError}</p>}
         </div>
       </header>
@@ -92,6 +103,10 @@ export function AdminAnalyticsPage() {
                     <div>
                       <dt>Projects</dt>
                       <dd>{year.projectCount}</dd>
+                    </div>
+                    <div>
+                      <dt>Ideas</dt>
+                      <dd>{year.ideaCount}</dd>
                     </div>
                     <div>
                       <dt>Awards</dt>

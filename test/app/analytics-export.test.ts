@@ -2,11 +2,13 @@ import {describe, expect, it} from 'vitest';
 
 import {
   assignVoteRanks,
-  buildAnalyticsVideoExportRows,
-  formatAnalyticsVideoExportCsv,
+  buildAnalyticsProjectExportRows,
+  buildAnalyticsYearExportRows,
+  formatAnalyticsProjectExportCsv,
+  formatAnalyticsYearExportCsv,
 } from '../../src/shared/analytics-export';
 
-describe('analytics video export helpers', () => {
+describe('analytics export helpers', () => {
   it('ranks by total votes with competition ties and stable name ordering', () => {
     const ranked = assignVoteRanks([
       {totalVotes: 5, name: 'b'},
@@ -16,65 +18,93 @@ describe('analytics video export helpers', () => {
     expect(ranked.map((row) => row.voteRank)).toEqual([1, 1, 3]);
   });
 
-  it('builds CSV rows for ready videos with awards and category tallies', () => {
-    const rows = buildAnalyticsVideoExportRows('2026', [
+  it('builds multi-year participation rows without requiring videos', () => {
+    const rows = buildAnalyticsYearExportRows([
       {
-        projectId: 'low',
-        projectName: 'Low votes',
-        summary: 'Quiet demo',
-        videoId: 'video-low',
-        originalName: 'low.mp4',
-        durationSeconds: 12,
+        yearId: '2026',
+        activeVoters: 10,
+        voteCount: 40,
+        projectCount: 12,
+        ideaCount: 3,
+        participantCount: 28,
+        readyVideoCount: 9,
+        categoryCount: 5,
+        awardCount: 5,
+      },
+      {
+        yearId: '2025',
+        activeVoters: 8,
+        voteCount: 30,
+        projectCount: 11,
+        ideaCount: 2,
+        participantCount: 22,
+        readyVideoCount: 0,
+        categoryCount: 5,
+        awardCount: 5,
+      },
+    ]);
+
+    expect(rows.map((row) => row.yearId)).toEqual(['2025', '2026']);
+    const csv = formatAnalyticsYearExportCsv(rows);
+    expect(csv.startsWith('year,active_voters,votes,projects,ideas,participants,')).toBe(
+      true,
+    );
+    expect(csv).toContain('2025,8,30,11,2,22,0,5,5');
+  });
+
+  it('builds project rows with optional ready-video fields', () => {
+    const rows = buildAnalyticsProjectExportRows('2025', [
+      {
+        projectId: 'no-video',
+        projectName: 'Archive only',
+        kind: 'project',
+        groupName: 'Europe',
+        summary: 'Still useful without R2 media',
         teamMembers: ['Sam'],
-        awards: [],
-        categoryVotes: [{categoryName: 'Craft', voteCount: 1}],
+        awards: ['Craft'],
+        categoryVotes: [{categoryName: 'Craft', voteCount: 3}],
+        videoId: null,
+        originalName: null,
+        durationSeconds: null,
       },
       {
         projectId: 'top',
         projectName: 'Top project',
+        kind: 'project',
+        groupName: null,
         summary: 'A punchy demo, with commas',
-        videoId: 'video-top',
-        originalName: 'top.mp4',
-        durationSeconds: 41.5,
         teamMembers: ['Ada', 'Grace'],
         awards: ["Delight: People's choice"],
         categoryVotes: [
           {categoryName: 'Delight', voteCount: 4},
           {categoryName: 'Craft', voteCount: 2},
         ],
-      },
-      {
-        projectId: 'zero',
-        projectName: 'Zero votes',
-        summary: null,
-        videoId: 'video-zero',
-        originalName: 'zero.mp4',
-        durationSeconds: null,
-        teamMembers: [],
-        awards: [],
-        categoryVotes: [],
+        videoId: 'video-top',
+        originalName: 'top.mp4',
+        durationSeconds: 41.5,
       },
     ]);
 
     expect(rows.map((row) => [row.voteRank, row.totalVotes, row.projectId])).toEqual([
       [1, 6, 'top'],
-      [2, 1, 'low'],
-      [3, 0, 'zero'],
+      [2, 3, 'no-video'],
     ]);
     expect(rows[0]).toMatchObject({
-      projectUrl: '/years/2026/projects/top',
-      videoUrl: '/years/2026/watch/video-top',
-      teamMembers: 'Ada; Grace',
-      awards: "Delight: People's choice",
+      hasReadyVideo: true,
+      videoUrl: '/years/2025/watch/video-top',
       categoryVotes: 'Delight:4; Craft:2',
     });
+    expect(rows[1]).toMatchObject({
+      hasReadyVideo: false,
+      videoId: '',
+      videoUrl: '',
+      groupName: 'Europe',
+    });
 
-    const csv = formatAnalyticsVideoExportCsv(rows);
+    const csv = formatAnalyticsProjectExportCsv(rows);
     expect(csv.startsWith('vote_rank,total_votes,project_name,')).toBe(true);
     expect(csv).toContain('"A punchy demo, with commas"');
-    expect(csv).toContain('/years/2026/watch/video-top');
-    expect(csv).toContain(
-      '3,0,Zero votes,/years/2026/projects/zero,/years/2026/watch/video-zero,video-zero,zero.mp4,,,',
-    );
+    expect(csv).toContain(',yes,video-top,');
+    expect(csv).toContain(',no,,,');
   });
 });

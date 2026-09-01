@@ -1,31 +1,59 @@
-import type {AnalyticsVideoExportRow} from './administration';
+import type {AnalyticsProjectExportRow, AnalyticsYearExportRow} from './administration';
 
-export const ANALYTICS_VIDEO_EXPORT_HEADERS = [
+export const ANALYTICS_YEAR_EXPORT_HEADERS = [
+  'year',
+  'active_voters',
+  'votes',
+  'projects',
+  'ideas',
+  'participants',
+  'ready_videos',
+  'award_categories',
+  'awards',
+] as const;
+
+export const ANALYTICS_PROJECT_EXPORT_HEADERS = [
   'vote_rank',
   'total_votes',
   'project_name',
   'project_url',
-  'video_url',
-  'video_id',
-  'original_name',
-  'duration_seconds',
+  'kind',
+  'group_name',
   'description',
   'team_members',
   'awards',
   'category_votes',
+  'has_ready_video',
+  'video_id',
+  'video_url',
+  'original_name',
+  'duration_seconds',
 ] as const;
 
-export interface AnalyticsVideoExportSource {
+export interface AnalyticsYearExportSource {
+  yearId: string;
+  activeVoters: number;
+  voteCount: number;
+  projectCount: number;
+  ideaCount: number;
+  participantCount: number;
+  readyVideoCount: number;
+  categoryCount: number;
+  awardCount: number;
+}
+
+export interface AnalyticsProjectExportSource {
   projectId: string;
   projectName: string;
+  kind: 'project' | 'idea';
+  groupName: string | null;
   summary: string | null;
-  videoId: string;
-  originalName: string;
-  durationSeconds: number | null;
   teamMembers: string[];
   awards: string[];
-  /** category display name → vote count */
   categoryVotes: Array<{categoryName: string; voteCount: number}>;
+  videoId: string | null;
+  originalName: string | null;
+  durationSeconds: number | null;
 }
 
 /** Competition rank: ties share a rank, next rank skips (1, 2, 2, 4). */
@@ -41,10 +69,28 @@ export function assignVoteRanks<T extends {totalVotes: number}>(
   });
 }
 
-export function buildAnalyticsVideoExportRows(
+export function buildAnalyticsYearExportRows(
+  sources: AnalyticsYearExportSource[],
+): AnalyticsYearExportRow[] {
+  return [...sources]
+    .sort((left, right) => left.yearId.localeCompare(right.yearId))
+    .map((source) => ({
+      yearId: source.yearId,
+      activeVoters: source.activeVoters,
+      voteCount: source.voteCount,
+      projectCount: source.projectCount,
+      ideaCount: source.ideaCount,
+      participantCount: source.participantCount,
+      readyVideoCount: source.readyVideoCount,
+      categoryCount: source.categoryCount,
+      awardCount: source.awardCount,
+    }));
+}
+
+export function buildAnalyticsProjectExportRows(
   yearId: string,
-  sources: AnalyticsVideoExportSource[],
-): AnalyticsVideoExportRow[] {
+  sources: AnalyticsProjectExportSource[],
+): AnalyticsProjectExportRow[] {
   const sorted = [...sources]
     .map((source) => ({
       ...source,
@@ -57,47 +103,50 @@ export function buildAnalyticsVideoExportRows(
         left.projectId.localeCompare(right.projectId),
     );
 
-  return assignVoteRanks(sorted).map((source) => ({
-    voteRank: source.voteRank,
-    totalVotes: source.totalVotes,
-    projectId: source.projectId,
-    projectName: source.projectName,
-    projectUrl: `/years/${yearId}/projects/${source.projectId}`,
-    videoId: source.videoId,
-    videoUrl: `/years/${yearId}/watch/${source.videoId}`,
-    originalName: source.originalName,
-    durationSeconds: source.durationSeconds,
-    description: source.summary?.trim() || '',
-    teamMembers: source.teamMembers.join('; '),
-    awards: source.awards.join('; '),
-    categoryVotes: [...source.categoryVotes]
-      .sort(
-        (left, right) =>
-          right.voteCount - left.voteCount ||
-          left.categoryName.localeCompare(right.categoryName),
-      )
-      .map((item) => `${item.categoryName}:${item.voteCount}`)
-      .join('; '),
-  }));
+  return assignVoteRanks(sorted).map((source) => {
+    const hasReadyVideo = Boolean(source.videoId);
+    return {
+      voteRank: source.voteRank,
+      totalVotes: source.totalVotes,
+      projectId: source.projectId,
+      projectName: source.projectName,
+      projectUrl: `/years/${yearId}/projects/${source.projectId}`,
+      kind: source.kind,
+      groupName: source.groupName ?? '',
+      description: source.summary?.trim() || '',
+      teamMembers: source.teamMembers.join('; '),
+      awards: source.awards.join('; '),
+      categoryVotes: [...source.categoryVotes]
+        .sort(
+          (left, right) =>
+            right.voteCount - left.voteCount ||
+            left.categoryName.localeCompare(right.categoryName),
+        )
+        .map((item) => `${item.categoryName}:${item.voteCount}`)
+        .join('; '),
+      hasReadyVideo,
+      videoId: source.videoId ?? '',
+      videoUrl: source.videoId ? `/years/${yearId}/watch/${source.videoId}` : '',
+      originalName: source.originalName ?? '',
+      durationSeconds: source.durationSeconds,
+    };
+  });
 }
 
-export function formatAnalyticsVideoExportCsv(rows: AnalyticsVideoExportRow[]): string {
+export function formatAnalyticsYearExportCsv(rows: AnalyticsYearExportRow[]): string {
   const lines = [
-    ANALYTICS_VIDEO_EXPORT_HEADERS.join(','),
+    ANALYTICS_YEAR_EXPORT_HEADERS.join(','),
     ...rows.map((row) =>
       [
-        row.voteRank,
-        row.totalVotes,
-        row.projectName,
-        row.projectUrl,
-        row.videoUrl,
-        row.videoId,
-        row.originalName,
-        row.durationSeconds ?? '',
-        row.description,
-        row.teamMembers,
-        row.awards,
-        row.categoryVotes,
+        row.yearId,
+        row.activeVoters,
+        row.voteCount,
+        row.projectCount,
+        row.ideaCount,
+        row.participantCount,
+        row.readyVideoCount,
+        row.categoryCount,
+        row.awardCount,
       ]
         .map(escapeCsvField)
         .join(','),
@@ -106,8 +155,42 @@ export function formatAnalyticsVideoExportCsv(rows: AnalyticsVideoExportRow[]): 
   return `${lines.join('\r\n')}\r\n`;
 }
 
-export function analyticsVideoExportFilename(yearId: string) {
-  return `hackweek-${yearId}-ready-videos.csv`;
+export function formatAnalyticsProjectExportCsv(
+  rows: AnalyticsProjectExportRow[],
+): string {
+  const lines = [
+    ANALYTICS_PROJECT_EXPORT_HEADERS.join(','),
+    ...rows.map((row) =>
+      [
+        row.voteRank,
+        row.totalVotes,
+        row.projectName,
+        row.projectUrl,
+        row.kind,
+        row.groupName,
+        row.description,
+        row.teamMembers,
+        row.awards,
+        row.categoryVotes,
+        row.hasReadyVideo ? 'yes' : 'no',
+        row.videoId,
+        row.videoUrl,
+        row.originalName,
+        row.durationSeconds ?? '',
+      ]
+        .map(escapeCsvField)
+        .join(','),
+    ),
+  ];
+  return `${lines.join('\r\n')}\r\n`;
+}
+
+export function analyticsYearExportFilename() {
+  return 'hackweek-year-metrics.csv';
+}
+
+export function analyticsProjectExportFilename(yearId: string) {
+  return `hackweek-${yearId}-projects.csv`;
 }
 
 function escapeCsvField(value: string | number): string {

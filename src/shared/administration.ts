@@ -114,19 +114,35 @@ export interface AnalyticsResponse {
   voteResults: VoteResult[];
 }
 
-/** One ready-video project row for the admin analytics CSV export. */
-export interface AnalyticsVideoExportRow {
+/** One year row for the multi-year participation CSV export. */
+export interface AnalyticsYearExportRow {
+  yearId: string;
+  activeVoters: number;
+  voteCount: number;
+  projectCount: number;
+  ideaCount: number;
+  participantCount: number;
+  readyVideoCount: number;
+  categoryCount: number;
+  awardCount: number;
+}
+
+/** One project/idea row for a year-scoped analytics CSV export. */
+export interface AnalyticsProjectExportRow {
   voteRank: number;
   totalVotes: number;
   projectId: string;
   projectName: string;
   projectUrl: string;
-  videoId: string;
-  videoUrl: string;
-  originalName: string;
-  durationSeconds: number | null;
+  kind: 'project' | 'idea';
+  groupName: string;
   description: string;
   teamMembers: string;
   awards: string;
   categoryVotes: string;
+  hasReadyVideo: boolean;
+  videoId: string;
+  videoUrl: string;
+  originalName: string;
+  durationSeconds: number | null;
 }

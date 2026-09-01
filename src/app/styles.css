@@ -454,12 +454,6 @@ main {
   justify-items: start;
   align-content: end;
 }
-.analyticsExportActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  align-items: center;
-}
 .myProjects {
   margin-top: 1.5rem;
 }

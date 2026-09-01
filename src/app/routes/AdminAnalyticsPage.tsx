@@ -15,16 +15,16 @@ export function AdminAnalyticsPage() {
   const yearId = new URLSearchParams(useSearch()).get('year') ?? undefined;
   const query = useAnalytics(yearId);
   const [exportError, setExportError] = useState<string | null>(null);
-  const [exporting, setExporting] = useState<'years' | 'projects' | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const exportScope = yearId ? 'projects' : 'years';
 
-  async function downloadCsv(scope: 'years' | 'projects') {
+  async function downloadCsv() {
     if (exporting) return;
-    if (scope === 'projects' && !yearId) return;
-    setExporting(scope);
+    setExporting(true);
     setExportError(null);
     try {
       const path =
-        scope === 'years'
+        exportScope === 'years'
           ? '/api/admin/analytics/export'
           : `/api/admin/analytics/export?year=${encodeURIComponent(yearId!)}`;
       const response = await fetch(path);
@@ -34,7 +34,7 @@ export function AdminAnalyticsPage() {
       const anchor = document.createElement('a');
       anchor.href = objectUrl;
       anchor.download =
-        scope === 'years'
+        exportScope === 'years'
           ? analyticsYearExportFilename()
           : analyticsProjectExportFilename(yearId!);
       document.body.append(anchor);
@@ -48,7 +48,7 @@ export function AdminAnalyticsPage() {
           : 'Analytics CSV could not be downloaded',
       );
     } finally {
-      setExporting(null);
+      setExporting(false);
     }
   }
 
@@ -64,36 +64,23 @@ export function AdminAnalyticsPage() {
         </div>
         <div className="analyticsHeroActions">
           <p>
-            D1 computes these totals server-side. Export year metrics for retros, or a
-            year&apos;s projects (with optional ready-video fields) for ceremony and
-            harvest work.
+            D1 computes these totals server-side. Export year metrics for retros, or open
+            a year for project rows with optional ready-video fields.
           </p>
-          <div className="analyticsExportActions">
-            <button
-              type="button"
-              className="primaryAction"
-              disabled={exporting !== null || query.isLoading}
-              onClick={() => {
-                void downloadCsv('years');
-              }}
-            >
-              {exporting === 'years' ? 'Exporting…' : 'Export year metrics CSV'}
-            </button>
-            {yearId && (
-              <button
-                type="button"
-                className="textAction"
-                disabled={exporting !== null || query.isLoading}
-                onClick={() => {
-                  void downloadCsv('projects');
-                }}
-              >
-                {exporting === 'projects'
-                  ? 'Exporting…'
-                  : `Export ${yearId} projects CSV`}
-              </button>
-            )}
-          </div>
+          <button
+            type="button"
+            className="primaryAction"
+            disabled={exporting || query.isLoading}
+            onClick={() => {
+              void downloadCsv();
+            }}
+          >
+            {exporting
+              ? 'Exporting…'
+              : yearId
+                ? `Export ${yearId} projects CSV`
+                : 'Export year metrics CSV'}
+          </button>
           {exportError && <p className="formError">{exportError}</p>}
         </div>
       </header>

@@ -21,8 +21,7 @@ try {
   if (hadLocalVars) await copyFile(localVars, hiddenVars);
   if (hadLocalVars) await rm(localVars);
   for (const testFile of testFiles) {
-    const code = await run('./node_modules/.bin/vp', [
-      'test',
+    const code = await run('./node_modules/.bin/vitest', [
       'run',
       '--config',
       'vitest.config.ts',

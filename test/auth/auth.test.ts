@@ -419,7 +419,7 @@ describe('Google OAuth authorization code flow', () => {
     });
   });
 
-  it('rotates existing sessions on login while preserving D1 admin authority', async () => {
+  it('keeps existing sessions alive on login while preserving D1 admin authority', async () => {
     const oldCookie = await createSessionCookie();
     await env.DB.prepare(
       "UPDATE users SET is_admin = 1 WHERE google_subject = 'google-member'",
@@ -432,9 +432,11 @@ describe('Google OAuth authorization code flow', () => {
     const loggedIn = await callback(state);
     const newCookie = cookieToken(loggedIn.headers.get('Set-Cookie')!);
 
-    expect((await SELF.fetch(endpoint, {headers: {Cookie: oldCookie}})).status).toBe(401);
-    const session = await SELF.fetch(endpoint, {headers: {Cookie: newCookie}});
-    expect(await session.json()).toMatchObject({user: {role: 'admin'}});
+    const oldSession = await SELF.fetch(endpoint, {headers: {Cookie: oldCookie}});
+    expect(oldSession.status).toBe(200);
+    expect(await oldSession.json()).toMatchObject({user: {role: 'admin'}});
+    const newSession = await SELF.fetch(endpoint, {headers: {Cookie: newCookie}});
+    expect(await newSession.json()).toMatchObject({user: {role: 'admin'}});
   });
 });
 

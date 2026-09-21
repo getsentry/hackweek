@@ -19,7 +19,6 @@ import {
   createSession,
   randomBase64Url,
   revokeSessionByTokenHash,
-  revokeUserSessions,
   sha256Hex,
 } from '../services/sessions';
 import {refreshGoogleUserAvatar, synchronizeGoogleUser} from '../services/users';
@@ -108,7 +107,6 @@ authRoutes.get('/callback', async (c) => {
     const identity = await verifyGoogleIdToken(c.env, config, idToken, consumed.nonce);
     const user = await synchronizeGoogleUser(c.env.DB, identity);
     await refreshGoogleUserAvatar(c.env.ATTACHMENTS, user);
-    await revokeUserSessions(c.env.DB, user.id, now);
     const session = await createSession(c.env.DB, user.id, now);
     c.header('Set-Cookie', sessionCookie(session.token, config));
     return c.redirect('/');
